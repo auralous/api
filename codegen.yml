@@ -1,0 +1,18 @@
+schema: https://localhost:4000/graphql
+generates:
+  ./src/types/resolvers.gen.ts:
+    config:
+      typesPrefix: I
+      skipTypename: true
+      contextType: ./common#MyGQLContext
+      mappers:
+        User: ./db#UserDbObject
+        Track: ./db#TrackDbObject
+        Artist: ./db#ArtistDbObject
+        Room: ./db#RoomDbObject
+        QueueItem: ./db#QueueItemDbObject
+        Playlist: ./db#PlaylistDbObject
+      noSchemaStitching: true
+    plugins:
+      - typescript
+      - typescript-resolvers

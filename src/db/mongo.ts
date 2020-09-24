@@ -1,21 +1,9 @@
 import { MongoClient, Db } from "mongodb";
 import { UserDbObject, RoomDbObject, PlaylistDbObject } from "../types/db";
 
-const {
-  MONGODB_HOSTNAME,
-  MONGODB_DB,
-  MONGODB_USERNAME,
-  MONGODB_PASSWORD,
-  MONGODB_PORT,
-} = process.env;
-
-const auth = MONGODB_USERNAME ? `${MONGODB_USERNAME}:${MONGODB_PASSWORD}@` : "";
-
-const uri = `mongodb://${auth}${MONGODB_HOSTNAME}:${MONGODB_PORT}/${MONGODB_DB}`;
-
 export let db: Db;
 
-export const client = new MongoClient(uri, {
+export const client = new MongoClient(process.env.MONGODB_URI!, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 });

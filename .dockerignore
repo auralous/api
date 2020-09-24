@@ -22,4 +22,6 @@
 **/values.dev.yaml
 README.md
 **/.eslintrc.js
+**/.editorconfig
+charts/
 dist/

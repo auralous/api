@@ -1,10 +1,11 @@
 FROM node:14-alpine
-RUN apk add yarn
-WORKDIR /usr/src/app
-COPY ["package.json", "yarn.lock", "./"]
-RUN yarn
-COPY . .
-RUN yarn build
 ENV NODE_ENV production
-EXPOSE 3000
-CMD ["yarn", "start"]
+WORKDIR /usr/src/app
+# Note: npm v7 is expected to support yarn.lock
+COPY ["package.json", "yarn.lock", "./"]
+RUN npm i --production=false
+COPY . .
+RUN npm run build
+RUN npm prune --prod
+EXPOSE 4000
+CMD ["npm", "start"]

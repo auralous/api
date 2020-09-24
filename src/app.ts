@@ -8,18 +8,25 @@ import { graphqlUploadExpress } from "graphql-upload";
 import expressPlayground from "graphql-playground-middleware-express";
 import { session } from "./middleware/session";
 import appAuth from "./auth/route";
+import healthApp from "./health/route";
 import compat from "./middleware/compat";
 import { httpHandle } from "./gql";
 import { ExtendedIncomingMessage } from "./types/common";
 
 const app = nc<ExtendedIncomingMessage>();
 
+app.use("/health", healthApp);
+
+// compat
 app.use((req, res, next) => {
   const info = parser(req, true);
   req.query = info.query;
   req.path = info.pathname;
   next();
 });
+
+app.use(compat);
+
 // cors
 app.use(
   cors({
@@ -29,8 +36,6 @@ app.use(
   })
 );
 
-// patch express helpers
-app.use(compat);
 app.use(session);
 
 // passport

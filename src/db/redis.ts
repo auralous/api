@@ -4,20 +4,24 @@ const redisUrls = process.env.REDIS_URL!.split(" ");
 
 export const redis = new Redis.Cluster(redisUrls, {
   redisOptions: {
-    showFriendlyErrorStack: true,
+    showFriendlyErrorStack: process.env.NODE_ENV !== "production",
+    dropBufferSupport: true,
   },
 });
 
-export function deleteByPattern(r: Redis.Redis, pattern: string) {
+export function deleteByPattern(r: Redis.Cluster, pattern: string) {
   return r.keys(pattern).then((keys) => {
-    const pipeline = r.pipeline();
-    keys.forEach((key) => pipeline.del(key));
-    return pipeline.exec();
+    // const pipeline = r.pipeline();
+    // keys.forEach((key) => pipeline.del(key));
+    // return pipeline.exec();
+    // REDIS_CLUSTER: pipeline not work without hash tags
+    return keys.map((key) => r.unlink(key));
   });
 }
 
-export function getByPattern(r: Redis.Redis, pattern: string) {
-  return r
-    .keys(pattern)
-    .then((keys) => (keys.length > 0 ? redis.mget(keys) : []));
+export function getByPattern(r: Redis.Cluster, pattern: string) {
+  return r.keys(pattern).then((keys) =>
+    // REDIS_CLUSTER: mget not work without hash tags
+    keys.length > 0 ? Promise.all(keys.map((key) => redis.get(key))) : []
+  );
 }

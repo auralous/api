@@ -11,7 +11,8 @@ import { createServer } from "http";
 import * as WebSocket from "ws";
 import { wsHandle } from "./gql";
 import app from "./app";
-import { connect as connectMongoDB, db } from "./db/mongo";
+import { client, connect as connectMongoDB, db } from "./db/mongo";
+import { redis } from "./db/redis";
 import { NowPlayingWorker } from "./models/nowPlayingWorker";
 import { nowPlayingEE } from "./lib/emitter";
 
@@ -43,18 +44,45 @@ const wssPingPong = setInterval(() => {
 }, 30000);
 
 wss.on("close", () => clearInterval(wssPingPong));
+
+let nowPlayingWorker: NowPlayingWorker;
+
+nowPlayingEE.on("now-playing-resolve", (id) => {
+  nowPlayingWorker.addJob(id, 0);
+});
+
 (async () => {
-  await connectMongoDB();
+  try {
+    console.log("Starting API server...");
 
-  const nowPlayingWorker = new NowPlayingWorker({ db });
+    console.log("Connecting to MongoDB database");
+    await connectMongoDB();
+    console.log(`MongoDB isConnected is ${client.isConnected()}`);
 
-  nowPlayingEE.on("now-playing-resolve", (id) => {
-    nowPlayingWorker.addJob(id, 0);
-  });
+    console.log("Connecting to Redis database...");
+    if (redis.status !== "connecting") await redis.connect();
+    else
+      await new Promise((resolve, reject) => {
+        const fail = () => reject(new Error("Cannot connect to Redis"));
+        redis.on("end", fail);
+        redis.on("ready", () => {
+          redis.off("end", fail);
+          resolve();
+        });
+      });
+    console.log(`Redis status is ${redis.status}`);
 
-  nowPlayingWorker.initJobs();
+    nowPlayingWorker = new NowPlayingWorker({ db });
 
-  server.listen(port, () => {
-    console.log(`API Ready at ${process.env.API_URI}`);
-  });
+    console.log("Executing NowPlaying jobs...");
+    await nowPlayingWorker.initJobs();
+
+    server.listen(port, () => {
+      console.log(`Server Ready at ${process.env.API_URI}`);
+    });
+  } catch (e) {
+    console.error(e);
+    console.error("Could not start server! Exiting...");
+    process.exit(1);
+  }
 })();

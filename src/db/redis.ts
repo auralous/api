@@ -1,11 +1,16 @@
 import Redis from "ioredis";
+const MAXIMUM_RECONNECTION_ATTEMPT = 6;
 
 const redisUrls = process.env.REDIS_URL!.split(" ");
 
 export const redis = new Redis.Cluster(redisUrls, {
   redisOptions: {
-    showFriendlyErrorStack: process.env.NODE_ENV !== "production",
     dropBufferSupport: true,
+    lazyConnect: true,
+    retryStrategy(times) {
+      if (times > MAXIMUM_RECONNECTION_ATTEMPT) return;
+      return Math.pow(2, times) * 100;
+    },
   },
 });
 

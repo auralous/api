@@ -102,4 +102,4 @@ dist
 
 # TernJS port file
 .tern-port
-stereo/templates/secret.yaml
+charts/stereo-api/templates/secret.yaml

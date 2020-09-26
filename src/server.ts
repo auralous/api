@@ -59,17 +59,6 @@ nowPlayingEE.on("now-playing-resolve", (id) => {
     await connectMongoDB();
     console.log(`MongoDB isConnected is ${client.isConnected()}`);
 
-    console.log("Connecting to Redis database...");
-    if (redis.status !== "connecting") await redis.connect();
-    else
-      await new Promise((resolve, reject) => {
-        const fail = () => reject(new Error("Cannot connect to Redis"));
-        redis.on("end", fail);
-        redis.on("ready", () => {
-          redis.off("end", fail);
-          resolve();
-        });
-      });
     console.log(`Redis status is ${redis.status}`);
 
     nowPlayingWorker = new NowPlayingWorker({ db });

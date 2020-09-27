@@ -1,0 +1,152 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "stereo-api.fullname" . }}
+  labels:
+    {{- include "stereo-api.labels" . | nindent 4 }}
+spec:
+{{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+{{- end }}
+  selector:
+    matchLabels:
+      {{- include "stereo-api.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+    {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+    {{- end }}
+      labels:
+        {{- include "stereo-api.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "stereo-api.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            - name: API_URI
+              valueFrom:
+                configMapKeyRef:
+                  key: api-uri
+                  name: {{ .Release.Name }}-configmap
+            - name: APP_URI
+              valueFrom:
+                configMapKeyRef:
+                  key: app-uri
+                  name: {{ .Release.Name }}-configmap
+            # MongoDB
+            - name: MONGODB_URI
+              valueFrom:
+                secretKeyRef:
+                  key: mongodb-uri
+                  name: {{ .Release.Name }}-secret
+            # Redis
+            - name: REDIS_URL
+              valueFrom:
+                secretKeyRef:
+                  key: redis-url
+                  name: {{ .Release.Name }}-secret
+            # Google
+            - name: GOOGLE_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  key: google-api-key
+                  name: {{ .Release.Name }}-secret
+            - name: GOOGLE_CLIENT_KEY
+              valueFrom:
+                configMapKeyRef:
+                  key: google-client-key
+                  name: {{ .Release.Name }}-configmap
+            - name: GOOGLE_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  key: google-client-secret
+                  name: {{ .Release.Name }}-secret
+            # spotify
+            - name: SPOTIFY_CLIENT_ID
+              valueFrom:
+                configMapKeyRef:
+                  key: spotify-client-id
+                  name: {{ .Release.Name }}-configmap
+            - name: SPOTIFY_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  key: spotify-client-secret
+                  name: {{ .Release.Name }}-secret
+            # facebook
+            - name: FACEBOOK_APP_ID
+              valueFrom:
+                configMapKeyRef:
+                  key: facebook-app-id
+                  name: {{ .Release.Name }}-configmap
+            - name: FACEBOOK_APP_SECRET
+              valueFrom:
+                secretKeyRef:
+                  key: facebook-app-secret
+                  name: {{ .Release.Name }}-secret
+            # twitter
+            - name: TWITTER_CONSUMER_KEY
+              valueFrom:
+                configMapKeyRef:
+                  key: twitter-consumer-key
+                  name: {{ .Release.Name }}-configmap
+            - name: TWITTER_CONSUMER_SECRET
+              valueFrom:
+                secretKeyRef:
+                  key: twitter-consumer-secret
+                  name: {{ .Release.Name }}-secret
+            # songlink for song links across platforms
+            - name: SONGLINK_KEY
+              valueFrom:
+                secretKeyRef:
+                  key: songlink-key
+                  name: {{ .Release.Name }}-secret
+            # sentry for error reporting
+            - name: SENTRY_DSN
+              valueFrom:
+                configMapKeyRef:
+                  key: sentry-dsn
+                  name: {{ .Release.Name }}-configmap
+            # cloudinary. remove soon
+            - name: CLOUDINARY_URL
+              valueFrom:
+                secretKeyRef:
+                  key: cloudinary-url
+                  name: {{ .Release.Name }}-secret
+            - name: LOG_LEVEL
+              valueFrom:
+                configMapKeyRef:
+                  key: log-level
+                  name: {{ .Release.Name }}-configmap
+          ports:
+            - name: http
+              containerPort: {{ .Values.service.targetPort }}
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

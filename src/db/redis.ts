@@ -1,19 +1,36 @@
 import Redis from "ioredis";
+import url from "url";
+const MAXIMUM_RECONNECTION_ATTEMPT = 6;
 
-export const redis = new Redis(process.env.REDIS_URL, {
-  dropBufferSupport: true,
+const redisUrls = process.env.REDIS_URL!.split(" ");
+
+const firstRedisURL = new url.URL(redisUrls[0]);
+
+export const redis = new Redis.Cluster(redisUrls, {
+  redisOptions: {
+    dropBufferSupport: true,
+    retryStrategy(times) {
+      if (times > MAXIMUM_RECONNECTION_ATTEMPT) return;
+      return Math.pow(2, times) * 100;
+    },
+    // This must define even if ioredis automatically discover other nodes
+    ...(firstRedisURL.password && { password: firstRedisURL.password }),
+  },
 });
 
-export function deleteByPattern(r: Redis.Redis, pattern: string) {
+export function deleteByPattern(r: Redis.Cluster, pattern: string) {
   return r.keys(pattern).then((keys) => {
-    const pipeline = r.pipeline();
-    keys.forEach((key) => pipeline.del(key));
-    return pipeline.exec();
+    // const pipeline = r.pipeline();
+    // keys.forEach((key) => pipeline.del(key));
+    // return pipeline.exec();
+    // REDIS_CLUSTER: pipeline not work without hash tags
+    return keys.map((key) => r.unlink(key));
   });
 }
 
-export function getByPattern(r: Redis.Redis, pattern: string) {
-  return r
-    .keys(pattern)
-    .then((keys) => (keys.length > 0 ? redis.mget(keys) : []));
+export function getByPattern(r: Redis.Cluster, pattern: string) {
+  return r.keys(pattern).then((keys) =>
+    // REDIS_CLUSTER: mget not work without hash tags
+    keys.length > 0 ? Promise.all(keys.map((key) => redis.get(key))) : []
+  );
 }

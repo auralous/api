@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-configmap
+data:
+  api-uri: "https://api.withstereo.com"
+  app-uri: "https://withstereo.com"
+  facebook-app-id: "419592172316192"
+  google-client-key: "181988507858-5v1tlcgj1c1rm7uavj5c0m64neersasp.apps.googleusercontent.com"
+  twitter-consumer-key: "Y58IXIKBuAjKmr3eXCB9lpZy3"
+  spotify-client-id: "55450d96547c4674b5c64f4a02b0d7b5"
+  sentry-dsn: "https://b27de600449345959575cc11ab0b1898@o342935.ingest.sentry.io/2421855"
+  log-level: "info"

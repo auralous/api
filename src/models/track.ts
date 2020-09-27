@@ -54,10 +54,12 @@ export class TrackModel extends BaseModel {
   constructor(options: ModelInit) {
     super(options);
     this.loader = this.artistLoader = new DataLoader(
-      (keys) =>
-        this.context.redis
-          .mget(keys as string[])
-          .then((results) => results.map((r) => (r ? JSON.parse(r) : null))),
+      (keys) => {
+        // REDIS_CLUSTER: mget not work without hash tags
+        return Promise.all(
+          keys.map((key) => this.context.redis.get(key))
+        ).then((results) => results.map((r) => (r ? JSON.parse(r) : null)));
+      },
       { cache: !options.noCache }
     );
   }
@@ -99,7 +101,6 @@ export class TrackModel extends BaseModel {
     let track = await this.find(id);
     if (!track) {
       const [platform, externalId] = id.split(":");
-
       if (platform === "youtube") {
         track = await this.services.Service.youtube.getTrack(externalId);
       } else if (platform === "spotify") {
@@ -169,11 +170,11 @@ export class TrackModel extends BaseModel {
 
   // Artists
   private findArtist(id: string) {
-    return this.artistLoader.load(`artist:${id}`);
+    return this.artistLoader.load(REDIS_KEY.artist(id));
   }
 
   async saveArtist(id: string, artist: ArtistDbObject) {
-    const keyId = `artist:${id}`;
+    const keyId = REDIS_KEY.artist(id);
     // update cache
     this.artistLoader.prime(keyId, artist);
     // stringifyArtist also remove the extra fields
@@ -184,7 +185,6 @@ export class TrackModel extends BaseModel {
     let artist = await this.findArtist(id);
     if (!artist) {
       const [platform, externalId] = id.split(":");
-
       if (platform === "youtube")
         artist = await this.services.Service.youtube.getArtist(externalId);
       else if (platform === "spotify")

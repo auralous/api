@@ -183,7 +183,7 @@ export class RoomModel extends BaseModel {
       deleteCloudinaryImagesByPrefix(
         `users/${this.context.user._id}/rooms/${_id}`
       ),
-      deleteByPattern(this.context.redis, `room:${_id}:*`),
+      deleteByPattern(this.context.redis, `${REDIS_KEY.room(_id)}:*`),
     ]);
     return true;
   }

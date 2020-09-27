@@ -7,7 +7,7 @@ replicaCount: 1
 
 image:
   repository: "hvvo/stereo-api"
-  pullPolicy: IfNotPresent
+  pullPolicy: Always
   # Overrides the image tag whose default is the chart version.
   tag: "latest"
 
@@ -39,22 +39,28 @@ securityContext: {}
   # runAsUser: 1000
 
 service:
-  type: LoadBalancer
+  type: ClusterIP
   port: 80
   targetPort: 4000
 
 ingress:
-  enabled: false
-  annotations: {}
-    # kubernetes.io/ingress.class: nginx
-    # kubernetes.io/tls-acme: "true"
+  enabled: true
+  annotations:
+    kubernetes.io/ingress.class: contour
+    ingress.kubernetes.io/force-ssl-redirect: "true"
+    kubernetes.io/ingress.allow-http: "false"
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    kubernetes.io/tls-acme: "true"
+    projectcontour.io/websocket-routes: "/graphql"
   hosts:
-    - host: chart-example.local
-      paths: []
-  tls: []
-  #  - secretName: chart-example-tls
-  #    hosts:
-  #      - chart-example.local
+    - host: api.withstereo.com
+      paths:
+        - path: "/"
+          pathType: Prefix
+  tls:
+    - secretName: stereo-api-tls
+      hosts:
+      - api.withstereo.com
 
 resources: {}
   # We usually recommend not to specify default resources and to leave this as a conscious

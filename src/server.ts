@@ -23,7 +23,7 @@ const server = createServer(app as any);
 // subscription
 const wss = new WebSocket.Server({
   server,
-  path: "/websocket",
+  path: "/graphql",
 });
 
 wss.on("connection", wsHandle);

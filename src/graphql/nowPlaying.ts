@@ -24,6 +24,7 @@ export const typeDefs = `
     trackId: ID!
     tracks: CrossTracksWrapper!
     playedAt: DateTime!
+    endedAt: DateTime!
   }
   type NowPlaying {
     id: ID!

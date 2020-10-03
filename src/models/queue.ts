@@ -3,7 +3,7 @@ import fastJson from "fast-json-stringify";
 import { BaseModel, ModelInit } from "./base";
 import { reorder } from "../lib/utils";
 import { REDIS_KEY } from "../lib/constant";
-import { QueueItemDbObject } from "../types/db";
+import { NowPlayingItemDbObject, QueueItemDbObject } from "../types/db";
 
 const queueItemStringify = fastJson({
   title: "Queue Item",
@@ -11,11 +11,12 @@ const queueItemStringify = fastJson({
   properties: {
     id: { type: "string" },
     trackId: { type: "string" },
-    // additional props
     creatorId: { type: "string" },
+    // additional props
     playedAt: { type: "string" },
+    endedAt: { type: "string" },
   },
-  required: ["id", "trackId"],
+  required: ["id", "trackId", "creatorId"],
 });
 
 export class QueueModel extends BaseModel {
@@ -27,8 +28,10 @@ export class QueueModel extends BaseModel {
     return queueItemStringify(item);
   }
 
-  parseItem(str: string): QueueItemDbObject {
-    return JSON.parse(str);
+  parseItem(str: string): QueueItemDbObject | NowPlayingItemDbObject {
+    return JSON.parse(str, (key, value) =>
+      key === "playedAt" || key === "endedAt" ? new Date(value) : value
+    );
   }
 
   randomItemId(): string {

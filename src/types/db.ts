@@ -29,6 +29,7 @@ export interface QueueItemDbObject {
 
 export interface NowPlayingItemDbObject extends QueueItemDbObject {
   playedAt: Date;
+  endedAt: Date;
 }
 
 export interface RoomDbObject {

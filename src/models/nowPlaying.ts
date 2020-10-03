@@ -9,41 +9,27 @@ export class NowPlayingModel extends BaseModel {
     super(options);
   }
 
-  async findById(id: string): Promise<NowPlayingItemDbObject | null> {
-    return this.context.redis
-      .get(REDIS_KEY.nowPlaying(id))
-      .then((npStr) => (npStr ? JSON.parse(npStr) : null));
-  }
-
-  ttl(id: string) {
-    return this.context.redis.pttl(REDIS_KEY.nowPlaying(id));
-  }
-
-  async setById(
+  async findById(
     id: string,
-    queueItem: NowPlayingItemDbObject,
-    duration: number
-  ) {
+    showPlayed?: boolean
+  ): Promise<NowPlayingItemDbObject | null> {
+    const currTrack: NowPlayingItemDbObject | null = await this.context.redis
+      .get(REDIS_KEY.nowPlaying(id))
+      .then((npStr) =>
+        npStr
+          ? (this.services.Queue.parseItem(npStr) as NowPlayingItemDbObject)
+          : null
+      );
+    if (!currTrack) return null;
+    if (showPlayed !== true && currTrack.endedAt < new Date()) return null;
+    return currTrack;
+  }
+
+  async setById(id: string, queueItem: NowPlayingItemDbObject) {
     await this.context.redis.set(
       REDIS_KEY.nowPlaying(id),
-      this.services.Queue.stringifyItem(queueItem),
-      "PX",
-      Math.max(duration - 2000, 0)
+      this.services.Queue.stringifyItem(queueItem)
     );
-
-    this.context.pubsub.publish("NOW_PLAYING_UPDATED", {
-      nowPlayingUpdated: {
-        id,
-        currentTrack: queueItem,
-      },
-    });
-
-    this.context.pubsub.publish("NOW_PLAYING_REACTIONS_UPDATED", {
-      nowPlayingReactionsUpdated: await this._getReactionsCountAndMine(
-        id,
-        undefined
-      ),
-    });
   }
 
   async removeById(id: string) {

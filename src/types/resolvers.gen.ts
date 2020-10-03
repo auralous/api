@@ -358,6 +358,7 @@ export type INowPlayingQueueItem = {
   trackId: Scalars['ID'];
   tracks: ICrossTracksWrapper;
   playedAt: Scalars['DateTime'];
+  endedAt: Scalars['DateTime'];
 };
 
 export type INowPlaying = {
@@ -667,6 +668,7 @@ export type INowPlayingQueueItemResolvers<ContextType = MyGQLContext, ParentType
   trackId?: Resolver<IResolversTypes['ID'], ParentType, ContextType>;
   tracks?: Resolver<IResolversTypes['CrossTracksWrapper'], ParentType, ContextType>;
   playedAt?: Resolver<IResolversTypes['DateTime'], ParentType, ContextType>;
+  endedAt?: Resolver<IResolversTypes['DateTime'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType>;
 };
 

@@ -20,6 +20,10 @@ export const REDIS_KEY = {
   },
   queue(typeAndId: string) {
     const [typeFn, id] = this._getTypeAndId(typeAndId);
+    if (typeAndId.includes(":played")) {
+      // Played queue ends with :played instead of :queue
+      return `${this[typeFn](id)}:played`;
+    }
     return `${this[typeFn](id)}:queue`;
   },
   track: (platformAndId: string) => `track:${platformAndId}`,

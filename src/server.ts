@@ -15,6 +15,7 @@ import { client, connect as connectMongoDB, db } from "./db/mongo";
 import { redis } from "./db/redis";
 import { NowPlayingWorker } from "./models/nowPlayingWorker";
 import { nowPlayingEE } from "./lib/emitter";
+import pubsub from "./lib/pubsub";
 
 // http
 const port = parseInt(process.env.PORT!, 10) || 4000;
@@ -61,7 +62,7 @@ nowPlayingEE.on("now-playing-resolve", (id) => {
 
     console.log(`Redis status is ${redis.status}`);
 
-    nowPlayingWorker = new NowPlayingWorker({ db });
+    nowPlayingWorker = new NowPlayingWorker({ db, pubsub });
 
     console.log("Executing NowPlaying jobs...");
     await nowPlayingWorker.initJobs();

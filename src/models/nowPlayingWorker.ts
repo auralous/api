@@ -2,17 +2,20 @@ import { Db } from "mongodb";
 import { npLogger } from "../logger/index";
 import { buildContext } from "../graphql/context";
 import { RoomDbObject, NowPlayingItemDbObject } from "../types/db";
+import { RedisPubSub } from "graphql-redis-subscriptions";
 
 export class NowPlayingWorker {
   db: Db;
+  pubsub: RedisPubSub;
   services = buildContext({ user: null, cache: false }).services;
 
   timers: {
     [id: string]: NodeJS.Timeout;
   } = {};
 
-  constructor({ db }: { db: Db }) {
+  constructor({ db, pubsub }: { db: Db; pubsub: RedisPubSub }) {
     this.db = db;
+    this.pubsub = pubsub;
   }
 
   async initJobs() {
@@ -32,16 +35,15 @@ export class NowPlayingWorker {
   async addJob(id: string, delay: number) {
     // Cancel previous job
     clearTimeout(this.timers[id]);
+    const [type, typeId] = id.split(":");
     // Schedule new job
     this.timers[id] = setTimeout(
-      (id) => {
-        const [type, typeId] = id.split(":");
-        if (type === "room") {
-          this.resolveRoom(typeId);
-        }
+      (type: "room", typeId: string) => {
+        if (type === "room") this.resolveRoom(typeId);
       },
       delay,
-      id
+      type,
+      typeId
     );
   }
 
@@ -52,15 +54,21 @@ export class NowPlayingWorker {
 
     childLogger.debug("Start");
 
+    const now = new Date();
+
     const prevCurrentTrack = await this.services.NowPlaying.findById(
-      `room:${roomId}`
+      `room:${roomId}`,
+      true
     );
 
-    if (prevCurrentTrack) {
+    const prevPlayed = prevCurrentTrack && prevCurrentTrack.endedAt < now;
+
+    if (prevCurrentTrack && !prevPlayed) {
       // No need to execute, there is still a nowPlaying track
-      // No need to execute, there is still a nowPlaying track
-      const ttl = await this.services.NowPlaying.ttl(`room:${roomId}`);
-      const retryIn = Math.max(0, ttl);
+      const retryIn = Math.max(
+        0,
+        prevCurrentTrack.endedAt.getTime() - now.getTime()
+      );
       this.addJob(`room:${roomId}`, retryIn);
       childLogger.debug(`Existed. Try again in ${retryIn} ms`);
       return prevCurrentTrack;
@@ -68,45 +76,62 @@ export class NowPlayingWorker {
 
     const queueId = `room:${roomId}`;
     const playedQueueId = `room:${roomId}:played`;
-    const playedAt = new Date();
 
     let currentTrack: NowPlayingItemDbObject | null = null;
-    let currentTrackDuration: number | null = null;
 
     const firstTrackInQueue = await this.services.Queue.shiftItem(queueId);
 
     if (firstTrackInQueue) {
-      currentTrack = {
-        ...firstTrackInQueue,
-        playedAt,
-      };
-
       const detailNextTrack = await this.services.Track.findOrCreate(
-        currentTrack.trackId
+        firstTrackInQueue.trackId
       );
 
       if (!detailNextTrack) {
         childLogger.error(`Fail to get track. Retrying...`, {
-          trackId: currentTrack.trackId,
+          trackId: firstTrackInQueue.trackId,
         });
-        this.addJob(`room:${roomId}`, 50);
-        return null;
+        throw new Error(
+          `An error has occurred in trying to get NowPlaying track: ${firstTrackInQueue.trackId}`
+        );
       }
 
-      currentTrackDuration = detailNextTrack.duration;
+      currentTrack = {
+        ...firstTrackInQueue,
+        playedAt: now,
+        endedAt: new Date(now.getTime() + detailNextTrack.duration),
+      };
     }
 
-    if (currentTrack && currentTrackDuration) {
-      await this.services.Queue.pushItems(playedQueueId, currentTrack);
-      await this.services.NowPlaying.setById(
-        `room:${roomId}`,
-        currentTrack,
-        currentTrackDuration
-      );
+    if (currentTrack) {
+      // Push previous nowPlaying to played queue
+      if (prevCurrentTrack)
+        await this.services.Queue.pushItems(playedQueueId, prevCurrentTrack);
 
+      await this.services.NowPlaying.setById(`room:${roomId}`, currentTrack);
       // Setup future job
-      this.addJob(`room:${roomId}`, currentTrackDuration);
+      this.addJob(
+        `room:${roomId}`,
+        currentTrack.endedAt.getTime() - now.getTime()
+      );
+    } else {
+      // Cannot figure out a current track
     }
+
+    // Publish to subscription
+    this.pubsub.publish("NOW_PLAYING_UPDATED", {
+      nowPlayingUpdated: {
+        id: `room:${roomId}`,
+        currentTrack,
+      },
+    });
+
+    this.pubsub.publish("NOW_PLAYING_REACTIONS_UPDATED", {
+      nowPlayingReactionsUpdated: await this.services.NowPlaying._getReactionsCountAndMine(
+        `room:${roomId}`,
+        // Forcing to return "resetted" reactions stats
+        undefined
+      ),
+    });
 
     childLogger.debug({ currentTrack }, "Done");
 

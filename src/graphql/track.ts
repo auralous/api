@@ -11,6 +11,7 @@ export const typeDefs = `
 
   extend type Query {
     track(id: ID, uri: String): Track
+    crossTracks(id: ID!): CrossTracks
     searchTrack(platform: PlatformName!, query: String!): [Track!]!
   }
 
@@ -25,7 +26,7 @@ export const typeDefs = `
     url: String!
   }
 
-  type CrossTracksWrapper {
+  type CrossTracks {
     originalId: ID!
     youtube: Track
     spotify: Track
@@ -50,6 +51,23 @@ export const resolvers: IResolvers = {
       if (track) setCacheControl?.(CONFIG.trackMaxAge);
       return track;
     },
+    async crossTracks(
+      parent,
+      { id: originalId },
+      { services, setCacheControl }
+    ) {
+      const [youtube, spotify] = await Promise.all([
+        services.Track.findTrackFromAnotherPlatform(originalId, "youtube"),
+        services.Track.findTrackFromAnotherPlatform(originalId, "spotify"),
+      ]);
+      if (!youtube && !spotify) return null;
+      setCacheControl?.(CONFIG.crossTrackMaxAge);
+      return {
+        originalId,
+        youtube,
+        spotify,
+      };
+    },
     async searchTrack(
       parent,
       { platform, query },
@@ -65,14 +83,6 @@ export const resolvers: IResolvers = {
       return Promise.all(
         artistIds.map((artistId) => services.Track.findOrCreateArtist(artistId))
       ).then((r) => r.filter(isDefined));
-    },
-  },
-  CrossTracksWrapper: {
-    youtube({ originalId }, arsg, { services }) {
-      return services.Track.findTrackFromAnotherPlatform(originalId, "youtube");
-    },
-    spotify({ originalId }, arsg, { services }) {
-      return services.Track.findTrackFromAnotherPlatform(originalId, "spotify");
     },
   },
 };

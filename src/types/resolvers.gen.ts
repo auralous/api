@@ -30,6 +30,7 @@ export type IQuery = {
   searchRooms: Array<IRoom>;
   myPlaylists?: Maybe<Array<IPlaylist>>;
   track?: Maybe<ITrack>;
+  crossTracks?: Maybe<ICrossTracks>;
   searchTrack: Array<ITrack>;
   queue?: Maybe<IQueue>;
   nowPlaying?: Maybe<INowPlaying>;
@@ -72,6 +73,11 @@ export type IQuerySearchRoomsArgs = {
 export type IQueryTrackArgs = {
   id?: Maybe<Scalars['ID']>;
   uri?: Maybe<Scalars['String']>;
+};
+
+
+export type IQueryCrossTracksArgs = {
+  id: Scalars['ID'];
 };
 
 
@@ -298,7 +304,7 @@ export type ITrack = {
   url: Scalars['String'];
 };
 
-export type ICrossTracksWrapper = {
+export type ICrossTracks = {
   originalId: Scalars['ID'];
   youtube?: Maybe<ITrack>;
   spotify?: Maybe<ITrack>;
@@ -356,7 +362,6 @@ export enum INowPlayingReactionType {
 export type INowPlayingQueueItem = {
   id: Scalars['ID'];
   trackId: Scalars['ID'];
-  tracks: ICrossTracksWrapper;
   playedAt: Scalars['DateTime'];
   endedAt: Scalars['DateTime'];
 };
@@ -459,7 +464,7 @@ export type IResolversTypes = {
   Playlist: ResolverTypeWrapper<PlaylistDbObject>;
   PlatformName: IPlatformName;
   Track: ResolverTypeWrapper<TrackDbObject>;
-  CrossTracksWrapper: ResolverTypeWrapper<Omit<ICrossTracksWrapper, 'youtube' | 'spotify'> & { youtube?: Maybe<IResolversTypes['Track']>, spotify?: Maybe<IResolversTypes['Track']> }>;
+  CrossTracks: ResolverTypeWrapper<Omit<ICrossTracks, 'youtube' | 'spotify'> & { youtube?: Maybe<IResolversTypes['Track']>, spotify?: Maybe<IResolversTypes['Track']> }>;
   Artist: ResolverTypeWrapper<ArtistDbObject>;
   Message: ResolverTypeWrapper<IMessage>;
   MessageParticipant: ResolverTypeWrapper<IMessageParticipant>;
@@ -467,8 +472,8 @@ export type IResolversTypes = {
   QueueItem: ResolverTypeWrapper<QueueItemDbObject>;
   Queue: ResolverTypeWrapper<Omit<IQueue, 'items'> & { items: Array<IResolversTypes['QueueItem']> }>;
   NowPlayingReactionType: INowPlayingReactionType;
-  NowPlayingQueueItem: ResolverTypeWrapper<Omit<INowPlayingQueueItem, 'tracks'> & { tracks: IResolversTypes['CrossTracksWrapper'] }>;
-  NowPlaying: ResolverTypeWrapper<Omit<INowPlaying, 'currentTrack'> & { currentTrack?: Maybe<IResolversTypes['NowPlayingQueueItem']> }>;
+  NowPlayingQueueItem: ResolverTypeWrapper<INowPlayingQueueItem>;
+  NowPlaying: ResolverTypeWrapper<INowPlaying>;
   NowPlayingReaction: ResolverTypeWrapper<INowPlayingReaction>;
 };
 
@@ -490,14 +495,14 @@ export type IResolversParentTypes = {
   RoomState: IRoomState;
   Playlist: PlaylistDbObject;
   Track: TrackDbObject;
-  CrossTracksWrapper: Omit<ICrossTracksWrapper, 'youtube' | 'spotify'> & { youtube?: Maybe<IResolversParentTypes['Track']>, spotify?: Maybe<IResolversParentTypes['Track']> };
+  CrossTracks: Omit<ICrossTracks, 'youtube' | 'spotify'> & { youtube?: Maybe<IResolversParentTypes['Track']>, spotify?: Maybe<IResolversParentTypes['Track']> };
   Artist: ArtistDbObject;
   Message: IMessage;
   MessageParticipant: IMessageParticipant;
   QueueItem: QueueItemDbObject;
   Queue: Omit<IQueue, 'items'> & { items: Array<IResolversParentTypes['QueueItem']> };
-  NowPlayingQueueItem: Omit<INowPlayingQueueItem, 'tracks'> & { tracks: IResolversParentTypes['CrossTracksWrapper'] };
-  NowPlaying: Omit<INowPlaying, 'currentTrack'> & { currentTrack?: Maybe<IResolversParentTypes['NowPlayingQueueItem']> };
+  NowPlayingQueueItem: INowPlayingQueueItem;
+  NowPlaying: INowPlaying;
   NowPlayingReaction: INowPlayingReaction;
 };
 
@@ -513,6 +518,7 @@ export type IQueryResolvers<ContextType = MyGQLContext, ParentType extends IReso
   searchRooms?: Resolver<Array<IResolversTypes['Room']>, ParentType, ContextType, RequireFields<IQuerySearchRoomsArgs, 'query'>>;
   myPlaylists?: Resolver<Maybe<Array<IResolversTypes['Playlist']>>, ParentType, ContextType>;
   track?: Resolver<Maybe<IResolversTypes['Track']>, ParentType, ContextType, RequireFields<IQueryTrackArgs, never>>;
+  crossTracks?: Resolver<Maybe<IResolversTypes['CrossTracks']>, ParentType, ContextType, RequireFields<IQueryCrossTracksArgs, 'id'>>;
   searchTrack?: Resolver<Array<IResolversTypes['Track']>, ParentType, ContextType, RequireFields<IQuerySearchTrackArgs, 'platform' | 'query'>>;
   queue?: Resolver<Maybe<IResolversTypes['Queue']>, ParentType, ContextType, RequireFields<IQueryQueueArgs, 'id'>>;
   nowPlaying?: Resolver<Maybe<IResolversTypes['NowPlaying']>, ParentType, ContextType, RequireFields<IQueryNowPlayingArgs, 'id'>>;
@@ -616,7 +622,7 @@ export type ITrackResolvers<ContextType = MyGQLContext, ParentType extends IReso
   __isTypeOf?: IsTypeOfResolverFn<ParentType>;
 };
 
-export type ICrossTracksWrapperResolvers<ContextType = MyGQLContext, ParentType extends IResolversParentTypes['CrossTracksWrapper'] = IResolversParentTypes['CrossTracksWrapper']> = {
+export type ICrossTracksResolvers<ContextType = MyGQLContext, ParentType extends IResolversParentTypes['CrossTracks'] = IResolversParentTypes['CrossTracks']> = {
   originalId?: Resolver<IResolversTypes['ID'], ParentType, ContextType>;
   youtube?: Resolver<Maybe<IResolversTypes['Track']>, ParentType, ContextType>;
   spotify?: Resolver<Maybe<IResolversTypes['Track']>, ParentType, ContextType>;
@@ -666,7 +672,6 @@ export type IQueueResolvers<ContextType = MyGQLContext, ParentType extends IReso
 export type INowPlayingQueueItemResolvers<ContextType = MyGQLContext, ParentType extends IResolversParentTypes['NowPlayingQueueItem'] = IResolversParentTypes['NowPlayingQueueItem']> = {
   id?: Resolver<IResolversTypes['ID'], ParentType, ContextType>;
   trackId?: Resolver<IResolversTypes['ID'], ParentType, ContextType>;
-  tracks?: Resolver<IResolversTypes['CrossTracksWrapper'], ParentType, ContextType>;
   playedAt?: Resolver<IResolversTypes['DateTime'], ParentType, ContextType>;
   endedAt?: Resolver<IResolversTypes['DateTime'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType>;
@@ -701,7 +706,7 @@ export type IResolvers<ContextType = MyGQLContext> = {
   RoomState?: IRoomStateResolvers<ContextType>;
   Playlist?: IPlaylistResolvers<ContextType>;
   Track?: ITrackResolvers<ContextType>;
-  CrossTracksWrapper?: ICrossTracksWrapperResolvers<ContextType>;
+  CrossTracks?: ICrossTracksResolvers<ContextType>;
   Artist?: IArtistResolvers<ContextType>;
   Message?: IMessageResolvers<ContextType>;
   MessageParticipant?: IMessageParticipantResolvers<ContextType>;

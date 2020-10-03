@@ -116,13 +116,6 @@ export class TrackModel extends BaseModel {
     id: string,
     platform: PlatformName
   ): Promise<TrackDbObject | null> {
-    const cacheKey = `cache:crossPlay:${id}:${platform}`;
-    // Check the cache
-    const cacheResult = await this.context.redis.get(cacheKey);
-
-    // Found in cache
-    if (cacheResult) return this.findOrCreate(cacheResult);
-
     const [originalPlatform, externalId] = id.split(":");
 
     // Same platform, the track we are looking for is itself
@@ -142,11 +135,6 @@ export class TrackModel extends BaseModel {
 
     if (trackId) {
       const track = await this.findOrCreate(`${platform}:${trackId}`);
-      this.context.redis.setex(
-        cacheKey,
-        24 * 60 * 60,
-        `${platform}:${trackId}`
-      );
       return track;
     }
     return null;

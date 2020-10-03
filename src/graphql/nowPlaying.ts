@@ -22,7 +22,6 @@ export const typeDefs = `
   type NowPlayingQueueItem {
     id: ID!
     trackId: ID!
-    tracks: CrossTracksWrapper!
     playedAt: DateTime!
     endedAt: DateTime!
   }
@@ -88,13 +87,6 @@ export const resolvers: IResolvers = {
         (payload, variables) =>
           payload.nowPlayingReactionsUpdated.id === variables.id
       ),
-    },
-  },
-  NowPlayingQueueItem: {
-    async tracks({ trackId }) {
-      return {
-        originalId: trackId,
-      };
     },
   },
 };

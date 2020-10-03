@@ -10,32 +10,28 @@ export const typeDefs = `
   }
   extend type Query {
     nowPlaying(id: ID!): NowPlaying
-    nowPlayingReaction(id: ID!): NowPlayingReaction
+    nowPlayingReactions(id: ID!): NowPlayingReaction
   }
   extend type Mutation {
     reactNowPlaying(id: ID!, reaction: NowPlayingReactionType!): Boolean
   }
   extend type Subscription {
     nowPlayingUpdated(id: ID!): NowPlaying
-    nowPlayingReactionUpdated(id: ID!): NowPlayingReaction
+    nowPlayingReactionsUpdated(id: ID!): NowPlayingReaction
   }
   type NowPlayingQueueItem {
     id: ID!
     trackId: ID!
-    tracks: CrossTracksWrapper!
     playedAt: DateTime!
+    endedAt: DateTime!
   }
-
   type NowPlaying {
     id: ID!
     currentTrack: NowPlayingQueueItem
   }
   type NowPlayingReaction {
     id: ID!
-    reactions: NowPlayingReactionCount!
-    mine: NowPlayingReactionType
-  }
-  type NowPlayingReactionCount {
+    mine: [NowPlayingReactionType!]!
     heart: Int!
     crying: Int!
     tear_joy: Int!
@@ -47,22 +43,27 @@ export const resolvers: IResolvers = {
   Query: {
     // @ts-ignore
     async nowPlaying(parent, { id }, { services }) {
+      const currentTrack = await services.NowPlaying.findById(id);
       return {
         id,
-        currentTrack: await services.NowPlaying.findById(id),
+        currentTrack,
       };
     },
-    nowPlayingReaction(parent, { id }) {
-      return {
-        id,
-        // This will be resolved later
-        reactions: {
-          heart: 0,
-          crying: 0,
-          tear_joy: 0,
-          fire: 0,
-        },
-      };
+    async nowPlayingReactions(parent, { id }, { services }) {
+      const currentTrack = await services.NowPlaying.findById(id);
+      return currentTrack
+        ? await services.NowPlaying._getReactionsCountAndMine(
+            id,
+            currentTrack.id
+          )
+        : {
+            id,
+            mine: [],
+            [INowPlayingReactionType.Heart]: 0,
+            [INowPlayingReactionType.Crying]: 0,
+            [INowPlayingReactionType.TearJoy]: 0,
+            [INowPlayingReactionType.Fire]: 0,
+          };
     },
   },
   Mutation: {
@@ -79,40 +80,13 @@ export const resolvers: IResolvers = {
         (payload, variables) => payload.nowPlayingUpdated.id === variables.id
       ),
     },
-    nowPlayingReactionUpdated: {
+    nowPlayingReactionsUpdated: {
       subscribe: withFilter(
         (parent, args, { pubsub }) =>
-          pubsub.asyncIterator("NOW_PLAYING_REACTION_UPDATED"),
+          pubsub.asyncIterator("NOW_PLAYING_REACTIONS_UPDATED"),
         (payload, variables) =>
-          payload.nowPlayingReactionUpdated.id === variables.id
+          payload.nowPlayingReactionsUpdated.id === variables.id
       ),
-    },
-  },
-  NowPlayingReaction: {
-    reactions: async (parent, args, { services }) => {
-      const reactions: Record<INowPlayingReactionType, number> = {
-        heart: 0,
-        tear_joy: 0,
-        fire: 0,
-        crying: 0,
-      };
-      const allReactions = await services.NowPlaying.getAllReactions(parent.id);
-      if (allReactions) {
-        allReactions.forEach((reaction) =>
-          reaction ? reactions[reaction as INowPlayingReactionType]++ : null
-        );
-      }
-      return reactions;
-    },
-    mine: (parent, args, { services }) => {
-      return services.NowPlaying.getReactionByMe(parent.id);
-    },
-  },
-  NowPlayingQueueItem: {
-    async tracks({ trackId }) {
-      return {
-        originalId: trackId,
-      };
     },
   },
 };

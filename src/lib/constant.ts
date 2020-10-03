@@ -14,16 +14,16 @@ export const REDIS_KEY = {
     const [typeFn, id] = this._getTypeAndId(typeAndId);
     return `${this[typeFn](id)}:playing`;
   },
-  nowPlayingReaction(
-    typeAndId: string,
-    currQueueItemId: string,
-    userId: string | "*"
-  ) {
+  nowPlayingReaction(typeAndId: string, currQueueItemId: string) {
     const [typeFn, id] = this._getTypeAndId(typeAndId);
-    return `${this[typeFn](id)}:reactions:${currQueueItemId}:${userId}`;
+    return `${this[typeFn](id)}:reactions:${currQueueItemId}`;
   },
   queue(typeAndId: string) {
     const [typeFn, id] = this._getTypeAndId(typeAndId);
+    if (typeAndId.includes(":played")) {
+      // Played queue ends with :played instead of :queue
+      return `${this[typeFn](id)}:played`;
+    }
     return `${this[typeFn](id)}:queue`;
   },
   track: (platformAndId: string) => `track:${platformAndId}`,
@@ -32,6 +32,7 @@ export const REDIS_KEY = {
 
 export const CONFIG = {
   trackMaxAge: 7 * 24 * 60 * 60, // sec
+  crossTrackMaxAge: 3 * 24 * 60 * 60,
   userMaxAge: 4 * 60 * 60,
   searchMaxAge: 2 * 60 * 60,
   randomRoomsMaxAge: 10 * 60,

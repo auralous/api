@@ -27,10 +27,3 @@ export function deleteByPattern(r: Redis.Cluster, pattern: string) {
     return keys.map((key) => r.unlink(key));
   });
 }
-
-export function getByPattern(r: Redis.Cluster, pattern: string) {
-  return r.keys(pattern).then((keys) =>
-    // REDIS_CLUSTER: mget not work without hash tags
-    keys.length > 0 ? Promise.all(keys.map((key) => redis.get(key))) : []
-  );
-}

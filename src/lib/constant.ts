@@ -14,13 +14,9 @@ export const REDIS_KEY = {
     const [typeFn, id] = this._getTypeAndId(typeAndId);
     return `${this[typeFn](id)}:playing`;
   },
-  nowPlayingReaction(
-    typeAndId: string,
-    currQueueItemId: string,
-    userId: string | "*"
-  ) {
+  nowPlayingReaction(typeAndId: string, currQueueItemId: string) {
     const [typeFn, id] = this._getTypeAndId(typeAndId);
-    return `${this[typeFn](id)}:reactions:${currQueueItemId}:${userId}`;
+    return `${this[typeFn](id)}:reactions:${currQueueItemId}`;
   },
   queue(typeAndId: string) {
     const [typeFn, id] = this._getTypeAndId(typeAndId);

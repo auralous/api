@@ -33,7 +33,7 @@ export type IQuery = {
   searchTrack: Array<ITrack>;
   queue?: Maybe<IQueue>;
   nowPlaying?: Maybe<INowPlaying>;
-  nowPlayingReaction?: Maybe<INowPlayingReaction>;
+  nowPlayingReactions?: Maybe<INowPlayingReaction>;
 };
 
 
@@ -91,7 +91,7 @@ export type IQueryNowPlayingArgs = {
 };
 
 
-export type IQueryNowPlayingReactionArgs = {
+export type IQueryNowPlayingReactionsArgs = {
   id: Scalars['ID'];
 };
 
@@ -193,7 +193,7 @@ export type ISubscription = {
   messageAdded: IMessage;
   queueUpdated: IQueue;
   nowPlayingUpdated?: Maybe<INowPlaying>;
-  nowPlayingReactionUpdated?: Maybe<INowPlayingReaction>;
+  nowPlayingReactionsUpdated?: Maybe<INowPlayingReaction>;
 };
 
 
@@ -217,7 +217,7 @@ export type ISubscriptionNowPlayingUpdatedArgs = {
 };
 
 
-export type ISubscriptionNowPlayingReactionUpdatedArgs = {
+export type ISubscriptionNowPlayingReactionsUpdatedArgs = {
   id: Scalars['ID'];
 };
 
@@ -367,11 +367,7 @@ export type INowPlaying = {
 
 export type INowPlayingReaction = {
   id: Scalars['ID'];
-  reactions: INowPlayingReactionCount;
-  mine?: Maybe<INowPlayingReactionType>;
-};
-
-export type INowPlayingReactionCount = {
+  mine: Array<INowPlayingReactionType>;
   heart: Scalars['Int'];
   crying: Scalars['Int'];
   tear_joy: Scalars['Int'];
@@ -473,7 +469,6 @@ export type IResolversTypes = {
   NowPlayingQueueItem: ResolverTypeWrapper<Omit<INowPlayingQueueItem, 'tracks'> & { tracks: IResolversTypes['CrossTracksWrapper'] }>;
   NowPlaying: ResolverTypeWrapper<Omit<INowPlaying, 'currentTrack'> & { currentTrack?: Maybe<IResolversTypes['NowPlayingQueueItem']> }>;
   NowPlayingReaction: ResolverTypeWrapper<INowPlayingReaction>;
-  NowPlayingReactionCount: ResolverTypeWrapper<INowPlayingReactionCount>;
 };
 
 /** Mapping between all available schema types and the resolvers parents */
@@ -503,7 +498,6 @@ export type IResolversParentTypes = {
   NowPlayingQueueItem: Omit<INowPlayingQueueItem, 'tracks'> & { tracks: IResolversParentTypes['CrossTracksWrapper'] };
   NowPlaying: Omit<INowPlaying, 'currentTrack'> & { currentTrack?: Maybe<IResolversParentTypes['NowPlayingQueueItem']> };
   NowPlayingReaction: INowPlayingReaction;
-  NowPlayingReactionCount: INowPlayingReactionCount;
 };
 
 export type IQueryResolvers<ContextType = MyGQLContext, ParentType extends IResolversParentTypes['Query'] = IResolversParentTypes['Query']> = {
@@ -521,7 +515,7 @@ export type IQueryResolvers<ContextType = MyGQLContext, ParentType extends IReso
   searchTrack?: Resolver<Array<IResolversTypes['Track']>, ParentType, ContextType, RequireFields<IQuerySearchTrackArgs, 'platform' | 'query'>>;
   queue?: Resolver<Maybe<IResolversTypes['Queue']>, ParentType, ContextType, RequireFields<IQueryQueueArgs, 'id'>>;
   nowPlaying?: Resolver<Maybe<IResolversTypes['NowPlaying']>, ParentType, ContextType, RequireFields<IQueryNowPlayingArgs, 'id'>>;
-  nowPlayingReaction?: Resolver<Maybe<IResolversTypes['NowPlayingReaction']>, ParentType, ContextType, RequireFields<IQueryNowPlayingReactionArgs, 'id'>>;
+  nowPlayingReactions?: Resolver<Maybe<IResolversTypes['NowPlayingReaction']>, ParentType, ContextType, RequireFields<IQueryNowPlayingReactionsArgs, 'id'>>;
 };
 
 export type IMutationResolvers<ContextType = MyGQLContext, ParentType extends IResolversParentTypes['Mutation'] = IResolversParentTypes['Mutation']> = {
@@ -546,7 +540,7 @@ export type ISubscriptionResolvers<ContextType = MyGQLContext, ParentType extend
   messageAdded?: SubscriptionResolver<IResolversTypes['Message'], "messageAdded", ParentType, ContextType, RequireFields<ISubscriptionMessageAddedArgs, 'roomId'>>;
   queueUpdated?: SubscriptionResolver<IResolversTypes['Queue'], "queueUpdated", ParentType, ContextType, RequireFields<ISubscriptionQueueUpdatedArgs, 'id'>>;
   nowPlayingUpdated?: SubscriptionResolver<Maybe<IResolversTypes['NowPlaying']>, "nowPlayingUpdated", ParentType, ContextType, RequireFields<ISubscriptionNowPlayingUpdatedArgs, 'id'>>;
-  nowPlayingReactionUpdated?: SubscriptionResolver<Maybe<IResolversTypes['NowPlayingReaction']>, "nowPlayingReactionUpdated", ParentType, ContextType, RequireFields<ISubscriptionNowPlayingReactionUpdatedArgs, 'id'>>;
+  nowPlayingReactionsUpdated?: SubscriptionResolver<Maybe<IResolversTypes['NowPlayingReaction']>, "nowPlayingReactionsUpdated", ParentType, ContextType, RequireFields<ISubscriptionNowPlayingReactionsUpdatedArgs, 'id'>>;
 };
 
 export interface IDateTimeScalarConfig extends GraphQLScalarTypeConfig<IResolversTypes['DateTime'], any> {
@@ -684,12 +678,7 @@ export type INowPlayingResolvers<ContextType = MyGQLContext, ParentType extends 
 
 export type INowPlayingReactionResolvers<ContextType = MyGQLContext, ParentType extends IResolversParentTypes['NowPlayingReaction'] = IResolversParentTypes['NowPlayingReaction']> = {
   id?: Resolver<IResolversTypes['ID'], ParentType, ContextType>;
-  reactions?: Resolver<IResolversTypes['NowPlayingReactionCount'], ParentType, ContextType>;
-  mine?: Resolver<Maybe<IResolversTypes['NowPlayingReactionType']>, ParentType, ContextType>;
-  __isTypeOf?: IsTypeOfResolverFn<ParentType>;
-};
-
-export type INowPlayingReactionCountResolvers<ContextType = MyGQLContext, ParentType extends IResolversParentTypes['NowPlayingReactionCount'] = IResolversParentTypes['NowPlayingReactionCount']> = {
+  mine?: Resolver<Array<IResolversTypes['NowPlayingReactionType']>, ParentType, ContextType>;
   heart?: Resolver<IResolversTypes['Int'], ParentType, ContextType>;
   crying?: Resolver<IResolversTypes['Int'], ParentType, ContextType>;
   tear_joy?: Resolver<IResolversTypes['Int'], ParentType, ContextType>;
@@ -719,7 +708,6 @@ export type IResolvers<ContextType = MyGQLContext> = {
   NowPlayingQueueItem?: INowPlayingQueueItemResolvers<ContextType>;
   NowPlaying?: INowPlayingResolvers<ContextType>;
   NowPlayingReaction?: INowPlayingReactionResolvers<ContextType>;
-  NowPlayingReactionCount?: INowPlayingReactionCountResolvers<ContextType>;
 };
 
 

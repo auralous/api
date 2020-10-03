@@ -85,11 +85,11 @@ helm upgrade --install mongo-s bitnami/mongodb --set architecture="replicaset" -
 Make sure to replace `mongo-s` in the following commands to the actual one if you use a different name or `--generate-name`. `mongo-s` is also hard coded in several other places, so make sure to update them.
 
 ```bash
-#To get the root password run:
+# To get the root password run:
 export MONGODB_ROOT_PASSWORD=$(kubectl get secret --namespace default mongo-s-mongodb -o jsonpath="{.data.mongodb-root-password}" | base64 --decode)
 # echo $MONGODB_ROOT_PASSWORD
 
-#To connect to your database, create a MongoDB client container:
+# To connect to your database, create a MongoDB client container:
 kubectl run --namespace default mongo-s-mongodb-client --rm --tty -i --restart='Never' --env MONGODB_ROOT_PASSWORD=$MONGODB_ROOT_PASSWORD --image docker.io/bitnami/mongodb:4.4.1-debian-10-r13 --command -- bash
 
 mongo admin --host "mongo-s-mongodb-0.mongo-s-mongodb-headless.default.svc.cluster.local,mongo-s-mongodb-1.mongo-s-mongodb-headless.default.svc.cluster.local,mongo-s-mongodb-2.mongo-s-mongodb-headless.default.svc.cluster.local" --authenticationDatabase admin -u root -p $MONGODB_ROOT_PASSWORD
@@ -130,16 +130,16 @@ export REDIS_PASSWORD=$(kubectl get secret --namespace default redis-cluster-s -
 
 # 1. Run a Redis pod that you can use as a client:
 kubectl run --namespace default redis-cluster-s-client --rm --tty -i --restart='Never' \
-   --env REDIS_PASSWORD=$REDIS_PASSWORD \--labels="redis-cluster-s-client=true" \
-   --image docker.io/bitnami/redis:6.0.8-debian-10-r0 -- bash
+  --env REDIS_PASSWORD=$REDIS_PASSWORD \
+  --image docker.io/bitnami/redis-cluster:6.0.8-debian-10-r11 -- bash
 
 # 2. Connect using the Redis CLI:
-redis-cli -h redis-cluster-s.default.svc.cluster.local -a $REDIS_PASSWORD
+redis-cli -c -h redis-cluster-s -a $REDIS_PASSWORD
 
 # To connect to your database from outside the cluster execute the following commands:
+kubectl port-forward --namespace default svc/redis-cluster-s 6379:6379
 
-kubectl port-forward --namespace default svc/redis-cluster-s-master 6379:6379 &
-redis-cli -h 127.0.0.1 -p 6379 -a $REDIS_PASSWORD#
+redis-cli -h 127.0.0.1 -p 6379 -a $REDIS_PASSWORD
 ```
 
 ### API Application
@@ -188,9 +188,6 @@ If `stereo-api` was not deployed as `type=LoadBalancer`, you need an Kubernetes 
 ```bash
 # Install Contour
 kubectl apply -f https://projectcontour.io/quickstart/contour.yaml
-
-# Get Contour external address
-kubectl get -n projectcontour service envoy -o wide
 ```
 
 In [values.yaml](charts/stereo-api/values.yaml), change the value of ingress.hosts[0].host to your domain.
@@ -204,9 +201,17 @@ kubectl get -n projectcontour service envoy -o wide
 
 #### HTTPS
 
-[jetstack/cert-manager helm chart](https://hub.helm.sh/charts/jetstack/cert-manager) can be used to install `cert-manager`. Follow their installation instruction and run:
+[jetstack/cert-manager helm chart](https://hub.helm.sh/charts/jetstack/cert-manager) can be used to install `cert-manager`.
 
 ```bash
+kubectl apply --validate=false -f https://github.com/jetstack/cert-manager/releases/download/v1.0.2/cert-manager.crds.yaml
+
+## Add the Jetstack Helm repository
+helm repo add jetstack https://charts.jetstack.io
+
+## Install the cert-manager helm chart
+helm install cert-manager-s --namespace cert-manager jetstack/cert-manager --create-namespace
+
 # Make sure to set spec.acme.email
 kubectl apply -f charts/yaml/letsencrypt-prod.yaml
 ```

@@ -60,17 +60,13 @@ export const resolvers: IResolvers = {
     async meAuth(parent, args, { user, services, setCacheControl }) {
       setCacheControl?.(0, "PRIVATE");
       if (!user) return null;
-      const facebook = user.oauth.facebook
-        ? { auth: true, token: null }
-        : { auth: false };
-      const twitter = user.oauth.twitter
-        ? { auth: true, token: null }
-        : { auth: false };
+
       const [youtubeToken] = await Promise.all([
         user.oauth.youtube &&
           services.Service.youtube.oauth2Client.getAccessToken(),
         user.oauth.spotify && services.Service.spotify.initPromise,
       ]);
+
       const youtube = user.oauth.youtube
         ? { auth: true, token: youtubeToken!.token }
         : { auth: false };
@@ -83,8 +79,12 @@ export const resolvers: IResolvers = {
       else playingPlatform = IPlatformName.Youtube;
 
       return {
-        facebook,
-        twitter,
+        facebook: user.oauth.facebook
+          ? { auth: true, token: null }
+          : { auth: false },
+        twitter: user.oauth.twitter
+          ? { auth: true, token: null }
+          : { auth: false },
         youtube,
         spotify,
         playingPlatform,
@@ -125,32 +125,6 @@ export const resolvers: IResolvers = {
     id: ({ _id }) => _id,
     profilePicture({ profilePicture, username }) {
       return profilePicture || defaultAvatar("user", username);
-    },
-  },
-  UserAuthWrapper: {
-    async youtube(parent, args, { user, services }) {
-      if (!user?.oauth.youtube) return { auth: false };
-      return {
-        auth: true,
-        token: (await services.Service.youtube.oauth2Client.getAccessToken())
-          .token,
-      };
-    },
-    async spotify(parent, args, { user, services }) {
-      if (!user?.oauth.spotify) return { auth: false };
-      await services.Service.spotify.initPromise;
-      return {
-        auth: true,
-        token: services.Service.spotify.auth?.accessToken,
-      };
-    },
-    async facebook(parent, args, { user }) {
-      if (!user?.oauth.facebook) return { auth: false };
-      return { auth: true, token: null };
-    },
-    async twitter(parent, args, { user }) {
-      if (!user?.oauth.twitter) return { auth: false };
-      return { auth: true, token: null };
     },
   },
 };

@@ -26,6 +26,15 @@ export class NowPlayingModel extends BaseModel {
     return currTrack;
   }
 
+  async notifyUpdate(id: string, currentTrack: NowPlayingItemDbObject | null) {
+    this.context.pubsub.publish(PUBSUB_CHANNELS.nowPlayingUpdated, {
+      nowPlayingUpdated: {
+        id,
+        currentTrack,
+      },
+    });
+  }
+
   async requestResolve(id: string) {
     if (!(await this.findById(id)))
       return pub.publish(PUBSUB_CHANNELS.nowPlayingResolve, id);
@@ -44,6 +53,15 @@ export class NowPlayingModel extends BaseModel {
 
   // NowPlaying Reaction
   // A redis set whose items are `{userId}|{reactionType}`
+  async notifyReactionUpdate(id: string, currQueueItemId: string | undefined) {
+    this.context.pubsub.publish(PUBSUB_CHANNELS.nowPlayingReactionsUpdated, {
+      nowPlayingReactionsUpdated: await this._getReactionsCountAndMine(
+        id,
+        currQueueItemId
+      ),
+    });
+  }
+
   async reactNowPlaying(id: string, reaction: INowPlayingReactionType) {
     if (!this.context.user) throw new AuthenticationError("");
 
@@ -58,12 +76,7 @@ export class NowPlayingModel extends BaseModel {
 
     if (result) {
       // Only publish if a reaction is added
-      this.context.pubsub.publish("NOW_PLAYING_REACTIONS_UPDATED", {
-        nowPlayingReactionsUpdated: await this._getReactionsCountAndMine(
-          id,
-          currItem.id
-        ),
-      });
+      this.notifyReactionUpdate(id, currItem.id);
     }
   }
 

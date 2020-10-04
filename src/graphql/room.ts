@@ -1,6 +1,6 @@
 import { AuthenticationError, UserInputError } from "apollo-server-errors";
 import { withFilter } from "graphql-subscriptions";
-import { CONFIG } from "../lib/constant";
+import { CONFIG, PUBSUB_CHANNELS } from "../lib/constant";
 import { uploadStreamToCloudinary } from "../lib/cloudinary";
 import { defaultAvatar } from "../lib/defaultAvatar";
 import { IResolvers } from "../types/resolvers.gen";
@@ -123,7 +123,7 @@ export const resolvers: IResolvers = {
     roomStateUpdated: {
       subscribe: withFilter(
         (parent, args, { pubsub }) =>
-          pubsub.asyncIterator("ROOM_STATE_UPDATED"),
+          pubsub.asyncIterator(PUBSUB_CHANNELS.roomStateUpdated),
         (payload, variables) => payload.roomStateUpdated.id === variables.id
       ),
     },

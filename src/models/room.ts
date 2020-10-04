@@ -8,7 +8,7 @@ import {
 import { nanoid } from "nanoid";
 import { BaseModel, ModelInit } from "./base";
 import { deleteByPattern } from "../db/redis";
-import { REDIS_KEY } from "../lib/constant";
+import { PUBSUB_CHANNELS, REDIS_KEY } from "../lib/constant";
 import { deleteCloudinaryImagesByPrefix } from "../lib/cloudinary";
 import { RoomDbObject } from "../types/db";
 import { NullablePartial } from "../types/utils";
@@ -53,6 +53,12 @@ export class RoomModel extends BaseModel {
     });
     this.loader.clear(room._id).prime(room._id, room);
     return room;
+  }
+
+  notifyStateUpdate(id: string) {
+    this.context.pubsub.publish(PUBSUB_CHANNELS.roomStateUpdated, {
+      roomStateUpdated: { id },
+    });
   }
 
   findById(id: string) {
@@ -116,9 +122,7 @@ export class RoomModel extends BaseModel {
       collabs ||
       typeof anyoneCanAdd === "boolean"
     )
-      this.context.pubsub.publish("ROOM_STATE_UPDATED", {
-        roomStateUpdated: { id: _id },
-      });
+      this.notifyStateUpdate(_id);
 
     return room;
   }
@@ -162,9 +166,7 @@ export class RoomModel extends BaseModel {
     this.loader.clear(_id).prime(_id, room);
 
     // Publish
-    this.context.pubsub.publish("ROOM_STATE_UPDATED", {
-      roomStateUpdated: { id: _id },
-    });
+    this.notifyStateUpdate(_id);
 
     return room;
   }
@@ -229,9 +231,7 @@ export class RoomModel extends BaseModel {
           this.context.user._id
         );
       }
-      this.context.pubsub.publish("ROOM_STATE_UPDATED", {
-        roomStateUpdated: { id: _id },
-      });
+      this.notifyStateUpdate(_id);
     }
   }
 

@@ -2,7 +2,7 @@ import { nanoid } from "nanoid/non-secure";
 import fastJson from "fast-json-stringify";
 import { BaseModel, ModelInit } from "./base";
 import { reorder } from "../lib/utils";
-import { REDIS_KEY } from "../lib/constant";
+import { REDIS_KEY, PUBSUB_CHANNELS } from "../lib/constant";
 import { NowPlayingItemDbObject, QueueItemDbObject } from "../types/db";
 
 const queueItemStringify = fastJson({
@@ -22,6 +22,12 @@ const queueItemStringify = fastJson({
 export class QueueModel extends BaseModel {
   constructor(options: ModelInit) {
     super(options);
+  }
+
+  notifyUpdate(id: string) {
+    this.context.pubsub.publish(PUBSUB_CHANNELS.queueUpdated, {
+      queueUpdated: { id },
+    });
   }
 
   stringifyItem(item: QueueItemDbObject): string {
@@ -55,9 +61,7 @@ export class QueueModel extends BaseModel {
   async shiftItem(id: string): Promise<QueueItemDbObject | null> {
     const str = await this.context.redis.lpop(REDIS_KEY.queue(id));
     if (!str) return null;
-    this.context.pubsub.publish("QUEUE_UPDATED", {
-      queueUpdated: { id },
-    });
+    this.notifyUpdate(id);
     return this.parseItem(str);
   }
 
@@ -77,10 +81,7 @@ export class QueueModel extends BaseModel {
       REDIS_KEY.queue(id),
       ...queueItems.map(this.stringifyItem)
     );
-    if (count)
-      this.context.pubsub.publish("QUEUE_UPDATED", {
-        queueUpdated: { id },
-      });
+    if (count) this.notifyUpdate(id);
     return count;
   }
 
@@ -96,9 +97,7 @@ export class QueueModel extends BaseModel {
       REDIS_KEY.queue(id),
       reorder(allItems, origin, dest)
     );
-    this.context.pubsub.publish("QUEUE_UPDATED", {
-      queueUpdated: { id },
-    });
+    this.notifyUpdate(id);
     return count;
   }
 
@@ -111,10 +110,7 @@ export class QueueModel extends BaseModel {
       1,
       DEL_VAL
     );
-    if (count)
-      this.context.pubsub.publish("QUEUE_UPDATED", {
-        queueUpdated: { id },
-      });
+    if (count) this.notifyUpdate(id);
     return count;
   }
 

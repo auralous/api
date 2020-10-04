@@ -1,4 +1,5 @@
 import { withFilter } from "graphql-subscriptions";
+import { PUBSUB_CHANNELS } from "../lib/constant";
 import { IResolvers, INowPlayingReactionType } from "../types/resolvers.gen";
 
 export const typeDefs = `
@@ -76,14 +77,14 @@ export const resolvers: IResolvers = {
     nowPlayingUpdated: {
       subscribe: withFilter(
         (parent, args, { pubsub }) =>
-          pubsub.asyncIterator("NOW_PLAYING_UPDATED"),
+          pubsub.asyncIterator(PUBSUB_CHANNELS.nowPlayingUpdated),
         (payload, variables) => payload.nowPlayingUpdated.id === variables.id
       ),
     },
     nowPlayingReactionsUpdated: {
       subscribe: withFilter(
         (parent, args, { pubsub }) =>
-          pubsub.asyncIterator("NOW_PLAYING_REACTIONS_UPDATED"),
+          pubsub.asyncIterator(PUBSUB_CHANNELS.nowPlayingReactionsUpdated),
         (payload, variables) =>
           payload.nowPlayingReactionsUpdated.id === variables.id
       ),

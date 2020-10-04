@@ -40,4 +40,9 @@ export const CONFIG = {
 
 export const PUBSUB_CHANNELS = {
   nowPlayingResolve: "NOW_PLAYING_RESOLVE",
+  nowPlayingUpdated: "NOW_PLAYING_UPDATED",
+  nowPlayingReactionsUpdated: "NOW_PLAYING_REACTIONS_UPDATED",
+  roomStateUpdated: "ROOM_STATE_UPDATED",
+  messageAdded: "MESSAGE_ADDED",
+  queueUpdated: "QUEUE_UPDATED",
 };

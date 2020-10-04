@@ -2,20 +2,17 @@ import { Db } from "mongodb";
 import { npLogger } from "../logger/index";
 import { buildContext } from "../graphql/context";
 import { RoomDbObject, NowPlayingItemDbObject } from "../types/db";
-import { RedisPubSub } from "graphql-redis-subscriptions";
 
 export class NowPlayingWorker {
   db: Db;
-  pubsub: RedisPubSub;
   services = buildContext({ user: null, cache: false }).services;
 
   timers: {
     [id: string]: NodeJS.Timeout;
   } = {};
 
-  constructor({ db, pubsub }: { db: Db; pubsub: RedisPubSub }) {
+  constructor({ db }: { db: Db }) {
     this.db = db;
-    this.pubsub = pubsub;
   }
 
   async initJobs() {
@@ -118,20 +115,8 @@ export class NowPlayingWorker {
     }
 
     // Publish to subscription
-    this.pubsub.publish("NOW_PLAYING_UPDATED", {
-      nowPlayingUpdated: {
-        id: `room:${roomId}`,
-        currentTrack,
-      },
-    });
-
-    this.pubsub.publish("NOW_PLAYING_REACTIONS_UPDATED", {
-      nowPlayingReactionsUpdated: await this.services.NowPlaying._getReactionsCountAndMine(
-        `room:${roomId}`,
-        // Forcing to return "resetted" reactions stats
-        undefined
-      ),
-    });
+    this.services.NowPlaying.notifyUpdate(`room:${roomId}`, currentTrack);
+    this.services.NowPlaying.notifyReactionUpdate(`room:${roomId}`, undefined);
 
     childLogger.debug({ currentTrack }, "Done");
 

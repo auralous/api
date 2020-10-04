@@ -9,7 +9,7 @@ import { BaseModel, ModelContext } from "../models/base";
 import { UserDbObject } from "../types/db";
 import { redis } from "../db/redis";
 import { db } from "../db/mongo";
-import pubsub from "../lib/pubsub";
+import { pubsub } from "../lib/pubsub";
 import { MyGQLContext } from "../types/common";
 
 export function buildContext({

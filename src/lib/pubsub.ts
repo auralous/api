@@ -1,9 +1,11 @@
 import { RedisPubSub } from "graphql-redis-subscriptions";
-import { redis } from "../db/redis";
+import { createClient } from "../db/redis";
 
-const pubsub = new RedisPubSub({
-  publisher: redis,
-  subscriber: redis,
+export const pub = createClient();
+
+export const sub = createClient();
+
+export const pubsub = new RedisPubSub({
+  publisher: pub,
+  subscriber: sub,
 });
-
-export default pubsub;

@@ -15,7 +15,7 @@ import { client, connect as connectMongoDB, db } from "./db/mongo";
 import { redis } from "./db/redis";
 import { NowPlayingWorker } from "./models/nowPlayingWorker";
 import { nowPlayingEE } from "./lib/emitter";
-import pubsub from "./lib/pubsub";
+import { pubsub } from "./lib/pubsub";
 
 // http
 const port = parseInt(process.env.PORT!, 10) || 4000;

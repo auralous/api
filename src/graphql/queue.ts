@@ -4,7 +4,7 @@ import {
   UserInputError,
 } from "apollo-server-errors";
 import { withFilter } from "graphql-subscriptions";
-import { nowPlayingEE } from "../lib/emitter";
+import { REDIS_KEY } from "../lib/constant";
 import { IResolvers } from "../types/resolvers.gen";
 
 export const typeDefs = `
@@ -142,12 +142,8 @@ export const resolvers: IResolvers = {
               throw new ForbiddenError("Invalid action");
           }
 
-          // WARN: This is async on purpuse
-          services.NowPlaying.findById(`room:${room._id}`).then(
-            (np) =>
-              !np &&
-              nowPlayingEE.emit("now-playing-resolve", `room:${room._id}`)
-          );
+          // Async check if nowPlaying should be reResolved
+          services.NowPlaying.requestResolve(REDIS_KEY.room(room._id));
 
           return true;
         }

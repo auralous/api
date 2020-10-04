@@ -14,8 +14,8 @@ import app from "./app";
 import { client, connect as connectMongoDB, db } from "./db/mongo";
 import { redis } from "./db/redis";
 import { NowPlayingWorker } from "./models/nowPlayingWorker";
-import { nowPlayingEE } from "./lib/emitter";
-import { pubsub } from "./lib/pubsub";
+import { pubsub, sub } from "./lib/pubsub";
+import { PUBSUB_CHANNELS } from "./lib/constant";
 
 // http
 const port = parseInt(process.env.PORT!, 10) || 4000;
@@ -48,7 +48,9 @@ wss.on("close", () => clearInterval(wssPingPong));
 
 let nowPlayingWorker: NowPlayingWorker;
 
-nowPlayingEE.on("now-playing-resolve", (id) => {
+sub.on("message", (channel, id) => {
+  console.log(channel, id);
+  if (channel !== PUBSUB_CHANNELS.nowPlayingResolve) return;
   nowPlayingWorker.addJob(id, 0);
 });
 
@@ -62,6 +64,7 @@ nowPlayingEE.on("now-playing-resolve", (id) => {
 
     console.log(`Redis status is ${redis.status}`);
 
+    await sub.subscribe(PUBSUB_CHANNELS.nowPlayingResolve);
     nowPlayingWorker = new NowPlayingWorker({ db, pubsub });
 
     console.log("Executing NowPlaying jobs...");

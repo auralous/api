@@ -37,3 +37,7 @@ export const CONFIG = {
   searchMaxAge: 2 * 60 * 60,
   randomRoomsMaxAge: 10 * 60,
 } as const;
+
+export const PUBSUB_CHANNELS = {
+  nowPlayingResolve: "NOW_PLAYING_RESOLVE",
+};

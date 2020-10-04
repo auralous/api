@@ -1,6 +1,6 @@
 import { nanoid } from "nanoid/non-secure";
 import fastJson from "fast-json-stringify";
-import { BaseModel, ModelInit } from "./base";
+import { BaseService, ServiceInit } from "./base";
 import { reorder } from "../lib/utils";
 import { REDIS_KEY, PUBSUB_CHANNELS } from "../lib/constant";
 import { NowPlayingItemDbObject, QueueItemDbObject } from "../types/db";
@@ -19,8 +19,8 @@ const queueItemStringify = fastJson({
   required: ["id", "trackId", "creatorId"],
 });
 
-export class QueueModel extends BaseModel {
-  constructor(options: ModelInit) {
+export class QueueService extends BaseService {
+  constructor(options: ServiceInit) {
     super(options);
   }
 

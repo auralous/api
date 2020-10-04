@@ -6,7 +6,7 @@ import {
   UserInputError,
 } from "apollo-server-errors";
 import { nanoid } from "nanoid";
-import { BaseModel, ModelInit } from "./base";
+import { BaseService, ServiceInit } from "./base";
 import { deleteByPattern } from "../db/redis";
 import { PUBSUB_CHANNELS, REDIS_KEY } from "../lib/constant";
 import { deleteCloudinaryImagesByPrefix } from "../lib/cloudinary";
@@ -14,10 +14,10 @@ import { RoomDbObject } from "../types/db";
 import { NullablePartial } from "../types/utils";
 import { IRoomMembership } from "../types/resolvers.gen";
 
-export class RoomModel extends BaseModel {
+export class RoomService extends BaseService {
   private collection = this.context.db.collection<RoomDbObject>("rooms");
   private loader: DataLoader<string, RoomDbObject | null>;
-  constructor(options: ModelInit) {
+  constructor(options: ServiceInit) {
     super(options);
     this.loader = new DataLoader(
       async (keys) => {

@@ -4,7 +4,7 @@ import type { Db } from "mongodb";
 import Redis from "ioredis";
 import { UserDbObject, PlaylistDbObject } from "./db";
 import { PubSub } from "../lib/pubsub";
-import { BaseModel } from "../models/base";
+import { AllServices } from "../services/types";
 
 export type PlatformName = "youtube" | "spotify";
 
@@ -24,7 +24,7 @@ export type MyGQLContext = {
   redis: Redis.Cluster;
   pubsub: PubSub;
   user: UserDbObject | null;
-  services: BaseModel["services"];
+  services: AllServices;
   setCacheControl?: SetCachControl;
 };
 

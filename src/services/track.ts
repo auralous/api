@@ -2,7 +2,7 @@ import DataLoader from "dataloader";
 import fastJson from "fast-json-stringify";
 import fetch from "node-fetch";
 import { URL } from "url";
-import { BaseModel, ModelInit } from "./base";
+import { BaseService, ServiceInit } from "./base";
 import { REDIS_KEY } from "../lib/constant";
 import { PlatformName } from "../types/common";
 import { TrackDbObject, ArtistDbObject } from "../types/db";
@@ -48,10 +48,10 @@ const stringifyArtist = fastJson({
   required: ["id", "platform", "externalId", "name", "url", "image"],
 });
 
-export class TrackModel extends BaseModel {
+export class TrackService extends BaseService {
   private loader: DataLoader<string, TrackDbObject | null>;
   private artistLoader: DataLoader<string, ArtistDbObject | null>;
-  constructor(options: ModelInit) {
+  constructor(options: ServiceInit) {
     super(options);
     this.loader = this.artistLoader = new DataLoader(
       (keys) => {

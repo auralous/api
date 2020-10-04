@@ -13,7 +13,7 @@ import { wsHandle } from "./gql";
 import app from "./app";
 import { client, connect as connectMongoDB } from "./db/mongo";
 import { redis } from "./db/redis";
-import { NowPlayingWorker } from "./models/nowPlayingWorker";
+import { NowPlayingWorker } from "./services/nowPlayingWorker";
 import { pubsub } from "./lib/pubsub";
 
 // http

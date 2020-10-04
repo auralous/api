@@ -2,14 +2,15 @@ import { Db } from "mongodb";
 import Redis from "ioredis";
 import { PubSub } from "../lib/pubsub";
 import { UserDbObject } from "../types/db";
-import { BaseModel, ModelContext } from "./base";
-import { NowPlayingModel } from "./nowPlaying";
-import { PlaylistModel } from "./playlist";
-import { QueueModel } from "./queue";
-import { RoomModel } from "./room";
-import { ServiceModel } from "./service";
-import { TrackModel } from "./track";
-import { UserModel } from "./user";
+import { ServiceContext } from "./base";
+import { NowPlayingService } from "./nowPlaying";
+import { PlaylistService } from "./playlist";
+import { QueueService } from "./queue";
+import { RoomService } from "./room";
+import { ServiceService } from "./service";
+import { TrackService } from "./track";
+import { UserService } from "./user";
+import { AllServices } from "./types";
 
 export function buildServices(
   {
@@ -24,46 +25,46 @@ export function buildServices(
     pubsub: PubSub;
   },
   opts?: { cache?: boolean }
-): BaseModel["services"] {
+): AllServices {
   const noCache = !(opts?.cache || false);
-  const serviceContext: ModelContext = {
+  const serviceContext: ServiceContext = {
     user,
     redis,
     db,
     pubsub,
   };
-  const services: BaseModel["services"] = {} as any;
-  services.User = new UserModel({
+  const services: AllServices = {} as any;
+  services.User = new UserService({
     context: serviceContext,
     noCache,
     services,
   });
-  services.Playlist = new PlaylistModel({
+  services.Playlist = new PlaylistService({
     context: serviceContext,
     noCache,
     services,
   });
-  services.Queue = new QueueModel({
+  services.Queue = new QueueService({
     context: serviceContext,
     noCache,
     services,
   });
-  services.Room = new RoomModel({
+  services.Room = new RoomService({
     context: serviceContext,
     noCache,
     services,
   });
-  services.Track = new TrackModel({
+  services.Track = new TrackService({
     context: serviceContext,
     noCache: false,
     services,
-  }); // nothing can go wrong with TrackModel
-  services.NowPlaying = new NowPlayingModel({
+  }); // nothing can go wrong with TrackService
+  services.NowPlaying = new NowPlayingService({
     context: serviceContext,
     noCache: false,
     services,
   });
-  services.Service = new ServiceModel({
+  services.Service = new ServiceService({
     context: serviceContext,
     noCache: false,
     services,

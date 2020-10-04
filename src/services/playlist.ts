@@ -4,16 +4,16 @@ import {
   ForbiddenError,
   UserInputError,
 } from "apollo-server-errors";
-import { BaseModel, ModelInit } from "./base";
+import { BaseService, ServiceInit } from "./base";
 import { PlaylistDbObject } from "../types/db";
 import { PlatformName } from "../types/common";
 
-export class PlaylistModel extends BaseModel {
+export class PlaylistService extends BaseService {
   private collection = this.context.db.collection<PlaylistDbObject>(
     "playlists"
   );
   private loader: DataLoader<string, PlaylistDbObject | undefined>;
-  constructor(options: ModelInit) {
+  constructor(options: ServiceInit) {
     super(options);
     this.loader = new DataLoader(
       async (keys) => {

@@ -1,11 +1,11 @@
 import { AuthenticationError } from "apollo-server-errors";
-import { BaseModel, ModelInit } from "./base";
+import { BaseService, ServiceInit } from "./base";
 import { PUBSUB_CHANNELS, REDIS_KEY } from "../lib/constant";
 import { NowPlayingItemDbObject } from "../types/db";
 import { INowPlayingReactionType } from "../types/resolvers.gen";
 
-export class NowPlayingModel extends BaseModel {
-  constructor(options: ModelInit) {
+export class NowPlayingService extends BaseService {
+  constructor(options: ServiceInit) {
     super(options);
   }
 

@@ -3,7 +3,7 @@ import type Redis from "ioredis";
 import { UserDbObject } from "../types/db";
 import { PubSub } from "../lib/pubsub";
 import { MyGQLContext } from "../types/common";
-import { buildServices } from "../models/services";
+import { buildServices } from "../services/services";
 
 export function buildContext({
   db,

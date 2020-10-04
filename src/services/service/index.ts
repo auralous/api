@@ -1,11 +1,11 @@
-import { BaseModel, ModelInit } from "../../models/base";
+import { BaseService, ServiceInit } from "../base";
 import YoutubeService from "./youtube";
 import SpotifyService from "./spotify";
 
-export class ServiceModel extends BaseModel {
+export class ServiceService extends BaseService {
   youtube: YoutubeService;
   spotify: SpotifyService;
-  constructor(private init: ModelInit) {
+  constructor(private init: ServiceInit) {
     super(init);
     this.youtube = new YoutubeService(init);
     this.spotify = new SpotifyService(init);

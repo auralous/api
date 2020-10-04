@@ -3,8 +3,7 @@ import {
   ForbiddenError,
   UserInputError,
 } from "apollo-server-errors";
-import { withFilter } from "graphql-subscriptions";
-import { nowPlayingEE } from "../lib/emitter";
+import { PUBSUB_CHANNELS, REDIS_KEY } from "../lib/constant";
 import { IResolvers } from "../types/resolvers.gen";
 
 export const typeDefs = `
@@ -38,8 +37,6 @@ export const typeDefs = `
     queueUpdated(id: ID!): Queue!
   }
 `;
-
-const QUEUE_UPDATED = "QUEUE_UPDATED";
 
 export const resolvers: IResolvers = {
   Query: {
@@ -142,12 +139,8 @@ export const resolvers: IResolvers = {
               throw new ForbiddenError("Invalid action");
           }
 
-          // WARN: This is async on purpuse
-          services.NowPlaying.findById(`room:${room._id}`).then(
-            (np) =>
-              !np &&
-              nowPlayingEE.emit("now-playing-resolve", `room:${room._id}`)
-          );
+          // Async check if nowPlaying should be reResolved
+          services.NowPlaying.requestResolve(REDIS_KEY.room(room._id));
 
           return true;
         }
@@ -158,10 +151,12 @@ export const resolvers: IResolvers = {
   },
   Subscription: {
     queueUpdated: {
-      subscribe: withFilter(
-        (parent, args, { pubsub }) => pubsub.asyncIterator(QUEUE_UPDATED),
-        (payload, variables) => payload.queueUpdated.id === variables.id
-      ),
+      subscribe(parent, { id }, { pubsub }) {
+        return pubsub.on(
+          PUBSUB_CHANNELS.queueUpdated,
+          (payload) => payload.queueUpdated.id === id
+        );
+      },
     },
   },
   Queue: {

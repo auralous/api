@@ -10,15 +10,15 @@ import slug from "slug";
 // @ts-ignore
 import { hri } from "human-readable-ids";
 import { deleteCloudinaryImagesByPrefix } from "../lib/cloudinary";
-import { BaseModel, ModelInit } from "./base";
+import { BaseService, ServiceInit } from "./base";
 import { UserDbObject, UserOauthProvider } from "../types/db";
 import { OAuthProviderName } from "../types/common";
 import { NullablePartial } from "../types/utils";
 
-export class UserModel extends BaseModel {
+export class UserService extends BaseService {
   private collection = this.context.db.collection<UserDbObject>("users");
   private loader: DataLoader<string, UserDbObject | null>;
-  constructor(options: ModelInit) {
+  constructor(options: ServiceInit) {
     super(options);
     this.loader = new DataLoader(
       async (keys) => {
@@ -32,7 +32,7 @@ export class UserModel extends BaseModel {
             null
         );
       },
-      { cache: !options.noCache }
+      { cache: options.cache }
     );
   }
 

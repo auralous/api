@@ -33,4 +33,5 @@ export async function connect() {
   }
   db = client.db();
   if (!indexApplied) applyIndex();
+  return db;
 }

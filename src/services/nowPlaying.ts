@@ -1,11 +1,11 @@
 import { AuthenticationError } from "apollo-server-errors";
-import { BaseModel, ModelInit } from "./base";
-import { REDIS_KEY } from "../lib/constant";
+import { BaseService, ServiceInit } from "./base";
+import { PUBSUB_CHANNELS, REDIS_KEY } from "../lib/constant";
 import { NowPlayingItemDbObject } from "../types/db";
 import { INowPlayingReactionType } from "../types/resolvers.gen";
 
-export class NowPlayingModel extends BaseModel {
-  constructor(options: ModelInit) {
+export class NowPlayingService extends BaseService {
+  constructor(options: ServiceInit) {
     super(options);
   }
 
@@ -25,6 +25,23 @@ export class NowPlayingModel extends BaseModel {
     return currTrack;
   }
 
+  async notifyUpdate(id: string, currentTrack: NowPlayingItemDbObject | null) {
+    this.context.pubsub.publish(PUBSUB_CHANNELS.nowPlayingUpdated, {
+      nowPlayingUpdated: {
+        id,
+        currentTrack,
+      },
+    });
+  }
+
+  async requestResolve(id: string) {
+    if (!(await this.findById(id)))
+      return this.context.pubsub.pub.publish(
+        PUBSUB_CHANNELS.nowPlayingResolve,
+        id
+      );
+  }
+
   async setById(id: string, queueItem: NowPlayingItemDbObject) {
     await this.context.redis.set(
       REDIS_KEY.nowPlaying(id),
@@ -38,6 +55,15 @@ export class NowPlayingModel extends BaseModel {
 
   // NowPlaying Reaction
   // A redis set whose items are `{userId}|{reactionType}`
+  async notifyReactionUpdate(id: string, currQueueItemId: string | undefined) {
+    this.context.pubsub.publish(PUBSUB_CHANNELS.nowPlayingReactionsUpdated, {
+      nowPlayingReactionsUpdated: await this._getReactionsCountAndMine(
+        id,
+        currQueueItemId
+      ),
+    });
+  }
+
   async reactNowPlaying(id: string, reaction: INowPlayingReactionType) {
     if (!this.context.user) throw new AuthenticationError("");
 
@@ -52,12 +78,7 @@ export class NowPlayingModel extends BaseModel {
 
     if (result) {
       // Only publish if a reaction is added
-      this.context.pubsub.publish("NOW_PLAYING_REACTIONS_UPDATED", {
-        nowPlayingReactionsUpdated: await this._getReactionsCountAndMine(
-          id,
-          currItem.id
-        ),
-      });
+      this.notifyReactionUpdate(id, currItem.id);
     }
   }
 

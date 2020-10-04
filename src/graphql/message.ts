@@ -1,7 +1,7 @@
-import { withFilter } from "graphql-subscriptions";
 import { nanoid } from "nanoid/non-secure";
 import { AuthenticationError } from "apollo-server-errors";
 import { IResolvers } from "../types/resolvers.gen";
+import { PUBSUB_CHANNELS } from "../lib/constant";
 
 export const typeDefs = `
   extend type Mutation {
@@ -28,15 +28,15 @@ export const typeDefs = `
   }
 `;
 
-const MESSAGE_ADDED = "MESSAGE_ADDED";
-
 export const resolvers: IResolvers = {
   Subscription: {
     messageAdded: {
-      subscribe: withFilter(
-        (parent, args, { pubsub }) => pubsub.asyncIterator(MESSAGE_ADDED),
-        (payload, variables) => payload.messageAdded.roomId === variables.roomId
-      ),
+      subscribe(parent, { roomId }, { pubsub }) {
+        return pubsub.on(
+          PUBSUB_CHANNELS.messageAdded,
+          (payload) => payload.messageAdded.roomId === roomId
+        );
+      },
     },
   },
   Message: {
@@ -72,11 +72,9 @@ export const resolvers: IResolvers = {
           id: user._id,
         },
       };
-
-      pubsub.publish(MESSAGE_ADDED, {
+      pubsub.publish(PUBSUB_CHANNELS.messageAdded, {
         messageAdded,
       });
-
       return true;
     },
   },

@@ -1,10 +1,10 @@
-import { IncomingMessage } from "http";
+import type { IncomingMessage } from "http";
 import type { SessionData } from "next-session";
-import { Db } from "mongodb";
+import type { Db } from "mongodb";
 import Redis from "ioredis";
-import { RedisPubSub } from "graphql-redis-subscriptions";
 import { UserDbObject, PlaylistDbObject } from "./db";
-import { BaseModel } from "../models/base";
+import { PubSub } from "../lib/pubsub";
+import { AllServices } from "../services/types";
 
 export type PlatformName = "youtube" | "spotify";
 
@@ -22,9 +22,9 @@ export type ExtendedIncomingMessage = IncomingMessage & {
 export type MyGQLContext = {
   db: Db;
   redis: Redis.Cluster;
-  pubsub: RedisPubSub;
+  pubsub: PubSub;
   user: UserDbObject | null;
-  services: BaseModel["services"];
+  services: AllServices;
   setCacheControl?: SetCachControl;
 };
 

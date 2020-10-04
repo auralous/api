@@ -7,8 +7,11 @@ import { Strategy as FacebookStrategy } from "passport-facebook";
 import { Strategy as TwitterStrategy } from "passport-twitter";
 // @ts-ignore
 import { Strategy as SpotifyStrategy } from "passport-spotify";
-import { buildContext } from "../graphql/context";
+import { db } from "../db/mongo";
+import { redis } from "../db/redis";
+import { pubsub } from "../lib/pubsub";
 import { UserDbObject } from "../types/db";
+import { buildServices } from "../services/services";
 import { OAuthProviderName, ExtendedIncomingMessage } from "../types/common";
 
 function authCallback(
@@ -37,7 +40,10 @@ function authCallback(
     refreshToken: token2,
   };
 
-  const { services } = buildContext({ user: req.user || null, cache: false });
+  const services = buildServices(
+    { user: req.user || null, db, redis, pubsub },
+    { cache: false }
+  );
 
   if (req.user) {
     // Logged in. Associate account with user
@@ -74,7 +80,10 @@ passport.serializeUser((user: UserDbObject, done) => {
 });
 
 passport.deserializeUser((id: string, done) => {
-  const { services } = buildContext({ user: null, cache: false });
+  const services = buildServices(
+    { user: null, db, redis, pubsub },
+    { cache: false }
+  );
   services.User.findById(id).then((user) => done(null, user || null));
 });
 

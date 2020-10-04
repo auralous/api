@@ -1,6 +1,6 @@
 import fetch from "node-fetch";
 import { AuthenticationError } from "apollo-server-errors";
-import { BaseModel, ModelInit } from "../../models/base";
+import { ServiceInit } from "../base";
 import {
   UserOauthProvider,
   TrackDbObject,
@@ -8,6 +8,7 @@ import {
   PlaylistDbObject,
 } from "../../types/db";
 import { ExternalPlaylistResponse } from "../../types/common";
+import { AllServices } from "../types";
 /// <reference path="spotify-api" />
 
 const BASE_URL = "https://api.spotify.com/v1";
@@ -65,7 +66,7 @@ function parseTrack(result: SpotifyApi.TrackObjectFull): TrackDbObject {
 
 async function checkTokenAndRefresh(
   serv: SpotifyService,
-  services: BaseModel["services"]
+  services: AllServices
 ) {
   if (!serv.auth) return;
   const response = await fetch(
@@ -106,10 +107,10 @@ async function checkTokenAndRefresh(
 export default class SpotifyService {
   auth: UserOauthProvider<"spotify"> | null = null;
   BASE_URL = "https://api.spotify.com/v1";
-  services: BaseModel["services"];
+  services: AllServices;
   initPromise: Promise<void>;
 
-  constructor(options: ModelInit) {
+  constructor(options: ServiceInit) {
     this.services = options.services;
     this.auth = options.context.user?.oauth["spotify"] || null;
     this.initPromise = checkTokenAndRefresh(this, options.services);

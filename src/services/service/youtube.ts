@@ -1,8 +1,8 @@
 import { google } from "googleapis";
 import fetch from "node-fetch";
 import { AuthenticationError, ForbiddenError } from "apollo-server-errors";
-import { TrackModel } from "../../models/track";
-import { BaseModel, ModelInit } from "../../models/base";
+import { TrackService } from "../track";
+import { ServiceInit } from "../base";
 import { isDefined } from "../../lib/utils";
 import { MAX_TRACK_DURATION } from "../../lib/constant";
 import {
@@ -11,6 +11,7 @@ import {
   PlaylistDbObject,
 } from "../../types/db";
 import { ExternalPlaylistResponse } from "../../types/common";
+import { AllServices } from "../types";
 
 function parseDurationToMs(str: string) {
   let miliseconds = 0;
@@ -88,9 +89,9 @@ export default class YoutubeService {
     version: "v3",
     auth: this.oauth2Client,
   });
-  services: BaseModel["services"];
+  services: AllServices;
   private authId?: string;
-  constructor(options: ModelInit) {
+  constructor(options: ServiceInit) {
     this.services = options.services;
     if (options.context.user) {
       const googleProvider = options.context.user.oauth.youtube;
@@ -276,7 +277,7 @@ export default class YoutubeService {
 
   async searchTracks(
     searchQuery: string,
-    { Track }: { Track: TrackModel }
+    { Track }: { Track: TrackService }
   ): Promise<TrackDbObject[]> {
     // Using unofficial YTMusic API
     const filterParams = {

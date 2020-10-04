@@ -10,6 +10,8 @@ import { buildContext } from "./graphql/context";
 import schema from "./graphql/schema";
 import { applySession } from "./middleware/session";
 import { db } from "./db/mongo";
+import { redis } from "./db/redis";
+import { pubsub } from "./lib/pubsub";
 import { ExtendedIncomingMessage, MyGQLContext } from "./types/common";
 import { UserDbObject } from "./types/db";
 
@@ -45,7 +47,13 @@ const GQL = new GraphQL({
 
 export const httpHandle = httpHandler(GQL, {
   context: (req: ExtendedIncomingMessage): MyGQLContext => {
-    const ctx = buildContext({ user: req.user || null, cache: true });
+    const ctx = buildContext({
+      user: req.user || null,
+      cache: true,
+      db,
+      redis,
+      pubsub,
+    });
     (ctx as any).setCacheControl = req.setCacheControl;
     return ctx;
   },
@@ -64,7 +72,7 @@ export const wsHandle = wsHandler(GQL, {
       ? await db.collection<UserDbObject>("users").findOne({ _id })
       : null;
     // Since context only run once, cache will likely to be invalid
-    const ctx = buildContext({ cache: false, user });
+    const ctx = buildContext({ cache: false, user, db, redis, pubsub });
     // setCacheControl is irrelavant in ws
     ctx.setCacheControl = () => undefined;
     return ctx;

@@ -1,66 +1,28 @@
-import { UserModel } from "../models/user";
-import { PlaylistModel } from "../models/playlist";
-import { QueueModel } from "../models/queue";
-import { RoomModel } from "../models/room";
-import { TrackModel } from "../models/track";
-import { NowPlayingModel } from "../models/nowPlaying";
-import { ServiceModel } from "../models/service";
-import { BaseModel, ModelContext } from "../models/base";
+import type { Db } from "mongodb";
+import type Redis from "ioredis";
 import { UserDbObject } from "../types/db";
-import { redis } from "../db/redis";
-import { db } from "../db/mongo";
-import { pubsub, pub } from "../lib/pubsub";
+import { PubSub } from "../lib/pubsub";
 import { MyGQLContext } from "../types/common";
+import { buildServices } from "../models/services";
 
 export function buildContext({
+  db,
+  redis,
+  pubsub,
   user,
   cache,
 }: {
+  db: Db;
+  redis: Redis.Cluster;
   user: UserDbObject | null;
+  pubsub: PubSub;
   cache: boolean;
 }): MyGQLContext {
-  const serviceContext: ModelContext = {
-    user,
-    redis,
-    db,
-    pubsub,
-    pub,
-  };
-  const noCache = !cache;
-  const services: BaseModel["services"] = {} as any;
-  services.User = new UserModel({ context: serviceContext, noCache, services });
-  services.Playlist = new PlaylistModel({
-    context: serviceContext,
-    noCache,
-    services,
-  });
-  services.Queue = new QueueModel({
-    context: serviceContext,
-    noCache,
-    services,
-  });
-  services.Room = new RoomModel({ context: serviceContext, noCache, services });
-  services.Track = new TrackModel({
-    context: serviceContext,
-    noCache: false,
-    services,
-  }); // nothing can go wrong with TrackModel
-  services.NowPlaying = new NowPlayingModel({
-    context: serviceContext,
-    noCache: false,
-    services,
-  });
-  services.Service = new ServiceModel({
-    context: serviceContext,
-    noCache: false,
-    services,
-  });
   return {
     user,
     redis,
     db,
     pubsub,
-    pub,
-    services,
+    services: buildServices({ db, redis, pubsub, user }, { cache }),
   };
 }

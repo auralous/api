@@ -15,7 +15,7 @@ export interface ModelInit {
   noCache: boolean;
 }
 
-export abstract class BaseModel {
+export class BaseModel {
   public context: ModelContext;
   public services: {
     NowPlaying: NowPlayingModel;

@@ -1,25 +1,36 @@
-import { Db } from "mongodb";
+import type { Db } from "mongodb";
+import type Redis from "ioredis";
 import { npLogger } from "../logger/index";
-import { buildContext } from "../graphql/context";
+import { buildServices } from "./services";
 import { RoomDbObject, NowPlayingItemDbObject } from "../types/db";
+import { PUBSUB_CHANNELS } from "../lib/constant";
+import type { PubSub } from "../lib/pubsub";
+import { MyGQLContext } from "../types/common";
 
 export class NowPlayingWorker {
-  db: Db;
-  services = buildContext({ user: null, cache: false }).services;
-
+  services!: MyGQLContext["services"];
   timers: {
     [id: string]: NodeJS.Timeout;
   } = {};
 
-  constructor({ db }: { db: Db }) {
-    this.db = db;
+  constructor(private pubsub: PubSub) {
+    pubsub.sub.subscribe(PUBSUB_CHANNELS.nowPlayingResolve);
+    pubsub.sub.on(
+      "message",
+      (channel, id) =>
+        channel === PUBSUB_CHANNELS.nowPlayingResolve && this.addJob(id, 0)
+    );
   }
 
-  async initJobs() {
+  async init(db: Db, redis: Redis.Cluster) {
     // This is called upon service startup to set up delay jobs
-    // To process NowPlaying
+    // To process NowPlaying for all rooms in database
+    this.services = buildServices(
+      { user: null, db, redis, pubsub: this.pubsub },
+      { cache: false }
+    );
     npLogger.debug("Set up Jobs");
-    const roomArray = await this.db
+    const roomArray = await db
       .collection<RoomDbObject>("rooms")
       .find({})
       .toArray();

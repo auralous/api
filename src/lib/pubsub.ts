@@ -1,13 +1,11 @@
 import { createClient } from "../db/redis";
 
-export const pub = createClient();
-
-export const sub = createClient();
-
 export const pubsub = {
+  pub: createClient(),
+  sub: createClient(),
   _pubsubOnSubChannels: new Set(),
   publish(channel: string, message: Record<string, any>) {
-    pub.publish(channel, JSON.stringify(message));
+    this.pub.publish(channel, JSON.stringify(message));
   },
   on<T = any>(
     channel: string,
@@ -22,7 +20,7 @@ export const pubsub = {
     // all are subscribed at one point so we do
     // not need to unsubscribe
     if (!this._pubsubOnSubChannels.has(channel)) {
-      sub.subscribe(channel);
+      this.sub.subscribe(channel);
       this._pubsubOnSubChannels.add(channel);
     }
 
@@ -37,10 +35,10 @@ export const pubsub = {
       }
     }
 
-    sub.on("message", pushValue);
+    this.sub.on("message", pushValue);
     const emptyQueue = () => {
       listening = false;
-      sub.off("message", pushValue);
+      this.sub.off("message", pushValue);
       pullQueue.length = 0;
       pushQueue.length = 0;
     };
@@ -69,3 +67,5 @@ export const pubsub = {
     };
   },
 };
+
+export type PubSub = typeof pubsub;

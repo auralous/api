@@ -1,9 +1,9 @@
-import { IncomingMessage } from "http";
+import type { IncomingMessage } from "http";
 import type { SessionData } from "next-session";
-import { Db } from "mongodb";
+import type { Db } from "mongodb";
 import Redis from "ioredis";
 import { UserDbObject, PlaylistDbObject } from "./db";
-import { pubsub } from "../lib/pubsub";
+import { PubSub } from "../lib/pubsub";
 import { BaseModel } from "../models/base";
 
 export type PlatformName = "youtube" | "spotify";
@@ -22,8 +22,7 @@ export type ExtendedIncomingMessage = IncomingMessage & {
 export type MyGQLContext = {
   db: Db;
   redis: Redis.Cluster;
-  pubsub: typeof pubsub;
-  pub: Redis.Cluster;
+  pubsub: PubSub;
   user: UserDbObject | null;
   services: BaseModel["services"];
   setCacheControl?: SetCachControl;

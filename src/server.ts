@@ -11,11 +11,10 @@ import { createServer } from "http";
 import * as WebSocket from "ws";
 import { wsHandle } from "./gql";
 import app from "./app";
-import { client, connect as connectMongoDB, db } from "./db/mongo";
+import { client, connect as connectMongoDB } from "./db/mongo";
 import { redis } from "./db/redis";
 import { NowPlayingWorker } from "./models/nowPlayingWorker";
-import { sub } from "./lib/pubsub";
-import { PUBSUB_CHANNELS } from "./lib/constant";
+import { pubsub } from "./lib/pubsub";
 
 // http
 const port = parseInt(process.env.PORT!, 10) || 4000;
@@ -46,28 +45,22 @@ const wssPingPong = setInterval(() => {
 
 wss.on("close", () => clearInterval(wssPingPong));
 
-let nowPlayingWorker: NowPlayingWorker;
-
-sub.on("message", (channel, id) => {
-  if (channel !== PUBSUB_CHANNELS.nowPlayingResolve) return;
-  nowPlayingWorker.addJob(id, 0);
-});
+const nowPlayingWorker = new NowPlayingWorker(pubsub);
 
 (async () => {
   try {
     console.log("Starting API server...");
 
     console.log("Connecting to MongoDB database");
-    await connectMongoDB();
+
+    const db = await connectMongoDB();
+
     console.log(`MongoDB isConnected is ${client.isConnected()}`);
 
     console.log(`Redis status is ${redis.status}`);
 
-    await sub.subscribe(PUBSUB_CHANNELS.nowPlayingResolve);
-    nowPlayingWorker = new NowPlayingWorker({ db });
-
     console.log("Executing NowPlaying jobs...");
-    await nowPlayingWorker.initJobs();
+    await nowPlayingWorker.init(db, redis);
 
     server.listen(port, () => {
       console.log(`Server Ready at ${process.env.API_URI}`);

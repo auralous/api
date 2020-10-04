@@ -3,7 +3,6 @@ import { BaseModel, ModelInit } from "./base";
 import { PUBSUB_CHANNELS, REDIS_KEY } from "../lib/constant";
 import { NowPlayingItemDbObject } from "../types/db";
 import { INowPlayingReactionType } from "../types/resolvers.gen";
-import { pub } from "../lib/pubsub";
 
 export class NowPlayingModel extends BaseModel {
   constructor(options: ModelInit) {
@@ -37,7 +36,10 @@ export class NowPlayingModel extends BaseModel {
 
   async requestResolve(id: string) {
     if (!(await this.findById(id)))
-      return pub.publish(PUBSUB_CHANNELS.nowPlayingResolve, id);
+      return this.context.pubsub.pub.publish(
+        PUBSUB_CHANNELS.nowPlayingResolve,
+        id
+      );
   }
 
   async setById(id: string, queueItem: NowPlayingItemDbObject) {

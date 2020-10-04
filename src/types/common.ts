@@ -2,13 +2,11 @@ import type { IncomingMessage } from "http";
 import type { SessionData } from "next-session";
 import type { Db } from "mongodb";
 import Redis from "ioredis";
-import { UserDbObject, PlaylistDbObject } from "./db";
+import { UserDbObject } from "./db";
 import { PubSub } from "../lib/pubsub";
 import { AllServices } from "../services/types";
 
 export type PlatformName = "youtube" | "spotify";
-
-export type PlaylistTrack = string;
 
 type SetCachControl = (maxAge: number, scope?: "PRIVATE" | "PUBLIC") => void;
 
@@ -29,8 +27,3 @@ export type MyGQLContext = {
 };
 
 export type OAuthProviderName = "youtube" | "twitter" | "facebook" | "spotify";
-
-export type ExternalPlaylistResponse = Pick<
-  PlaylistDbObject,
-  "externalId" | "platform" | "image" | "title" | "tracks" | "userId"
->;

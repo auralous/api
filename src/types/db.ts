@@ -1,4 +1,4 @@
-import { PlaylistTrack, PlatformName, OAuthProviderName } from "./common";
+import { PlatformName, OAuthProviderName } from "./common";
 
 export interface UserOauthProvider<T extends OAuthProviderName> {
   provider: T;
@@ -44,16 +44,6 @@ export interface RoomDbObject {
   collabs?: string[];
   anyoneCanAdd?: boolean;
   queueMax?: number;
-}
-
-export interface PlaylistDbObject {
-  _id: string;
-  title: string;
-  image?: string | null;
-  tracks: PlaylistTrack[];
-  platform: PlatformName;
-  externalId: string;
-  userId: string; // of the external service
 }
 
 export interface TrackDbObject {

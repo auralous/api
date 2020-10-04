@@ -1,17 +1,11 @@
 import { google } from "googleapis";
 import fetch from "node-fetch";
-import { AuthenticationError, ForbiddenError } from "apollo-server-errors";
 import { TrackService } from "../track";
 import { ServiceInit } from "../base";
 import { isDefined } from "../../lib/utils";
 import { MAX_TRACK_DURATION } from "../../lib/constant";
-import {
-  TrackDbObject,
-  ArtistDbObject,
-  PlaylistDbObject,
-} from "../../types/db";
-import { ExternalPlaylistResponse } from "../../types/common";
 import { AllServices } from "../types";
+import { ArtistDbObject, TrackDbObject } from "../../types/db";
 
 function parseDurationToMs(str: string) {
   let miliseconds = 0;
@@ -114,128 +108,6 @@ export default class YoutubeService {
     if (!this.oauth2Client.credentials.access_token) {
       // Fallback to using API Key
       this.oauth2Client.apiKey = process.env.GOOGLE_API_KEY;
-    }
-  }
-
-  async getPlaylist(id: string): Promise<ExternalPlaylistResponse | null> {
-    if (!this.authId) return null;
-
-    const result = await this.youtube.playlists.list({
-      part: ["snippet", "id"],
-      id: [id],
-      fields: "items(id,snippet(title,thumbnails.high.url))",
-    });
-
-    const playlistResponse = result.data?.items?.[0];
-
-    if (!playlistResponse) return null;
-
-    const playlist: ExternalPlaylistResponse = {
-      title: playlistResponse.snippet?.title as string,
-      image: playlistResponse.snippet?.thumbnails?.high?.url,
-      platform: "youtube",
-      externalId: playlistResponse.id as string,
-      tracks: [],
-      userId: this.authId, // FIXME: This should be channelId
-    };
-
-    let nextPageToken: string | null = "";
-
-    while (typeof nextPageToken === "string") {
-      const result = await this.youtube.playlistItems.list({
-        playlistId: id,
-        part: ["contentDetails"],
-        pageToken: nextPageToken,
-        fields: "nextPageToken,items/contentDetails/videoId",
-      });
-
-      if (result.data.items) {
-        playlist.tracks.push(
-          ...result.data.items.map(
-            (item) => `youtube:${item.contentDetails?.videoId}`
-          )
-        );
-      }
-
-      nextPageToken = result.data.nextPageToken as string | null;
-    }
-
-    return playlist;
-  }
-
-  // TODO: We do not support get playlists for user id yet
-  async getPlaylistsByUserId(): Promise<ExternalPlaylistResponse[]> {
-    const playlistIds: string[] = [];
-
-    let nextPageToken: string | null = "";
-
-    while (typeof nextPageToken === "string") {
-      const result = await this.youtube.playlists
-        .list({
-          part: ["id"],
-          pageToken: nextPageToken,
-          fields: "nextPageToken,items(id)",
-          mine: true,
-        })
-        // TODO: Handle error
-        .catch(() => null);
-
-      if (result?.data.items)
-        playlistIds.push(...result.data.items.map((item) => item.id as string));
-
-      nextPageToken = (result?.data.nextPageToken || null) as string | null;
-    }
-
-    const playlists: ExternalPlaylistResponse[] = [];
-
-    for (const playlistId of playlistIds) {
-      const playlist = await this.getPlaylist(playlistId);
-      if (playlist) playlists.push(playlist);
-    }
-
-    return playlists;
-  }
-
-  async createPlaylist(
-    name: string
-  ): Promise<Pick<PlaylistDbObject, "externalId" | "image" | "userId">> {
-    if (!this.oauth2Client.credentials.access_token || !this.authId)
-      throw new AuthenticationError("Missing YouTube Access Token");
-
-    const response = await this.youtube.playlists
-      .insert({
-        part: ["snippet"],
-        requestBody: { snippet: { title: name } },
-      })
-      .catch(() => {
-        // FIXME: Inapproriate error
-        throw new ForbiddenError("Could not created YouTube Playlist.");
-      });
-
-    return {
-      externalId: response.data.id as string,
-      image: response.data.snippet?.thumbnails?.high?.url,
-      userId: this.authId,
-    };
-  }
-
-  async insertPlaylistTracks(externalId: string, externalTrackIds: string[]) {
-    if (!this.oauth2Client.credentials.access_token || !this.authId)
-      throw new AuthenticationError("Missing YouTube Access Token");
-    // TODO: YouTube API does not have batch insert
-    for (const externalTrackId of externalTrackIds) {
-      await this.youtube.playlistItems.insert({
-        part: ["snippet"],
-        requestBody: {
-          snippet: {
-            playlistId: externalId,
-            resourceId: {
-              kind: "youtube#video",
-              videoId: externalTrackId,
-            },
-          },
-        },
-      });
     }
   }
 

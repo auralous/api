@@ -1,5 +1,5 @@
 import { GraphQLResolveInfo, GraphQLScalarType, GraphQLScalarTypeConfig } from 'graphql';
-import { UserDbObject, TrackDbObject, ArtistDbObject, RoomDbObject, QueueItemDbObject, PlaylistDbObject } from './db';
+import { UserDbObject, TrackDbObject, ArtistDbObject, RoomDbObject, QueueItemDbObject } from './db';
 import { MyGQLContext } from './common';
 export type Maybe<T> = T | null;
 export type Exact<T extends { [key: string]: unknown }> = { [K in keyof T]: T[K] };
@@ -28,7 +28,6 @@ export type IQuery = {
   rooms?: Maybe<Array<IRoom>>;
   exploreRooms: Array<IRoom>;
   searchRooms: Array<IRoom>;
-  myPlaylists?: Maybe<Array<IPlaylist>>;
   track?: Maybe<ITrack>;
   crossTracks?: Maybe<ICrossTracks>;
   searchTrack: Array<ITrack>;
@@ -110,8 +109,6 @@ export type IMutation = {
   updateRoom: IRoom;
   updateRoomMembership: Scalars['Boolean'];
   deleteRoom: Scalars['ID'];
-  createPlaylist: IPlaylist;
-  insertPlaylistTracks: IPlaylist;
   addMessage: Scalars['Boolean'];
   updateQueue: Scalars['Boolean'];
   reactNowPlaying?: Maybe<Scalars['Boolean']>;
@@ -157,19 +154,6 @@ export type IMutationUpdateRoomMembershipArgs = {
 
 export type IMutationDeleteRoomArgs = {
   id: Scalars['ID'];
-};
-
-
-export type IMutationCreatePlaylistArgs = {
-  title: Scalars['String'];
-  platform: IPlatformName;
-  tracks?: Maybe<Array<Scalars['String']>>;
-};
-
-
-export type IMutationInsertPlaylistTracksArgs = {
-  id: Scalars['ID'];
-  tracks: Array<Scalars['String']>;
 };
 
 
@@ -277,15 +261,6 @@ export type IRoomState = {
   anyoneCanAdd: Scalars['Boolean'];
   collabs: Array<Scalars['String']>;
   queueMax: Scalars['Int'];
-};
-
-export type IPlaylist = {
-  id: Scalars['ID'];
-  title: Scalars['String'];
-  image: Scalars['String'];
-  tracks: Array<Scalars['String']>;
-  platform: IPlatformName;
-  externalId: Scalars['String'];
 };
 
 export enum IPlatformName {
@@ -461,7 +436,6 @@ export type IResolversTypes = {
   RoomMembership: IRoomMembership;
   Room: ResolverTypeWrapper<RoomDbObject>;
   RoomState: ResolverTypeWrapper<IRoomState>;
-  Playlist: ResolverTypeWrapper<PlaylistDbObject>;
   PlatformName: IPlatformName;
   Track: ResolverTypeWrapper<TrackDbObject>;
   CrossTracks: ResolverTypeWrapper<Omit<ICrossTracks, 'youtube' | 'spotify'> & { youtube?: Maybe<IResolversTypes['Track']>, spotify?: Maybe<IResolversTypes['Track']> }>;
@@ -493,7 +467,6 @@ export type IResolversParentTypes = {
   UserAuthInfo: IUserAuthInfo;
   Room: RoomDbObject;
   RoomState: IRoomState;
-  Playlist: PlaylistDbObject;
   Track: TrackDbObject;
   CrossTracks: Omit<ICrossTracks, 'youtube' | 'spotify'> & { youtube?: Maybe<IResolversParentTypes['Track']>, spotify?: Maybe<IResolversParentTypes['Track']> };
   Artist: ArtistDbObject;
@@ -516,7 +489,6 @@ export type IQueryResolvers<ContextType = MyGQLContext, ParentType extends IReso
   rooms?: Resolver<Maybe<Array<IResolversTypes['Room']>>, ParentType, ContextType, RequireFields<IQueryRoomsArgs, never>>;
   exploreRooms?: Resolver<Array<IResolversTypes['Room']>, ParentType, ContextType, RequireFields<IQueryExploreRoomsArgs, 'by'>>;
   searchRooms?: Resolver<Array<IResolversTypes['Room']>, ParentType, ContextType, RequireFields<IQuerySearchRoomsArgs, 'query'>>;
-  myPlaylists?: Resolver<Maybe<Array<IResolversTypes['Playlist']>>, ParentType, ContextType>;
   track?: Resolver<Maybe<IResolversTypes['Track']>, ParentType, ContextType, RequireFields<IQueryTrackArgs, never>>;
   crossTracks?: Resolver<Maybe<IResolversTypes['CrossTracks']>, ParentType, ContextType, RequireFields<IQueryCrossTracksArgs, 'id'>>;
   searchTrack?: Resolver<Array<IResolversTypes['Track']>, ParentType, ContextType, RequireFields<IQuerySearchTrackArgs, 'platform' | 'query'>>;
@@ -534,8 +506,6 @@ export type IMutationResolvers<ContextType = MyGQLContext, ParentType extends IR
   updateRoom?: Resolver<IResolversTypes['Room'], ParentType, ContextType, RequireFields<IMutationUpdateRoomArgs, 'id'>>;
   updateRoomMembership?: Resolver<IResolversTypes['Boolean'], ParentType, ContextType, RequireFields<IMutationUpdateRoomMembershipArgs, 'id'>>;
   deleteRoom?: Resolver<IResolversTypes['ID'], ParentType, ContextType, RequireFields<IMutationDeleteRoomArgs, 'id'>>;
-  createPlaylist?: Resolver<IResolversTypes['Playlist'], ParentType, ContextType, RequireFields<IMutationCreatePlaylistArgs, 'title' | 'platform'>>;
-  insertPlaylistTracks?: Resolver<IResolversTypes['Playlist'], ParentType, ContextType, RequireFields<IMutationInsertPlaylistTracksArgs, 'id' | 'tracks'>>;
   addMessage?: Resolver<IResolversTypes['Boolean'], ParentType, ContextType, RequireFields<IMutationAddMessageArgs, 'roomId' | 'message'>>;
   updateQueue?: Resolver<IResolversTypes['Boolean'], ParentType, ContextType, RequireFields<IMutationUpdateQueueArgs, 'id' | 'action'>>;
   reactNowPlaying?: Resolver<Maybe<IResolversTypes['Boolean']>, ParentType, ContextType, RequireFields<IMutationReactNowPlayingArgs, 'id' | 'reaction'>>;
@@ -597,16 +567,6 @@ export type IRoomStateResolvers<ContextType = MyGQLContext, ParentType extends I
   anyoneCanAdd?: Resolver<IResolversTypes['Boolean'], ParentType, ContextType>;
   collabs?: Resolver<Array<IResolversTypes['String']>, ParentType, ContextType>;
   queueMax?: Resolver<IResolversTypes['Int'], ParentType, ContextType>;
-  __isTypeOf?: IsTypeOfResolverFn<ParentType>;
-};
-
-export type IPlaylistResolvers<ContextType = MyGQLContext, ParentType extends IResolversParentTypes['Playlist'] = IResolversParentTypes['Playlist']> = {
-  id?: Resolver<IResolversTypes['ID'], ParentType, ContextType>;
-  title?: Resolver<IResolversTypes['String'], ParentType, ContextType>;
-  image?: Resolver<IResolversTypes['String'], ParentType, ContextType>;
-  tracks?: Resolver<Array<IResolversTypes['String']>, ParentType, ContextType>;
-  platform?: Resolver<IResolversTypes['PlatformName'], ParentType, ContextType>;
-  externalId?: Resolver<IResolversTypes['String'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType>;
 };
 
@@ -704,7 +664,6 @@ export type IResolvers<ContextType = MyGQLContext> = {
   UserAuthInfo?: IUserAuthInfoResolvers<ContextType>;
   Room?: IRoomResolvers<ContextType>;
   RoomState?: IRoomStateResolvers<ContextType>;
-  Playlist?: IPlaylistResolvers<ContextType>;
   Track?: ITrackResolvers<ContextType>;
   CrossTracks?: ICrossTracksResolvers<ContextType>;
   Artist?: IArtistResolvers<ContextType>;

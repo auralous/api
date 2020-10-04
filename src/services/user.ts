@@ -104,13 +104,6 @@ export class UserService extends BaseService {
           [authTokens.provider]: authTokens,
         },
       });
-      // Dangerous
-      // Also sync playlist on user creation
-      await this.services.Playlist.syncByPlatform(
-        // Just created user only have one oauth
-        // which is the platform they sign up with
-        authTokens.provider
-      );
       // Temporary set isNew flag to redirect user to Welcome page
       (this.context.user as any).isNew = true;
     } else {
@@ -240,11 +233,6 @@ export class UserService extends BaseService {
 
     await this.collection.updateOne({ _id: this.context.user._id }, { $set });
 
-    if (provider === "youtube" || provider === "spotify") {
-      // Dangerous
-      await this.services.Playlist.syncByPlatform(provider);
-    }
-
     this.loader
       .clear(this.context.user._id)
       .prime(this.context.user._id, this.context.user);
@@ -261,9 +249,6 @@ export class UserService extends BaseService {
       { _id: this.context.user._id },
       { $unset: { [`oauth.${provider}`]: "" } }
     );
-
-    if (provider === "spotify" || provider === "youtube")
-      await this.services.Playlist.removeByMineByPlatform(provider);
 
     delete this.context.user.oauth[provider];
   }

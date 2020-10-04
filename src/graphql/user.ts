@@ -1,13 +1,8 @@
 import { AuthenticationError } from "apollo-server-errors";
 import { uploadStreamToCloudinary } from "../lib/cloudinary";
-import {
-  IResolvers,
-  IPlatformName,
-  IUserAuthWrapper,
-} from "../types/resolvers.gen";
+import { IResolvers } from "../types/resolvers.gen";
 import { defaultAvatar } from "../lib/defaultAvatar";
 import { CONFIG } from "../lib/constant";
-import { PlatformName } from "../types/common";
 import { UserDbObject } from "../types/db";
 
 export const typeDefs = `
@@ -38,16 +33,15 @@ export const typeDefs = `
   }
 
   type UserAuthWrapper {
-    playingPlatform: PlatformName!
-    youtube: UserAuthInfo!
-    twitter: UserAuthInfo!
-    facebook: UserAuthInfo!
-    spotify: UserAuthInfo!
+    youtube: UserOauthProvider
+    twitter: UserOauthProvider
+    facebook: UserOauthProvider
+    spotify: UserOauthProvider
   }
 
-  type UserAuthInfo {
-    auth: Boolean!
-    token: String
+  type UserOauthProvider {
+    provider: OAuthProviderName!
+    id: ID!
   }
 `;
 
@@ -57,38 +51,11 @@ export const resolvers: IResolvers = {
       setCacheControl?.(0, "PRIVATE");
       return user;
     },
-    async meAuth(parent, args, { user, services, setCacheControl }) {
+    // @ts-ignore
+    async meAuth(parent, args, { user, setCacheControl }) {
       setCacheControl?.(0, "PRIVATE");
       if (!user) return null;
-
-      const [youtubeToken] = await Promise.all([
-        user.oauth.youtube &&
-          services.Service.youtube.oauth2Client.getAccessToken(),
-        user.oauth.spotify && services.Service.spotify.initPromise,
-      ]);
-
-      const youtube = user.oauth.youtube
-        ? { auth: true, token: youtubeToken!.token }
-        : { auth: false };
-      const spotify = user.oauth.spotify
-        ? { auth: true, token: services.Service.spotify.auth?.accessToken }
-        : { auth: false };
-
-      let playingPlatform: PlatformName | undefined;
-      if (spotify.auth) playingPlatform = IPlatformName.Spotify;
-      else playingPlatform = IPlatformName.Youtube;
-
-      return {
-        facebook: user.oauth.facebook
-          ? { auth: true, token: null }
-          : { auth: false },
-        twitter: user.oauth.twitter
-          ? { auth: true, token: null }
-          : { auth: false },
-        youtube,
-        spotify,
-        playingPlatform,
-      } as IUserAuthWrapper;
+      return user.oauth;
     },
     async user(parent, { username, id }, { services, setCacheControl }) {
       let user: UserDbObject | null = null;

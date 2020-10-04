@@ -228,16 +228,15 @@ export type IUser = {
 };
 
 export type IUserAuthWrapper = {
-  playingPlatform: IPlatformName;
-  youtube: IUserAuthInfo;
-  twitter: IUserAuthInfo;
-  facebook: IUserAuthInfo;
-  spotify: IUserAuthInfo;
+  youtube?: Maybe<IUserOauthProvider>;
+  twitter?: Maybe<IUserOauthProvider>;
+  facebook?: Maybe<IUserOauthProvider>;
+  spotify?: Maybe<IUserOauthProvider>;
 };
 
-export type IUserAuthInfo = {
-  auth: Scalars['Boolean'];
-  token?: Maybe<Scalars['String']>;
+export type IUserOauthProvider = {
+  provider: IOAuthProviderName;
+  id: Scalars['ID'];
 };
 
 export enum IRoomMembership {
@@ -432,7 +431,7 @@ export type IResolversTypes = {
   OAuthProviderName: IOAuthProviderName;
   User: ResolverTypeWrapper<UserDbObject>;
   UserAuthWrapper: ResolverTypeWrapper<IUserAuthWrapper>;
-  UserAuthInfo: ResolverTypeWrapper<IUserAuthInfo>;
+  UserOauthProvider: ResolverTypeWrapper<IUserOauthProvider>;
   RoomMembership: IRoomMembership;
   Room: ResolverTypeWrapper<RoomDbObject>;
   RoomState: ResolverTypeWrapper<IRoomState>;
@@ -464,7 +463,7 @@ export type IResolversParentTypes = {
   Upload: Scalars['Upload'];
   User: UserDbObject;
   UserAuthWrapper: IUserAuthWrapper;
-  UserAuthInfo: IUserAuthInfo;
+  UserOauthProvider: IUserOauthProvider;
   Room: RoomDbObject;
   RoomState: IRoomState;
   Track: TrackDbObject;
@@ -537,17 +536,16 @@ export type IUserResolvers<ContextType = MyGQLContext, ParentType extends IResol
 };
 
 export type IUserAuthWrapperResolvers<ContextType = MyGQLContext, ParentType extends IResolversParentTypes['UserAuthWrapper'] = IResolversParentTypes['UserAuthWrapper']> = {
-  playingPlatform?: Resolver<IResolversTypes['PlatformName'], ParentType, ContextType>;
-  youtube?: Resolver<IResolversTypes['UserAuthInfo'], ParentType, ContextType>;
-  twitter?: Resolver<IResolversTypes['UserAuthInfo'], ParentType, ContextType>;
-  facebook?: Resolver<IResolversTypes['UserAuthInfo'], ParentType, ContextType>;
-  spotify?: Resolver<IResolversTypes['UserAuthInfo'], ParentType, ContextType>;
+  youtube?: Resolver<Maybe<IResolversTypes['UserOauthProvider']>, ParentType, ContextType>;
+  twitter?: Resolver<Maybe<IResolversTypes['UserOauthProvider']>, ParentType, ContextType>;
+  facebook?: Resolver<Maybe<IResolversTypes['UserOauthProvider']>, ParentType, ContextType>;
+  spotify?: Resolver<Maybe<IResolversTypes['UserOauthProvider']>, ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType>;
 };
 
-export type IUserAuthInfoResolvers<ContextType = MyGQLContext, ParentType extends IResolversParentTypes['UserAuthInfo'] = IResolversParentTypes['UserAuthInfo']> = {
-  auth?: Resolver<IResolversTypes['Boolean'], ParentType, ContextType>;
-  token?: Resolver<Maybe<IResolversTypes['String']>, ParentType, ContextType>;
+export type IUserOauthProviderResolvers<ContextType = MyGQLContext, ParentType extends IResolversParentTypes['UserOauthProvider'] = IResolversParentTypes['UserOauthProvider']> = {
+  provider?: Resolver<IResolversTypes['OAuthProviderName'], ParentType, ContextType>;
+  id?: Resolver<IResolversTypes['ID'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType>;
 };
 
@@ -661,7 +659,7 @@ export type IResolvers<ContextType = MyGQLContext> = {
   Upload?: GraphQLScalarType;
   User?: IUserResolvers<ContextType>;
   UserAuthWrapper?: IUserAuthWrapperResolvers<ContextType>;
-  UserAuthInfo?: IUserAuthInfoResolvers<ContextType>;
+  UserOauthProvider?: IUserOauthProviderResolvers<ContextType>;
   Room?: IRoomResolvers<ContextType>;
   RoomState?: IRoomStateResolvers<ContextType>;
   Track?: ITrackResolvers<ContextType>;

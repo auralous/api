@@ -60,7 +60,7 @@ export class TrackService extends BaseService {
           keys.map((key) => this.context.redis.get(key))
         ).then((results) => results.map((r) => (r ? JSON.parse(r) : null)));
       },
-      { cache: !options.noCache }
+      { cache: options.cache }
     );
   }
 

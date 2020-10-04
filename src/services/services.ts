@@ -26,47 +26,42 @@ export function buildServices(
   },
   opts?: { cache?: boolean }
 ): AllServices {
-  const noCache = !(opts?.cache || false);
-  const serviceContext: ServiceContext = {
-    user,
-    redis,
-    db,
-    pubsub,
-  };
+  const serviceContext: ServiceContext = { user, redis, db, pubsub };
   const services: AllServices = {} as any;
   services.User = new UserService({
     context: serviceContext,
-    noCache,
+    cache: !!opts?.cache,
     services,
   });
   services.Playlist = new PlaylistService({
     context: serviceContext,
-    noCache,
+    cache: !!opts?.cache,
     services,
   });
   services.Queue = new QueueService({
     context: serviceContext,
-    noCache,
+    cache: !!opts?.cache,
     services,
   });
   services.Room = new RoomService({
     context: serviceContext,
-    noCache,
+    cache: !!opts?.cache,
     services,
   });
   services.Track = new TrackService({
     context: serviceContext,
-    noCache: false,
+    cache: true,
     services,
-  }); // nothing can go wrong with TrackService
+  });
+  // nothing can go wrong with TrackService
   services.NowPlaying = new NowPlayingService({
     context: serviceContext,
-    noCache: false,
+    cache: true,
     services,
   });
   services.Service = new ServiceService({
     context: serviceContext,
-    noCache: false,
+    cache: true,
     services,
   });
   return services;

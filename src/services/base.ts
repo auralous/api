@@ -6,7 +6,7 @@ export type ServiceContext = Omit<MyGQLContext, "services" | "setCacheControl">;
 export interface ServiceInit {
   context: ServiceContext;
   services: AllServices;
-  noCache: boolean;
+  cache: boolean;
 }
 
 export class BaseService {

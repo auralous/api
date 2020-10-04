@@ -25,7 +25,7 @@ export class PlaylistService extends BaseService {
           playlists.find((playlist: PlaylistDbObject) => playlist._id === key)
         );
       },
-      { cache: !options.noCache }
+      { cache: options.cache }
     );
   }
 

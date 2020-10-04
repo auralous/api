@@ -29,7 +29,7 @@ export class RoomService extends BaseService {
           (key) => rooms.find((room: RoomDbObject) => room._id === key) || null
         );
       },
-      { cache: !options.noCache }
+      { cache: options.cache }
     );
   }
 

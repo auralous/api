@@ -32,7 +32,7 @@ export class UserService extends BaseService {
             null
         );
       },
-      { cache: !options.noCache }
+      { cache: options.cache }
     );
   }
 

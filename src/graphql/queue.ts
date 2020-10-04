@@ -3,8 +3,7 @@ import {
   ForbiddenError,
   UserInputError,
 } from "apollo-server-errors";
-import { withFilter } from "graphql-subscriptions";
-import { REDIS_KEY } from "../lib/constant";
+import { PUBSUB_CHANNELS, REDIS_KEY } from "../lib/constant";
 import { IResolvers } from "../types/resolvers.gen";
 
 export const typeDefs = `
@@ -38,8 +37,6 @@ export const typeDefs = `
     queueUpdated(id: ID!): Queue!
   }
 `;
-
-const QUEUE_UPDATED = "QUEUE_UPDATED";
 
 export const resolvers: IResolvers = {
   Query: {
@@ -154,10 +151,12 @@ export const resolvers: IResolvers = {
   },
   Subscription: {
     queueUpdated: {
-      subscribe: withFilter(
-        (parent, args, { pubsub }) => pubsub.asyncIterator(QUEUE_UPDATED),
-        (payload, variables) => payload.queueUpdated.id === variables.id
-      ),
+      subscribe(parent, { id }, { pubsub }) {
+        return pubsub.on(
+          PUBSUB_CHANNELS.queueUpdated,
+          (payload) => payload.queueUpdated.id === id
+        );
+      },
     },
   },
   Queue: {

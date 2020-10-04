@@ -1,4 +1,3 @@
-import { withFilter } from "graphql-subscriptions";
 import { nanoid } from "nanoid/non-secure";
 import { AuthenticationError } from "apollo-server-errors";
 import { IResolvers } from "../types/resolvers.gen";
@@ -32,11 +31,12 @@ export const typeDefs = `
 export const resolvers: IResolvers = {
   Subscription: {
     messageAdded: {
-      subscribe: withFilter(
-        (parent, args, { pubsub }) =>
-          pubsub.asyncIterator(PUBSUB_CHANNELS.messageAdded),
-        (payload, variables) => payload.messageAdded.roomId === variables.roomId
-      ),
+      subscribe(parent, { roomId }, { pubsub }) {
+        return pubsub.on(
+          PUBSUB_CHANNELS.messageAdded,
+          (payload) => payload.messageAdded.roomId === roomId
+        );
+      },
     },
   },
   Message: {

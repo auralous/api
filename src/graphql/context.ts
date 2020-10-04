@@ -9,7 +9,7 @@ import { BaseModel, ModelContext } from "../models/base";
 import { UserDbObject } from "../types/db";
 import { redis } from "../db/redis";
 import { db } from "../db/mongo";
-import { pubsub } from "../lib/pubsub";
+import { pubsub, pub } from "../lib/pubsub";
 import { MyGQLContext } from "../types/common";
 
 export function buildContext({
@@ -24,6 +24,7 @@ export function buildContext({
     redis,
     db,
     pubsub,
+    pub,
   };
   const noCache = !cache;
   const services: BaseModel["services"] = {} as any;
@@ -59,6 +60,7 @@ export function buildContext({
     redis,
     db,
     pubsub,
+    pub,
     services,
   };
 }

@@ -4,10 +4,6 @@ import { makeExecutableSchema } from "@graphql-tools/schema";
 import { GraphQLUpload } from "graphql-upload";
 import { typeDefs as User, resolvers as userResolvers } from "./user";
 import { typeDefs as Room, resolvers as roomResolvers } from "./room";
-import {
-  typeDefs as Playlist,
-  resolvers as playlistResolvers,
-} from "./playlist";
 import { typeDefs as Track, resolvers as trackResolvers } from "./track";
 import { typeDefs as Message, resolvers as messageResolvers } from "./message";
 import { typeDefs as Queue, resolvers as queueResolvers } from "./queue";
@@ -40,22 +36,12 @@ const baseResolvers = {
   Upload: GraphQLUpload,
 };
 
-const typeDefs = [
-  Base,
-  User,
-  Room,
-  Playlist,
-  Track,
-  Message,
-  Queue,
-  NowPlaying,
-];
+const typeDefs = [Base, User, Room, Track, Message, Queue, NowPlaying];
 
 const resolvers: IResolvers[] = [
   baseResolvers,
   userResolvers,
   roomResolvers,
-  playlistResolvers,
   trackResolvers,
   messageResolvers,
   queueResolvers,

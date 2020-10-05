@@ -1,5 +1,5 @@
 import { MongoClient, Db } from "mongodb";
-import { UserDbObject, RoomDbObject, PlaylistDbObject } from "../types/db";
+import { UserDbObject, RoomDbObject } from "../types/db";
 
 export let db: Db;
 
@@ -20,10 +20,6 @@ function applyIndex() {
   db.collection<RoomDbObject>("rooms").createIndexes([
     { key: { creatorId: 1 } },
     { key: { _id: 1, creatorId: 1 } },
-  ]);
-  // playlist
-  db.collection<PlaylistDbObject>("playlists").createIndexes([
-    { key: { userId: 1 } },
   ]);
 }
 

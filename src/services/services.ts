@@ -4,7 +4,6 @@ import { PubSub } from "../lib/pubsub";
 import { UserDbObject } from "../types/db";
 import { ServiceContext } from "./base";
 import { NowPlayingService } from "./nowPlaying";
-import { PlaylistService } from "./playlist";
 import { QueueService } from "./queue";
 import { RoomService } from "./room";
 import { ServiceService } from "./service";
@@ -29,11 +28,6 @@ export function buildServices(
   const serviceContext: ServiceContext = { user, redis, db, pubsub };
   const services: AllServices = {} as any;
   services.User = new UserService({
-    context: serviceContext,
-    cache: !!opts?.cache,
-    services,
-  });
-  services.Playlist = new PlaylistService({
     context: serviceContext,
     cache: !!opts?.cache,
     services,

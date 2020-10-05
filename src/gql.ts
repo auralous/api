@@ -2,10 +2,9 @@ import { GraphQL, httpHandler } from "@benzene/server";
 import { PersistedAutomatic } from "@benzene/persisted";
 import { wsHandler } from "@benzene/ws";
 
-import { formatError, GraphQLError, getOperationAST } from "graphql";
+import { formatError, getOperationAST } from "graphql";
 import * as Sentry from "@sentry/node";
 // @ts-ignore
-import { hri } from "human-readable-ids";
 import { buildContext } from "./graphql/context";
 import schema from "./graphql/schema";
 import { applySession } from "./middleware/session";
@@ -31,16 +30,9 @@ const GQL = new GraphQL({
     }
     if (err.message === "Must provide query string.") return formatError(err);
     // This is a internal error
-    const refId = hri.random();
-    Sentry.withScope((scope) => {
-      scope.setTag("referenceId", refId);
-      Sentry.captureException(err);
-    });
-    return formatError(
-      new GraphQLError(
-        `Aw, Snap! Something went wrong. If needed, please contact support with reference ID: ${refId}.`
-      )
-    );
+    err.message = `Internal error: ${err.message}`;
+    Sentry.captureException(err);
+    return formatError(err);
   },
   persisted: new PersistedAutomatic(),
 });

@@ -1,5 +1,5 @@
 import { GraphQLResolveInfo, GraphQLScalarType, GraphQLScalarTypeConfig } from 'graphql';
-import { UserDbObject, TrackDbObject, ArtistDbObject, RoomDbObject, QueueItemDbObject, PlaylistDbObject } from './db';
+import { UserDbObject, TrackDbObject, ArtistDbObject, RoomDbObject, QueueItemDbObject } from './db';
 import { MyGQLContext } from './common';
 export type Maybe<T> = T | null;
 export type Exact<T extends { [key: string]: unknown }> = { [K in keyof T]: T[K] };
@@ -28,7 +28,6 @@ export type IQuery = {
   rooms?: Maybe<Array<IRoom>>;
   exploreRooms: Array<IRoom>;
   searchRooms: Array<IRoom>;
-  myPlaylists?: Maybe<Array<IPlaylist>>;
   track?: Maybe<ITrack>;
   crossTracks?: Maybe<ICrossTracks>;
   searchTrack: Array<ITrack>;
@@ -110,8 +109,6 @@ export type IMutation = {
   updateRoom: IRoom;
   updateRoomMembership: Scalars['Boolean'];
   deleteRoom: Scalars['ID'];
-  createPlaylist: IPlaylist;
-  insertPlaylistTracks: IPlaylist;
   addMessage: Scalars['Boolean'];
   updateQueue: Scalars['Boolean'];
   reactNowPlaying?: Maybe<Scalars['Boolean']>;
@@ -157,19 +154,6 @@ export type IMutationUpdateRoomMembershipArgs = {
 
 export type IMutationDeleteRoomArgs = {
   id: Scalars['ID'];
-};
-
-
-export type IMutationCreatePlaylistArgs = {
-  title: Scalars['String'];
-  platform: IPlatformName;
-  tracks?: Maybe<Array<Scalars['String']>>;
-};
-
-
-export type IMutationInsertPlaylistTracksArgs = {
-  id: Scalars['ID'];
-  tracks: Array<Scalars['String']>;
 };
 
 
@@ -244,16 +228,15 @@ export type IUser = {
 };
 
 export type IUserAuthWrapper = {
-  playingPlatform: IPlatformName;
-  youtube: IUserAuthInfo;
-  twitter: IUserAuthInfo;
-  facebook: IUserAuthInfo;
-  spotify: IUserAuthInfo;
+  youtube?: Maybe<IUserOauthProvider>;
+  twitter?: Maybe<IUserOauthProvider>;
+  facebook?: Maybe<IUserOauthProvider>;
+  spotify?: Maybe<IUserOauthProvider>;
 };
 
-export type IUserAuthInfo = {
-  auth: Scalars['Boolean'];
-  token?: Maybe<Scalars['String']>;
+export type IUserOauthProvider = {
+  provider: IOAuthProviderName;
+  id: Scalars['ID'];
 };
 
 export enum IRoomMembership {
@@ -277,15 +260,6 @@ export type IRoomState = {
   anyoneCanAdd: Scalars['Boolean'];
   collabs: Array<Scalars['String']>;
   queueMax: Scalars['Int'];
-};
-
-export type IPlaylist = {
-  id: Scalars['ID'];
-  title: Scalars['String'];
-  image: Scalars['String'];
-  tracks: Array<Scalars['String']>;
-  platform: IPlatformName;
-  externalId: Scalars['String'];
 };
 
 export enum IPlatformName {
@@ -457,11 +431,10 @@ export type IResolversTypes = {
   OAuthProviderName: IOAuthProviderName;
   User: ResolverTypeWrapper<UserDbObject>;
   UserAuthWrapper: ResolverTypeWrapper<IUserAuthWrapper>;
-  UserAuthInfo: ResolverTypeWrapper<IUserAuthInfo>;
+  UserOauthProvider: ResolverTypeWrapper<IUserOauthProvider>;
   RoomMembership: IRoomMembership;
   Room: ResolverTypeWrapper<RoomDbObject>;
   RoomState: ResolverTypeWrapper<IRoomState>;
-  Playlist: ResolverTypeWrapper<PlaylistDbObject>;
   PlatformName: IPlatformName;
   Track: ResolverTypeWrapper<TrackDbObject>;
   CrossTracks: ResolverTypeWrapper<Omit<ICrossTracks, 'youtube' | 'spotify'> & { youtube?: Maybe<IResolversTypes['Track']>, spotify?: Maybe<IResolversTypes['Track']> }>;
@@ -490,10 +463,9 @@ export type IResolversParentTypes = {
   Upload: Scalars['Upload'];
   User: UserDbObject;
   UserAuthWrapper: IUserAuthWrapper;
-  UserAuthInfo: IUserAuthInfo;
+  UserOauthProvider: IUserOauthProvider;
   Room: RoomDbObject;
   RoomState: IRoomState;
-  Playlist: PlaylistDbObject;
   Track: TrackDbObject;
   CrossTracks: Omit<ICrossTracks, 'youtube' | 'spotify'> & { youtube?: Maybe<IResolversParentTypes['Track']>, spotify?: Maybe<IResolversParentTypes['Track']> };
   Artist: ArtistDbObject;
@@ -516,7 +488,6 @@ export type IQueryResolvers<ContextType = MyGQLContext, ParentType extends IReso
   rooms?: Resolver<Maybe<Array<IResolversTypes['Room']>>, ParentType, ContextType, RequireFields<IQueryRoomsArgs, never>>;
   exploreRooms?: Resolver<Array<IResolversTypes['Room']>, ParentType, ContextType, RequireFields<IQueryExploreRoomsArgs, 'by'>>;
   searchRooms?: Resolver<Array<IResolversTypes['Room']>, ParentType, ContextType, RequireFields<IQuerySearchRoomsArgs, 'query'>>;
-  myPlaylists?: Resolver<Maybe<Array<IResolversTypes['Playlist']>>, ParentType, ContextType>;
   track?: Resolver<Maybe<IResolversTypes['Track']>, ParentType, ContextType, RequireFields<IQueryTrackArgs, never>>;
   crossTracks?: Resolver<Maybe<IResolversTypes['CrossTracks']>, ParentType, ContextType, RequireFields<IQueryCrossTracksArgs, 'id'>>;
   searchTrack?: Resolver<Array<IResolversTypes['Track']>, ParentType, ContextType, RequireFields<IQuerySearchTrackArgs, 'platform' | 'query'>>;
@@ -534,8 +505,6 @@ export type IMutationResolvers<ContextType = MyGQLContext, ParentType extends IR
   updateRoom?: Resolver<IResolversTypes['Room'], ParentType, ContextType, RequireFields<IMutationUpdateRoomArgs, 'id'>>;
   updateRoomMembership?: Resolver<IResolversTypes['Boolean'], ParentType, ContextType, RequireFields<IMutationUpdateRoomMembershipArgs, 'id'>>;
   deleteRoom?: Resolver<IResolversTypes['ID'], ParentType, ContextType, RequireFields<IMutationDeleteRoomArgs, 'id'>>;
-  createPlaylist?: Resolver<IResolversTypes['Playlist'], ParentType, ContextType, RequireFields<IMutationCreatePlaylistArgs, 'title' | 'platform'>>;
-  insertPlaylistTracks?: Resolver<IResolversTypes['Playlist'], ParentType, ContextType, RequireFields<IMutationInsertPlaylistTracksArgs, 'id' | 'tracks'>>;
   addMessage?: Resolver<IResolversTypes['Boolean'], ParentType, ContextType, RequireFields<IMutationAddMessageArgs, 'roomId' | 'message'>>;
   updateQueue?: Resolver<IResolversTypes['Boolean'], ParentType, ContextType, RequireFields<IMutationUpdateQueueArgs, 'id' | 'action'>>;
   reactNowPlaying?: Resolver<Maybe<IResolversTypes['Boolean']>, ParentType, ContextType, RequireFields<IMutationReactNowPlayingArgs, 'id' | 'reaction'>>;
@@ -567,17 +536,16 @@ export type IUserResolvers<ContextType = MyGQLContext, ParentType extends IResol
 };
 
 export type IUserAuthWrapperResolvers<ContextType = MyGQLContext, ParentType extends IResolversParentTypes['UserAuthWrapper'] = IResolversParentTypes['UserAuthWrapper']> = {
-  playingPlatform?: Resolver<IResolversTypes['PlatformName'], ParentType, ContextType>;
-  youtube?: Resolver<IResolversTypes['UserAuthInfo'], ParentType, ContextType>;
-  twitter?: Resolver<IResolversTypes['UserAuthInfo'], ParentType, ContextType>;
-  facebook?: Resolver<IResolversTypes['UserAuthInfo'], ParentType, ContextType>;
-  spotify?: Resolver<IResolversTypes['UserAuthInfo'], ParentType, ContextType>;
+  youtube?: Resolver<Maybe<IResolversTypes['UserOauthProvider']>, ParentType, ContextType>;
+  twitter?: Resolver<Maybe<IResolversTypes['UserOauthProvider']>, ParentType, ContextType>;
+  facebook?: Resolver<Maybe<IResolversTypes['UserOauthProvider']>, ParentType, ContextType>;
+  spotify?: Resolver<Maybe<IResolversTypes['UserOauthProvider']>, ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType>;
 };
 
-export type IUserAuthInfoResolvers<ContextType = MyGQLContext, ParentType extends IResolversParentTypes['UserAuthInfo'] = IResolversParentTypes['UserAuthInfo']> = {
-  auth?: Resolver<IResolversTypes['Boolean'], ParentType, ContextType>;
-  token?: Resolver<Maybe<IResolversTypes['String']>, ParentType, ContextType>;
+export type IUserOauthProviderResolvers<ContextType = MyGQLContext, ParentType extends IResolversParentTypes['UserOauthProvider'] = IResolversParentTypes['UserOauthProvider']> = {
+  provider?: Resolver<IResolversTypes['OAuthProviderName'], ParentType, ContextType>;
+  id?: Resolver<IResolversTypes['ID'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType>;
 };
 
@@ -597,16 +565,6 @@ export type IRoomStateResolvers<ContextType = MyGQLContext, ParentType extends I
   anyoneCanAdd?: Resolver<IResolversTypes['Boolean'], ParentType, ContextType>;
   collabs?: Resolver<Array<IResolversTypes['String']>, ParentType, ContextType>;
   queueMax?: Resolver<IResolversTypes['Int'], ParentType, ContextType>;
-  __isTypeOf?: IsTypeOfResolverFn<ParentType>;
-};
-
-export type IPlaylistResolvers<ContextType = MyGQLContext, ParentType extends IResolversParentTypes['Playlist'] = IResolversParentTypes['Playlist']> = {
-  id?: Resolver<IResolversTypes['ID'], ParentType, ContextType>;
-  title?: Resolver<IResolversTypes['String'], ParentType, ContextType>;
-  image?: Resolver<IResolversTypes['String'], ParentType, ContextType>;
-  tracks?: Resolver<Array<IResolversTypes['String']>, ParentType, ContextType>;
-  platform?: Resolver<IResolversTypes['PlatformName'], ParentType, ContextType>;
-  externalId?: Resolver<IResolversTypes['String'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType>;
 };
 
@@ -701,10 +659,9 @@ export type IResolvers<ContextType = MyGQLContext> = {
   Upload?: GraphQLScalarType;
   User?: IUserResolvers<ContextType>;
   UserAuthWrapper?: IUserAuthWrapperResolvers<ContextType>;
-  UserAuthInfo?: IUserAuthInfoResolvers<ContextType>;
+  UserOauthProvider?: IUserOauthProviderResolvers<ContextType>;
   Room?: IRoomResolvers<ContextType>;
   RoomState?: IRoomStateResolvers<ContextType>;
-  Playlist?: IPlaylistResolvers<ContextType>;
   Track?: ITrackResolvers<ContextType>;
   CrossTracks?: ICrossTracksResolvers<ContextType>;
   Artist?: IArtistResolvers<ContextType>;

@@ -104,13 +104,6 @@ export class UserService extends BaseService {
           [authTokens.provider]: authTokens,
         },
       });
-      // Dangerous
-      // Also sync playlist on user creation
-      await this.services.Playlist.syncByPlatform(
-        // Just created user only have one oauth
-        // which is the platform they sign up with
-        authTokens.provider
-      );
       // Temporary set isNew flag to redirect user to Welcome page
       (this.context.user as any).isNew = true;
     } else {
@@ -174,10 +167,12 @@ export class UserService extends BaseService {
   async updateMeOauth(
     provider: OAuthProviderName,
     {
+      expiredAt,
       accessToken,
       refreshToken,
       id,
     }: {
+      expiredAt?: Date;
       accessToken?: string | null;
       refreshToken?: string | null;
       id: string;
@@ -217,6 +212,9 @@ export class UserService extends BaseService {
         thisOauth.refreshToken = $set[
           `oauth.${provider}.refreshToken`
         ] = refreshToken;
+      if (expiredAt !== undefined) {
+        thisOauth.expiredAt = $set[`oauth.${provider}.expiredAt`] = expiredAt;
+      }
     } else {
       // Only allow 1 music account
       if (
@@ -233,17 +231,13 @@ export class UserService extends BaseService {
         provider,
         ...(accessToken !== undefined && { accessToken }),
         ...(refreshToken !== undefined && { refreshToken }),
+        ...(expiredAt !== undefined && { expiredAt }),
       };
       // Reinitialize with the new auth
       this.services.Service.reinitialize();
     }
 
     await this.collection.updateOne({ _id: this.context.user._id }, { $set });
-
-    if (provider === "youtube" || provider === "spotify") {
-      // Dangerous
-      await this.services.Playlist.syncByPlatform(provider);
-    }
 
     this.loader
       .clear(this.context.user._id)
@@ -261,9 +255,6 @@ export class UserService extends BaseService {
       { _id: this.context.user._id },
       { $unset: { [`oauth.${provider}`]: "" } }
     );
-
-    if (provider === "spotify" || provider === "youtube")
-      await this.services.Playlist.removeByMineByPlatform(provider);
 
     delete this.context.user.oauth[provider];
   }

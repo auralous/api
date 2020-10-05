@@ -26,6 +26,7 @@ const GQL = new GraphQL({
   formatError: (err) => {
     if (err.extensions?.code && USER_ERR_CODES.includes(err.extensions.code)) {
       // This is a user error
+      return formatError(err);
     }
     if (err.message === "Must provide query string.") return formatError(err);
     // This is a internal error

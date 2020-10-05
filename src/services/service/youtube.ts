@@ -4,7 +4,6 @@ import { TrackService } from "../track";
 import { ServiceInit } from "../base";
 import { isDefined } from "../../lib/utils";
 import { MAX_TRACK_DURATION } from "../../lib/constant";
-import { AllServices } from "../types";
 import { ArtistDbObject, TrackDbObject } from "../../types/db";
 
 function parseDurationToMs(str: string) {
@@ -74,19 +73,16 @@ const INTERNAL_YTAPI = {
 };
 
 export default class YoutubeService {
-  oauth2Client = new google.auth.OAuth2(
+  private oauth2Client = new google.auth.OAuth2(
     process.env.GOOGLE_CLIENT_KEY,
     process.env.GOOGLE_CLIENT_SECRET,
     `${process.env.API_URI}/auth/google/callback`
   );
-  youtube = google.youtube({
+  private youtube = google.youtube({
     version: "v3",
     auth: this.oauth2Client,
   });
-  services: AllServices;
-  private authId?: string;
   constructor(options: ServiceInit) {
-    this.services = options.services;
     if (options.context.user) {
       const googleProvider = options.context.user.oauth.youtube;
       if (googleProvider) {
@@ -94,7 +90,6 @@ export default class YoutubeService {
           access_token: googleProvider.accessToken,
           refresh_token: googleProvider.refreshToken,
         });
-        this.authId = googleProvider.id;
         // Handling refresh tokens
         this.oauth2Client.on("tokens", async (tokens) => {
           options.services.User.updateMeOauth("youtube", {
@@ -109,6 +104,13 @@ export default class YoutubeService {
       // Fallback to using API Key
       this.oauth2Client.apiKey = process.env.GOOGLE_API_KEY;
     }
+  }
+
+  async getAccessToken(): Promise<string | null> {
+    return this.oauth2Client
+      .getAccessToken()
+      .then((resp) => resp.token || null)
+      .catch(() => null);
   }
 
   // Lib

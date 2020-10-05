@@ -86,6 +86,7 @@ appAuth.get("mAuth", async (req, res) => {
               platform: IPlatformName.Youtube,
               id: req.user.oauth.youtube.id,
               accessToken: youtubeToken,
+              expiredAt: req.user.oauth.youtube.expiredAt,
             })
           );
         return;
@@ -100,6 +101,7 @@ appAuth.get("mAuth", async (req, res) => {
               platform: IPlatformName.Spotify,
               id: req.user.oauth.spotify.id,
               accessToken: spotifyToken,
+              expiredAt: req.user.oauth.spotify.expiredAt,
             })
           );
         return;

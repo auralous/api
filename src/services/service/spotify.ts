@@ -71,14 +71,8 @@ export default class SpotifyService {
     this.auth = options.context.user?.oauth["spotify"] || null;
   }
 
-  async getAccessToken(): Promise<string | null> {
-    if (!this.auth?.accessToken) return null;
-    const response = await fetch(
-      // This seems like a private API but it allows quick fetch so we use it
-      `${this.BASE_URL}/melody/v1/check_scope?scope=web-playback`,
-      { headers: { Authorization: `Bearer ${this.auth.accessToken}` } }
-    );
-    if (response.status === 200) return this.auth.accessToken;
+  private async refreshAccessToken(): Promise<string | null> {
+    if (!this.auth) return null;
     // token is not good, try refresh
     const refreshToken = this.auth?.refreshToken;
     // no refresh token, we're done for
@@ -94,16 +88,34 @@ export default class SpotifyService {
         body: `grant_type=refresh_token&refresh_token=${refreshToken}`,
       }
     );
-    if (refreshResponse.status !== 200) {
+    if (refreshResponse.status !== 200)
       // Refresh token might have been expired
       return null;
-    }
     const json = await refreshResponse.json();
+    // Update tokens
     await this.services.User.updateMeOauth("spotify", {
       id: this.auth.id,
       accessToken: json.access_token,
+      expiredAt: new Date(Date.now() + json.expires_in * 1000),
     });
     return json.access_token;
+  }
+
+  async getAccessToken(): Promise<string | null> {
+    if (!this.auth?.accessToken) return this.refreshAccessToken();
+    if (this.auth.expiredAt) {
+      if (this.auth.expiredAt > new Date()) return this.auth.accessToken;
+      return this.refreshAccessToken();
+    } else {
+      // Use a private API to quick fetch token validity
+      const tokenCheckRes = await fetch(
+        // This seems like a private API but it allows quick fetch so we use it
+        `${this.BASE_URL}/melody/v1/check_scope?scope=web-playback`,
+        { headers: { Authorization: `Bearer ${this.auth.accessToken}` } }
+      );
+      if (tokenCheckRes.status === 200) return this.auth.accessToken;
+      else return this.refreshAccessToken();
+    }
   }
 
   // Lib

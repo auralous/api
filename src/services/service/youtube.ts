@@ -96,6 +96,9 @@ export default class YoutubeService {
             id: googleProvider.id,
             accessToken: tokens.access_token,
             refreshToken: tokens.refresh_token,
+            ...(tokens.expiry_date && {
+              expiredAt: new Date(tokens.expiry_date),
+            }),
           });
         });
       }

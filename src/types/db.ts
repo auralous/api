@@ -4,6 +4,7 @@ export interface UserOauthProvider<T extends OAuthProviderName> {
   provider: T;
   accessToken?: string | null;
   refreshToken?: string | null;
+  expiredAt?: Date | null;
   id: string;
 }
 

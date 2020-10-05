@@ -167,10 +167,12 @@ export class UserService extends BaseService {
   async updateMeOauth(
     provider: OAuthProviderName,
     {
+      expiredAt,
       accessToken,
       refreshToken,
       id,
     }: {
+      expiredAt?: Date;
       accessToken?: string | null;
       refreshToken?: string | null;
       id: string;
@@ -210,6 +212,9 @@ export class UserService extends BaseService {
         thisOauth.refreshToken = $set[
           `oauth.${provider}.refreshToken`
         ] = refreshToken;
+      if (expiredAt !== undefined) {
+        thisOauth.expiredAt = $set[`oauth.${provider}.expiredAt`] = expiredAt;
+      }
     } else {
       // Only allow 1 music account
       if (
@@ -226,6 +231,7 @@ export class UserService extends BaseService {
         provider,
         ...(accessToken !== undefined && { accessToken }),
         ...(refreshToken !== undefined && { refreshToken }),
+        ...(expiredAt !== undefined && { expiredAt }),
       };
       // Reinitialize with the new auth
       this.services.Service.reinitialize();

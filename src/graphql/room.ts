@@ -20,7 +20,7 @@ export const typeDefs = `
 
   extend type Mutation {
     createRoom(title: String!, description: String): Room!
-    updateRoom(id: ID!, title: String, description: String, image: Upload, anyoneCanAdd: Boolean, queueMax: Int): Room!
+    updateRoom(id: ID!, title: String, description: String, image: Upload, anyoneCanAdd: Boolean): Room!
     updateRoomMembership(id: ID!, username: String, userId: String, role: RoomMembership): Boolean!
     deleteRoom(id: ID!): ID!
   }
@@ -44,7 +44,6 @@ export const typeDefs = `
     # Settings
     anyoneCanAdd: Boolean!
     collabs: [String!]!
-    queueMax: Int!
   }
 `;
 
@@ -82,7 +81,7 @@ export const resolvers: IResolvers = {
     },
     async updateRoom(
       parent,
-      { id, title, description, image: imageFile, anyoneCanAdd, queueMax },
+      { id, title, description, image: imageFile, anyoneCanAdd },
       { user, services }
     ) {
       if (!user) throw new AuthenticationError("");
@@ -98,7 +97,6 @@ export const resolvers: IResolvers = {
         description,
         image,
         anyoneCanAdd,
-        queueMax,
       });
     },
     async updateRoomMembership(
@@ -148,9 +146,6 @@ export const resolvers: IResolvers = {
     },
     collabs({ id }, args, { services }) {
       return services.Room.findById(id).then((s) => s?.collabs || []);
-    },
-    queueMax({ id }, args, { services }) {
-      return services.Room.findById(id).then((s) => s?.queueMax || 0);
     },
   },
 };

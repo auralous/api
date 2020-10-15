@@ -140,7 +140,6 @@ export type IMutationUpdateRoomArgs = {
   description?: Maybe<Scalars['String']>;
   image?: Maybe<Scalars['Upload']>;
   anyoneCanAdd?: Maybe<Scalars['Boolean']>;
-  queueMax?: Maybe<Scalars['Int']>;
 };
 
 
@@ -259,7 +258,6 @@ export type IRoomState = {
   /** Settings */
   anyoneCanAdd: Scalars['Boolean'];
   collabs: Array<Scalars['String']>;
-  queueMax: Scalars['Int'];
 };
 
 export enum IPlatformName {
@@ -564,7 +562,6 @@ export type IRoomStateResolvers<ContextType = MyGQLContext, ParentType extends I
   userIds?: Resolver<Array<IResolversTypes['String']>, ParentType, ContextType>;
   anyoneCanAdd?: Resolver<IResolversTypes['Boolean'], ParentType, ContextType>;
   collabs?: Resolver<Array<IResolversTypes['String']>, ParentType, ContextType>;
-  queueMax?: Resolver<IResolversTypes['Int'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType>;
 };
 

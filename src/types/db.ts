@@ -44,7 +44,6 @@ export interface RoomDbObject {
   // Settings
   collabs?: string[];
   anyoneCanAdd?: boolean;
-  queueMax?: number;
 }
 
 export interface TrackDbObject {

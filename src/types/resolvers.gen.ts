@@ -112,6 +112,7 @@ export type IMutation = {
   addMessage: Scalars['Boolean'];
   updateQueue: Scalars['Boolean'];
   reactNowPlaying?: Maybe<Scalars['Boolean']>;
+  skipNowPlaying?: Maybe<Scalars['Boolean']>;
 };
 
 
@@ -140,7 +141,6 @@ export type IMutationUpdateRoomArgs = {
   description?: Maybe<Scalars['String']>;
   image?: Maybe<Scalars['Upload']>;
   anyoneCanAdd?: Maybe<Scalars['Boolean']>;
-  queueMax?: Maybe<Scalars['Int']>;
 };
 
 
@@ -175,6 +175,11 @@ export type IMutationUpdateQueueArgs = {
 export type IMutationReactNowPlayingArgs = {
   id: Scalars['ID'];
   reaction: INowPlayingReactionType;
+};
+
+
+export type IMutationSkipNowPlayingArgs = {
+  id: Scalars['ID'];
 };
 
 export type ISubscription = {
@@ -259,7 +264,6 @@ export type IRoomState = {
   /** Settings */
   anyoneCanAdd: Scalars['Boolean'];
   collabs: Array<Scalars['String']>;
-  queueMax: Scalars['Int'];
 };
 
 export enum IPlatformName {
@@ -508,6 +512,7 @@ export type IMutationResolvers<ContextType = MyGQLContext, ParentType extends IR
   addMessage?: Resolver<IResolversTypes['Boolean'], ParentType, ContextType, RequireFields<IMutationAddMessageArgs, 'roomId' | 'message'>>;
   updateQueue?: Resolver<IResolversTypes['Boolean'], ParentType, ContextType, RequireFields<IMutationUpdateQueueArgs, 'id' | 'action'>>;
   reactNowPlaying?: Resolver<Maybe<IResolversTypes['Boolean']>, ParentType, ContextType, RequireFields<IMutationReactNowPlayingArgs, 'id' | 'reaction'>>;
+  skipNowPlaying?: Resolver<Maybe<IResolversTypes['Boolean']>, ParentType, ContextType, RequireFields<IMutationSkipNowPlayingArgs, 'id'>>;
 };
 
 export type ISubscriptionResolvers<ContextType = MyGQLContext, ParentType extends IResolversParentTypes['Subscription'] = IResolversParentTypes['Subscription']> = {
@@ -564,7 +569,6 @@ export type IRoomStateResolvers<ContextType = MyGQLContext, ParentType extends I
   userIds?: Resolver<Array<IResolversTypes['String']>, ParentType, ContextType>;
   anyoneCanAdd?: Resolver<IResolversTypes['Boolean'], ParentType, ContextType>;
   collabs?: Resolver<Array<IResolversTypes['String']>, ParentType, ContextType>;
-  queueMax?: Resolver<IResolversTypes['Int'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType>;
 };
 

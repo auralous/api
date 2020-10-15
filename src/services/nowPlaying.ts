@@ -1,4 +1,4 @@
-import { AuthenticationError } from "apollo-server-errors";
+import { AuthenticationError, ForbiddenError } from "apollo-server-errors";
 import { BaseService, ServiceInit } from "./base";
 import { PUBSUB_CHANNELS, REDIS_KEY } from "../lib/constant";
 import { NowPlayingItemDbObject } from "../types/db";
@@ -51,6 +51,21 @@ export class NowPlayingService extends BaseService {
 
   async removeById(id: string) {
     return this.context.redis.del(REDIS_KEY.nowPlaying(id));
+  }
+
+  async skipCurrentTrack(id: string): Promise<boolean> {
+    if (!this.context.user) throw new AuthenticationError("");
+    const [resourceType, resourceId] = id.split(":");
+    if (resourceType === "room") {
+      const room = await this.services.Room.findById(resourceId);
+      if (!room) throw new ForbiddenError("Room does not exist");
+      if (room.creatorId !== this.context.user._id)
+        throw new AuthenticationError("You are not allowed to make changes");
+      await this.removeById(id);
+      await this.requestResolve(id);
+      return true;
+    }
+    throw new Error("Invalid NowPlaying Id");
   }
 
   // NowPlaying Reaction

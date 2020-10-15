@@ -91,7 +91,6 @@ export class RoomService extends BaseService {
       image,
       anyoneCanAdd,
       collabs,
-      queueMax,
     }: NullablePartial<RoomDbObject>
   ) {
     if (!this.context.user) throw new AuthenticationError("");
@@ -105,7 +104,6 @@ export class RoomService extends BaseService {
           ...(title && { title }),
           ...(description !== undefined && { description }),
           ...(image !== undefined && { image }),
-          ...(typeof queueMax === "number" && { queueMax }),
           ...(collabs && { collabs }),
           ...(typeof anyoneCanAdd === "boolean" && { anyoneCanAdd }),
         },
@@ -116,12 +114,8 @@ export class RoomService extends BaseService {
     // save to cache
     this.loader.clear(_id).prime(_id, room);
 
-    // If anyoneCanAdd, collabs, or queueMax is changed, publish to roomState
-    if (
-      typeof queueMax === "number" ||
-      collabs ||
-      typeof anyoneCanAdd === "boolean"
-    )
+    // If anyoneCanAdd, collabs, is changed, publish to roomState
+    if (collabs || typeof anyoneCanAdd === "boolean")
       this.notifyStateUpdate(_id);
 
     return room;

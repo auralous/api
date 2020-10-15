@@ -79,18 +79,6 @@ export const resolvers: IResolvers = {
                   "You are not allowed to add to this queue"
                 );
 
-              if (room.queueMax) {
-                // Check queue length
-                let inQueueCount = 0;
-                for (const item of queue) {
-                  item.creatorId === user._id && inQueueCount++;
-                }
-                if (inQueueCount + tracks.length > room.queueMax)
-                  throw new ForbiddenError(
-                    `You added # of songs that is over the queue limit (${room.queueMax})`
-                  );
-              }
-
               await services.Queue.pushItems(
                 id,
                 ...tracks.map((trackId) => ({

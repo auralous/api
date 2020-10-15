@@ -14,6 +14,7 @@ export const typeDefs = `
   }
   extend type Mutation {
     reactNowPlaying(id: ID!, reaction: NowPlayingReactionType!): Boolean
+    skipNowPlaying(id: ID!): Boolean
   }
   extend type Subscription {
     nowPlayingUpdated(id: ID!): NowPlaying
@@ -70,6 +71,9 @@ export const resolvers: IResolvers = {
     async reactNowPlaying(parent, { id, reaction }, { services }) {
       await services.NowPlaying.reactNowPlaying(id, reaction);
       return true;
+    },
+    async skipNowPlaying(parent, { id }, { services }) {
+      return services.NowPlaying.skipCurrentTrack(id);
     },
   },
   Subscription: {

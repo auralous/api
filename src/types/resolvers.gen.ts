@@ -112,6 +112,7 @@ export type IMutation = {
   addMessage: Scalars['Boolean'];
   updateQueue: Scalars['Boolean'];
   reactNowPlaying?: Maybe<Scalars['Boolean']>;
+  skipNowPlaying?: Maybe<Scalars['Boolean']>;
 };
 
 
@@ -174,6 +175,11 @@ export type IMutationUpdateQueueArgs = {
 export type IMutationReactNowPlayingArgs = {
   id: Scalars['ID'];
   reaction: INowPlayingReactionType;
+};
+
+
+export type IMutationSkipNowPlayingArgs = {
+  id: Scalars['ID'];
 };
 
 export type ISubscription = {
@@ -506,6 +512,7 @@ export type IMutationResolvers<ContextType = MyGQLContext, ParentType extends IR
   addMessage?: Resolver<IResolversTypes['Boolean'], ParentType, ContextType, RequireFields<IMutationAddMessageArgs, 'roomId' | 'message'>>;
   updateQueue?: Resolver<IResolversTypes['Boolean'], ParentType, ContextType, RequireFields<IMutationUpdateQueueArgs, 'id' | 'action'>>;
   reactNowPlaying?: Resolver<Maybe<IResolversTypes['Boolean']>, ParentType, ContextType, RequireFields<IMutationReactNowPlayingArgs, 'id' | 'reaction'>>;
+  skipNowPlaying?: Resolver<Maybe<IResolversTypes['Boolean']>, ParentType, ContextType, RequireFields<IMutationSkipNowPlayingArgs, 'id'>>;
 };
 
 export type ISubscriptionResolvers<ContextType = MyGQLContext, ParentType extends IResolversParentTypes['Subscription'] = IResolversParentTypes['Subscription']> = {

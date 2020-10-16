@@ -183,13 +183,13 @@ export class UserService extends BaseService {
     const $set: any = {};
 
     // Make sure this provider is not linked with another account
-    const checkingUser = await this.collection.findOne({
-      [`oauth.${provider}`]: { $exists: true },
-    });
-
-    if (checkingUser && checkingUser._id !== this.context.user._id) {
+    const isUsedElsewhere = !!(await this.collection.countDocuments({
+      _id: { $ne: this.context.user._id },
+      [`oauth.${provider}.id`]: id,
+    }));
+    if (isUsedElsewhere) {
       throw new UserInputError(
-        "This service account is linked to another Stereo account."
+        `This '${provider}' account is linked to a different Stereo account.`
       );
     }
 
@@ -201,7 +201,7 @@ export class UserService extends BaseService {
       // Check that this is not another account from the same provider
       if (id !== thisOauth.id)
         throw new UserInputError(
-          "You have already linked to another account. Disconnect it before continuing."
+          `This Stereo account is linked to a different '${provider}' account.`
         );
 
       if (accessToken !== undefined)

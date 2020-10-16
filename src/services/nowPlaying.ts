@@ -59,7 +59,12 @@ export class NowPlayingService extends BaseService {
     if (resourceType === "room") {
       const room = await this.services.Room.findById(resourceId);
       if (!room) throw new ForbiddenError("Room does not exist");
-      if (room.creatorId !== this.context.user._id)
+      const currentTrack = await this.findById(id);
+      if (!currentTrack) return false;
+      if (
+        room.creatorId !== this.context.user._id &&
+        currentTrack.creatorId !== this.context.user._id
+      )
         throw new AuthenticationError("You are not allowed to make changes");
       await this.removeById(id);
       await this.requestResolve(id);

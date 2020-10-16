@@ -25,6 +25,7 @@ export const typeDefs = `
     trackId: ID!
     playedAt: DateTime!
     endedAt: DateTime!
+    creatorId: ID!
   }
   type NowPlaying {
     id: ID!

@@ -5,11 +5,9 @@ import cors from "cors";
 import parser from "@polka/url";
 // @ts-ignore
 import { graphqlUploadExpress } from "graphql-upload";
-import expressPlayground from "graphql-playground-middleware-express";
 import { session } from "./middleware/session";
 import appAuth from "./auth/route";
 import healthApp from "./health/route";
-import compat from "./middleware/compat";
 import { httpHandle } from "./gql";
 import { ExtendedIncomingMessage } from "./types/common";
 
@@ -25,16 +23,15 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use(compat);
-
-// cors
-app.use(
-  cors({
-    origin: process.env.APP_URI,
-    methods: ["GET", "POST", "DELETE"],
-    credentials: true,
-  })
-);
+// cors for dev
+if (process.env.NODE_ENV !== "production")
+  app.use(
+    cors({
+      origin: process.env.APP_URI,
+      methods: ["GET", "POST", "DELETE"],
+      credentials: true,
+    })
+  );
 
 app.use(session);
 
@@ -46,35 +43,26 @@ app.use("/auth", appAuth);
 
 app.post(
   "/graphql",
+  (req, res, next) => {
+    req.is = (type) => Boolean(req.headers["content-type"]?.includes(type));
+    next();
+  },
   graphqlUploadExpress({
     maxFiles: 2,
     maxFileSize: 20000000, // 20MB
   })
 );
 
-app.all(
-  "/graphql",
-  (req, res, next) => {
-    if (req.method === "GET") res.setHeader("cache-control", "no-store");
-    req.setCacheControl = (maxAge, scope = "PUBLIC") => {
-      req.method === "GET" &&
-        res.setHeader(
-          "cache-control",
-          `${scope.toLowerCase()}, max-age=${maxAge}`
-        );
-    };
-    next();
-  },
-  httpHandle
-);
+app.get("/graphql", (req, res, next) => {
+  // setCacheControl API
+  // default to no-store
+  res.setHeader("cache-control", "no-store");
+  req.setCacheControl = (maxAge, scope = "PUBLIC") => {
+    res.setHeader("cache-control", `${scope.toLowerCase()}, max-age=${maxAge}`);
+  };
+  next();
+});
 
-if (process.env.NODE_ENV !== "production")
-  app.get(
-    "/playground",
-    expressPlayground({
-      endpoint: "/graphql",
-      subscriptionEndpoint: "/websocket",
-    })
-  );
+app.all("/graphql", httpHandle);
 
 export default app;

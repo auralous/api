@@ -1,4 +1,5 @@
 {{- if .Values.ingress.enabled -}}
+{{- $root := . -}}
 {{- $fullName := include "stereo-api.fullname" . -}}
 {{- $svcPort := .Values.service.port -}}
 apiVersion: projectcontour.io/v1
@@ -14,11 +15,15 @@ spec:
     tls:
       secretName: {{ (index .Values.ingress.tls 0).secretName }}
     {{- end }}
+    corsPolicy:
+      {{- toYaml .Values.httpProxy.corsPolicy | nindent 6 }}
   routes:
     {{- range (index .Values.ingress.hosts 0).paths }}
     - conditions:
         - prefix: {{ .path }}
       enableWebsockets: true
+      responseHeadersPolicy:
+        {{- toYaml $root.Values.httpProxy.responseHeadersPolicy | nindent 8 }}
       services:
         - name: {{ $fullName }}
           port: {{ $svcPort }}

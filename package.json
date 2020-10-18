@@ -27,7 +27,6 @@
     "fast-json-stringify": "^2.2.7",
     "googleapis": "^59.0.0",
     "graphql": "^15.3.0",
-    "graphql-playground-middleware-express": "^1.7.21",
     "graphql-scalars": "^1.2.7",
     "graphql-upload": "^11.0.0",
     "human-readable-ids": "^1.0.4",
@@ -42,8 +41,6 @@
     "passport-google-oauth20": "^2.0.0",
     "passport-spotify": "^1.1.0",
     "passport-twitter": "^1.0.4",
-    "pino": "^6.6.1",
-    "pino-pretty": "^4.2.1",
     "slug": "^3.3.4",
     "ws": "^7.3.1"
   },

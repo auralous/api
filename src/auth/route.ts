@@ -13,24 +13,20 @@ function createRoute(
   provider: string,
   authOpts = {}
 ) {
-  // http://www.passportjs.org/docs/authorize/
   app.get(`/${provider}`, passport.authenticate(provider, authOpts));
-  app.get<ExtendedIncomingMessage>(
+  app.get(
     `/${provider}/callback`,
-    passport.authenticate(provider, {
-      failureRedirect: `${process.env.APP_URI}/auth/callback?error=auth_code_fail`,
-    }),
+    passport.authenticate(provider),
     (req, res) => {
+      const redirect = (location: string) =>
+        res.writeHead(302, { Location: location }).end();
       if (req.user)
-        (res as any).redirect(
+        redirect(
           `${process.env.APP_URI}/auth/callback${
             (req.user as any).isNew ? "?isNew=1" : ""
           }`
         );
-      else
-        (res as any).redirect(
-          `${process.env.APP_URI}/auth/callback?error=unknown`
-        );
+      else redirect(`${process.env.APP_URI}/auth/callback?error=unknown`);
     }
   );
 }
@@ -61,54 +57,41 @@ createRoute(appAuth, "spotify", {
   ],
 });
 
-appAuth.delete("/", async (req, res) => {
+appAuth.post("/logout", async (req, res) => {
   // req.logout();
   // req.logout is unreliable https://github.com/jaredhanson/passport-facebook/issues/202#issuecomment-297737486
   req.user = null;
   await req.session.destroy();
-  res.statusCode = 204;
-  res.end();
+  res.writeHead(204).end();
 });
 
-appAuth.get("mAuth", async (req, res) => {
+appAuth.get("/mAuth", async (req, res) => {
   if (req.user) {
     const services = buildServices(
       { user: req.user || null, db, redis, pubsub },
       { cache: false }
     );
-    if (req.user.oauth.youtube) {
-      const youtubeToken = await services.Service.youtube.getAccessToken();
-      if (youtubeToken) {
-        res
-          .writeHead(200, undefined, { "content-type": "application/json" })
-          .end(
-            JSON.stringify({
-              platform: IPlatformName.Youtube,
-              id: req.user.oauth.youtube.id,
-              accessToken: youtubeToken,
-              expiredAt: req.user.oauth.youtube.expiredAt,
-            })
-          );
-        return;
-      }
-    } else if (req.user.oauth.spotify) {
-      const spotifyToken = await services.Service.spotify.getAccessToken();
-      if (spotifyToken) {
-        res
-          .writeHead(200, undefined, { "content-type": "application/json" })
-          .end(
-            JSON.stringify({
-              platform: IPlatformName.Spotify,
-              id: req.user.oauth.spotify.id,
-              accessToken: spotifyToken,
-              expiredAt: req.user.oauth.spotify.expiredAt,
-            })
-          );
-        return;
+    if (req.user) {
+      let prov: IPlatformName | undefined;
+      if (req.user.oauth.youtube) prov = IPlatformName.Youtube;
+      else if (req.user.oauth.spotify) prov = IPlatformName.Spotify;
+      if (prov) {
+        const accessToken = await services.Service[prov].getAccessToken();
+        if (accessToken)
+          return res
+            .writeHead(200, undefined, { "content-type": "application/json" })
+            .end(
+              JSON.stringify({
+                platform: prov,
+                id: req.user.oauth[prov]?.id,
+                accessToken,
+                expiredAt: req.user.oauth[prov]?.expiredAt,
+              })
+            );
       }
     }
+    return res.writeHead(204).end();
   }
-  res.writeHead(204).end();
 });
 
 export default appAuth;

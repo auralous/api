@@ -1,6 +1,5 @@
 import type { Db } from "mongodb";
 import type Redis from "ioredis";
-import { npLogger } from "../logger/index";
 import { buildServices } from "./services";
 import { RoomDbObject, NowPlayingItemDbObject } from "../types/db";
 import { PUBSUB_CHANNELS } from "../lib/constant";
@@ -29,7 +28,6 @@ export class NowPlayingWorker {
       { user: null, db, redis, pubsub: this.pubsub },
       { cache: false }
     );
-    npLogger.debug("Set up Jobs");
     const roomArray = await db
       .collection<RoomDbObject>("rooms")
       .find({})
@@ -58,10 +56,6 @@ export class NowPlayingWorker {
   private async resolveRoom(
     roomId: string
   ): Promise<NowPlayingItemDbObject | null> {
-    const childLogger = npLogger.child({ type: "room", id: `room:${roomId}` });
-
-    childLogger.debug("Start");
-
     const now = new Date();
 
     const prevCurrentTrack = await this.services.NowPlaying.findById(
@@ -78,7 +72,6 @@ export class NowPlayingWorker {
         prevCurrentTrack.endedAt.getTime() - now.getTime()
       );
       this.addJob(`room:${roomId}`, retryIn);
-      childLogger.debug(`Existed. Try again in ${retryIn} ms`);
       return prevCurrentTrack;
     }
 
@@ -95,9 +88,6 @@ export class NowPlayingWorker {
       );
 
       if (!detailNextTrack) {
-        childLogger.error(`Fail to get track. Retrying...`, {
-          trackId: firstTrackInQueue.trackId,
-        });
         throw new Error(
           `An error has occurred in trying to get NowPlaying track: ${firstTrackInQueue.trackId}`
         );
@@ -128,8 +118,6 @@ export class NowPlayingWorker {
     // Publish to subscription
     this.services.NowPlaying.notifyUpdate(`room:${roomId}`, currentTrack);
     this.services.NowPlaying.notifyReactionUpdate(`room:${roomId}`, undefined);
-
-    childLogger.debug({ currentTrack }, "Done");
 
     return currentTrack;
   }

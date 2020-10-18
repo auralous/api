@@ -15,8 +15,10 @@ spec:
     tls:
       secretName: {{ (index .Values.ingress.tls 0).secretName }}
     {{- end }}
+    {{- if .Values.httpProxy.corsPolicy }}
     corsPolicy:
       {{- toYaml .Values.httpProxy.corsPolicy | nindent 6 }}
+    {{- end }}
   routes:
     {{- range (index .Values.ingress.hosts 0).paths }}
     - conditions:

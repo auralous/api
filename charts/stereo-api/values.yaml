@@ -71,6 +71,13 @@ httpProxy:
       - GET
       - POST
       - OPTIONS
+    allowHeaders:
+      - authorization
+      - cache-control
+      - content-type
+      - dnt
+      - if-modified-since
+      - user-agent
     maxAge: "24h"
   responseHeadersPolicy:
     set:

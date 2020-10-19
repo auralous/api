@@ -4,9 +4,9 @@ import { IResolvers, INowPlayingReactionType } from "../types/resolvers.gen";
 export const typeDefs = `
   enum NowPlayingReactionType {
     heart
-    tear_joy
+    joy
     fire
-    crying
+    cry
   }
   extend type Query {
     nowPlaying(id: ID!): NowPlaying
@@ -33,10 +33,10 @@ export const typeDefs = `
   }
   type NowPlayingReaction {
     id: ID!
-    mine: [NowPlayingReactionType!]!
+    mine: NowPlayingReactionType
     heart: Int!
-    crying: Int!
-    tear_joy: Int!
+    cry: Int!
+    joy: Int!
     fire: Int!
   }
 `;
@@ -60,10 +60,10 @@ export const resolvers: IResolvers = {
           )
         : {
             id,
-            mine: [],
+            mine: null,
             [INowPlayingReactionType.Heart]: 0,
-            [INowPlayingReactionType.Crying]: 0,
-            [INowPlayingReactionType.TearJoy]: 0,
+            [INowPlayingReactionType.Cry]: 0,
+            [INowPlayingReactionType.Joy]: 0,
             [INowPlayingReactionType.Fire]: 0,
           };
     },

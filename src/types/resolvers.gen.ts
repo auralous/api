@@ -107,6 +107,7 @@ export type IMutation = {
   deleteMeOauth: Scalars['Boolean'];
   createRoom: IRoom;
   updateRoom: IRoom;
+  joinPrivateRoom: Scalars['Boolean'];
   updateRoomMembership: Scalars['Boolean'];
   deleteRoom: Scalars['ID'];
   addMessage: Scalars['Boolean'];
@@ -144,6 +145,12 @@ export type IMutationUpdateRoomArgs = {
   description?: Maybe<Scalars['String']>;
   image?: Maybe<Scalars['Upload']>;
   anyoneCanAdd?: Maybe<Scalars['Boolean']>;
+  password?: Maybe<Scalars['String']>;
+};
+
+
+export type IMutationJoinPrivateRoomArgs = {
+  id: Scalars['ID'];
   password?: Maybe<Scalars['String']>;
 };
 
@@ -259,7 +266,7 @@ export type IRoom = {
   isPublic: Scalars['Boolean'];
   description?: Maybe<Scalars['String']>;
   image: Scalars['String'];
-  creator: IUser;
+  creatorId: Scalars['ID'];
   createdAt: Scalars['DateTime'];
 };
 
@@ -513,6 +520,7 @@ export type IMutationResolvers<ContextType = MyGQLContext, ParentType extends IR
   deleteMeOauth?: Resolver<IResolversTypes['Boolean'], ParentType, ContextType, RequireFields<IMutationDeleteMeOauthArgs, 'provider'>>;
   createRoom?: Resolver<IResolversTypes['Room'], ParentType, ContextType, RequireFields<IMutationCreateRoomArgs, 'title' | 'isPublic'>>;
   updateRoom?: Resolver<IResolversTypes['Room'], ParentType, ContextType, RequireFields<IMutationUpdateRoomArgs, 'id'>>;
+  joinPrivateRoom?: Resolver<IResolversTypes['Boolean'], ParentType, ContextType, RequireFields<IMutationJoinPrivateRoomArgs, 'id'>>;
   updateRoomMembership?: Resolver<IResolversTypes['Boolean'], ParentType, ContextType, RequireFields<IMutationUpdateRoomMembershipArgs, 'id'>>;
   deleteRoom?: Resolver<IResolversTypes['ID'], ParentType, ContextType, RequireFields<IMutationDeleteRoomArgs, 'id'>>;
   addMessage?: Resolver<IResolversTypes['Boolean'], ParentType, ContextType, RequireFields<IMutationAddMessageArgs, 'roomId' | 'message'>>;
@@ -566,7 +574,7 @@ export type IRoomResolvers<ContextType = MyGQLContext, ParentType extends IResol
   isPublic?: Resolver<IResolversTypes['Boolean'], ParentType, ContextType>;
   description?: Resolver<Maybe<IResolversTypes['String']>, ParentType, ContextType>;
   image?: Resolver<IResolversTypes['String'], ParentType, ContextType>;
-  creator?: Resolver<IResolversTypes['User'], ParentType, ContextType>;
+  creatorId?: Resolver<IResolversTypes['ID'], ParentType, ContextType>;
   createdAt?: Resolver<IResolversTypes['DateTime'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType>;
 };

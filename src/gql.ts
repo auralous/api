@@ -30,7 +30,6 @@ const GQL = new GraphQL({
     }
     if (err.message === "Must provide query string.") return formatError(err);
     // This is a internal error
-    err.message = `Internal error: ${err.message}`;
     Sentry.captureException(err);
     return formatError(err);
   },

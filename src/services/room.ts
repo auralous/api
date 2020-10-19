@@ -148,17 +148,19 @@ export class RoomService extends BaseService {
     _id: string,
     username: string,
     role?: IRoomMembership | null,
-    isUserId = false
+    isUserId = false,
+    DANGEROUSLY_BYPASS_CHECK = false
   ) {
     if (!this.context.user) throw new AuthenticationError("");
-
-    if (this.context.user.username === username)
-      throw new UserInputError(`You added yourself... Wait you can't do that!`);
 
     const addingUser = await this.services.User[
       isUserId ? "findById" : "findByUsername"
     ](username);
+
     if (!addingUser) throw new UserInputError("User does not exist");
+
+    if (addingUser._id === this.context.user._id && !DANGEROUSLY_BYPASS_CHECK)
+      throw new UserInputError(`You added yourself... Wait you can't do that!`);
 
     let update: UpdateQuery<RoomDbObject>;
 
@@ -173,7 +175,10 @@ export class RoomService extends BaseService {
     }
 
     const { value: room } = await this.collection.findOneAndUpdate(
-      { _id, creatorId: this.context.user._id },
+      {
+        _id,
+        ...(!DANGEROUSLY_BYPASS_CHECK && { creatorId: this.context.user._id }),
+      },
       update,
       { returnOriginal: false }
     );

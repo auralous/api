@@ -2,7 +2,7 @@ import { AuthenticationError, UserInputError } from "apollo-server-errors";
 import { CONFIG, PUBSUB_CHANNELS } from "../lib/constant";
 import { uploadStreamToCloudinary } from "../lib/cloudinary";
 import { defaultAvatar } from "../lib/defaultAvatar";
-import { IResolvers } from "../types/resolvers.gen";
+import { IResolvers, IRoomMembership } from "../types/resolvers.gen";
 
 export const typeDefs = `
   extend type Query {
@@ -21,6 +21,7 @@ export const typeDefs = `
   extend type Mutation {
     createRoom(title: String!, description: String, isPublic: Boolean! anyoneCanAdd: Boolean, password: String): Room!
     updateRoom(id: ID!, title: String, description: String, image: Upload, anyoneCanAdd: Boolean, password: String): Room!
+    joinPrivateRoom(id: ID!, password: String!): Boolean!
     updateRoomMembership(id: ID!, username: String, userId: String, role: RoomMembership): Boolean!
     deleteRoom(id: ID!): ID!
   }
@@ -120,6 +121,20 @@ export const resolvers: IResolvers = {
       else if (userId)
         await services.Room.updateMembershipById(id, userId, role, true);
       else throw new UserInputError("Provide either username or userId");
+      return true;
+    },
+    async joinPrivateRoom(parent, { id, password }, { services, user }) {
+      if (!user) throw new AuthenticationError("");
+      const room = await services.Room.findById(id);
+      if (room?.isPublic !== false) return false;
+      if (room.password !== password) return false;
+      await services.Room.updateMembershipById(
+        id,
+        user._id,
+        IRoomMembership.Collab,
+        true,
+        true
+      );
       return true;
     },
     async deleteRoom(parent, { id }, { services }) {

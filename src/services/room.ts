@@ -36,9 +36,15 @@ export class RoomService extends BaseService {
   async create({
     title,
     description,
+    isPublic,
+    anyoneCanAdd,
+    password,
   }: {
     title: string;
     description?: string | null;
+    isPublic: boolean;
+    anyoneCanAdd?: boolean | null;
+    password?: string | null;
   }) {
     if (!this.context.user) throw new AuthenticationError("");
     const {
@@ -47,9 +53,11 @@ export class RoomService extends BaseService {
       _id: nanoid(12),
       title,
       description: description || undefined,
-      isPublic: true,
+      isPublic,
       creatorId: this.context.user._id,
       createdAt: new Date(),
+      ...(typeof anyoneCanAdd === "boolean" && { anyoneCanAdd }),
+      ...(typeof password === "string" && { password }),
     });
     this.loader.clear(room._id).prime(room._id, room);
     return room;
@@ -78,9 +86,7 @@ export class RoomService extends BaseService {
       const { _id } = rooms[i];
       this.loader.clear(_id).prime(_id, rooms[i]);
     }
-    return rooms.filter(
-      (room) => room.isPublic || room.creatorId === this.context.user?._id
-    );
+    return rooms;
   }
 
   async updateById(
@@ -91,6 +97,7 @@ export class RoomService extends BaseService {
       image,
       anyoneCanAdd,
       collabs,
+      password,
     }: NullablePartial<RoomDbObject>
   ) {
     if (!this.context.user) throw new AuthenticationError("");
@@ -106,6 +113,7 @@ export class RoomService extends BaseService {
           ...(image !== undefined && { image }),
           ...(collabs && { collabs }),
           ...(typeof anyoneCanAdd === "boolean" && { anyoneCanAdd }),
+          ...(typeof password === "string" && { password }),
         },
       },
       { returnOriginal: false }
@@ -121,21 +129,35 @@ export class RoomService extends BaseService {
     return room;
   }
 
+  async isViewable(id: string, userId?: string): Promise<boolean> {
+    const room = await this.findById(id);
+    if (!room) return false;
+    return room.isPublic || this.isMember(id, userId);
+  }
+
+  async isMember(id: string, userId?: string): Promise<boolean> {
+    const room = await this.findById(id);
+    if (!room || !userId) return false;
+    return room.creatorId === userId || !!room.collabs?.includes(userId);
+  }
+
   async updateMembershipById(
     _id: string,
     username: string,
     role?: IRoomMembership | null,
-    isUserId = false
+    isUserId = false,
+    DANGEROUSLY_BYPASS_CHECK = false
   ) {
     if (!this.context.user) throw new AuthenticationError("");
-
-    if (this.context.user.username === username)
-      throw new UserInputError(`You added yourself... Wait you can't do that!`);
 
     const addingUser = await this.services.User[
       isUserId ? "findById" : "findByUsername"
     ](username);
+
     if (!addingUser) throw new UserInputError("User does not exist");
+
+    if (addingUser._id === this.context.user._id && !DANGEROUSLY_BYPASS_CHECK)
+      throw new UserInputError(`You added yourself... Wait you can't do that!`);
 
     let update: UpdateQuery<RoomDbObject>;
 
@@ -150,7 +172,10 @@ export class RoomService extends BaseService {
     }
 
     const { value: room } = await this.collection.findOneAndUpdate(
-      { _id, creatorId: this.context.user._id },
+      {
+        _id,
+        ...(!DANGEROUSLY_BYPASS_CHECK && { creatorId: this.context.user._id }),
+      },
       update,
       { returnOriginal: false }
     );

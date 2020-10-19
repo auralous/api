@@ -2,7 +2,7 @@ import { AuthenticationError, UserInputError } from "apollo-server-errors";
 import { CONFIG, PUBSUB_CHANNELS } from "../lib/constant";
 import { uploadStreamToCloudinary } from "../lib/cloudinary";
 import { defaultAvatar } from "../lib/defaultAvatar";
-import { IResolvers } from "../types/resolvers.gen";
+import { IResolvers, IRoomMembership } from "../types/resolvers.gen";
 
 export const typeDefs = `
   extend type Query {
@@ -19,8 +19,9 @@ export const typeDefs = `
   }
 
   extend type Mutation {
-    createRoom(title: String!, description: String): Room!
-    updateRoom(id: ID!, title: String, description: String, image: Upload, anyoneCanAdd: Boolean): Room!
+    createRoom(title: String!, description: String, isPublic: Boolean! anyoneCanAdd: Boolean, password: String): Room!
+    updateRoom(id: ID!, title: String, description: String, image: Upload, anyoneCanAdd: Boolean, password: String): Room!
+    joinPrivateRoom(id: ID!, password: String!): Boolean!
     updateRoomMembership(id: ID!, username: String, userId: String, role: RoomMembership): Boolean!
     deleteRoom(id: ID!): ID!
   }
@@ -32,9 +33,10 @@ export const typeDefs = `
   type Room {
     id: ID!
     title: String!
+    isPublic: Boolean!
     description: String
     image: String!
-    creator: User!
+    creatorId: ID!
     createdAt: DateTime!
   }
 
@@ -76,12 +78,21 @@ export const resolvers: IResolvers = {
     },
   },
   Mutation: {
-    createRoom(parent, { title, description }, { services }) {
-      return services.Room.create({ title, description });
+    createRoom(
+      parent,
+      { title, description, isPublic, anyoneCanAdd },
+      { services }
+    ) {
+      return services.Room.create({
+        title,
+        description,
+        isPublic,
+        anyoneCanAdd,
+      });
     },
     async updateRoom(
       parent,
-      { id, title, description, image: imageFile, anyoneCanAdd },
+      { id, title, description, image: imageFile, anyoneCanAdd, password },
       { user, services }
     ) {
       if (!user) throw new AuthenticationError("");
@@ -97,6 +108,7 @@ export const resolvers: IResolvers = {
         description,
         image,
         anyoneCanAdd,
+        password,
       });
     },
     async updateRoomMembership(
@@ -109,6 +121,20 @@ export const resolvers: IResolvers = {
       else if (userId)
         await services.Room.updateMembershipById(id, userId, role, true);
       else throw new UserInputError("Provide either username or userId");
+      return true;
+    },
+    async joinPrivateRoom(parent, { id, password }, { services, user }) {
+      if (!user) throw new AuthenticationError("");
+      const room = await services.Room.findById(id);
+      if (room?.isPublic !== false) return false;
+      if (room.password !== password) return false;
+      await services.Room.updateMembershipById(
+        id,
+        user._id,
+        IRoomMembership.Collab,
+        true,
+        true
+      );
       return true;
     },
     async deleteRoom(parent, { id }, { services }) {
@@ -128,23 +154,20 @@ export const resolvers: IResolvers = {
   },
   Room: {
     id: ({ _id }) => _id,
-    async creator({ creatorId }, args, { services }) {
-      const user = await services.User.findById(creatorId);
-      if (!user) throw new Error("Creator not found.");
-      return user;
-    },
     image({ image, _id }) {
       return image || defaultAvatar("room", _id);
     },
   },
   RoomState: {
-    userIds({ id }, args, { services }) {
+    async userIds({ id }, args, { services, user }) {
+      if (!(await services.Room.isViewable(id, user?._id))) return [];
       return services.Room.getCurrentUsers(id);
     },
     anyoneCanAdd({ id }, args, { services }) {
       return services.Room.findById(id).then((s) => s?.anyoneCanAdd || false);
     },
-    collabs({ id }, args, { services }) {
+    collabs({ id }, args, { services, user }) {
+      if (!services.Room.isViewable(id, user?._id)) return [];
       return services.Room.findById(id).then((s) => s?.collabs || []);
     },
   },

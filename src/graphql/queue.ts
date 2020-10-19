@@ -40,8 +40,16 @@ export const typeDefs = `
 
 export const resolvers: IResolvers = {
   Query: {
-    async queue(parent, { id }) {
-      return { id, items: [] };
+    async queue(parent, { id }, { services, user }) {
+      const [resourceType, resourceId] = id.split(":");
+      switch (resourceType) {
+        case "room": {
+          if (!(await services.Room.isViewable(resourceId, user?._id)))
+            return null;
+          return { id, items: [] };
+        }
+      }
+      return null;
     },
   },
   Mutation: {
@@ -65,8 +73,8 @@ export const resolvers: IResolvers = {
             !!user &&
             Boolean(
               room.creatorId === user._id ||
-                room.anyoneCanAdd ||
-                room.collabs?.includes(user._id)
+                (room.isPublic && room.anyoneCanAdd) ||
+                services.Room.isMember(room._id, user._id)
             );
 
           const queue = await services.Queue.findById(queueId);
@@ -140,6 +148,7 @@ export const resolvers: IResolvers = {
   Subscription: {
     queueUpdated: {
       subscribe(parent, { id }, { pubsub }) {
+        // TODO: Block guest from subscribe to private room
         return pubsub.on(
           PUBSUB_CHANNELS.queueUpdated,
           (payload) => payload.queueUpdated.id === id
@@ -148,8 +157,16 @@ export const resolvers: IResolvers = {
     },
   },
   Queue: {
-    items({ id }, args, { services }) {
-      return services.Queue.findById(id);
+    async items({ id }, args, { services }) {
+      const [resourceType] = id.split(":");
+      switch (resourceType) {
+        case "room": {
+          // if (!(await services.Room.isViewable(resourceId, user?._id)))
+          //   return [];
+          return services.Queue.findById(id);
+        }
+      }
+      return [];
     },
   },
 };

@@ -44,6 +44,7 @@ export interface RoomDbObject {
   // Settings
   collabs?: string[];
   anyoneCanAdd?: boolean;
+  password?: string;
 }
 
 export interface TrackDbObject {

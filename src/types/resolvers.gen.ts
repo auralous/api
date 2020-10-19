@@ -332,9 +332,9 @@ export type IQueue = {
 
 export enum INowPlayingReactionType {
   Heart = 'heart',
-  TearJoy = 'tear_joy',
+  Joy = 'joy',
   Fire = 'fire',
-  Crying = 'crying'
+  Cry = 'cry'
 }
 
 export type INowPlayingQueueItem = {
@@ -342,6 +342,7 @@ export type INowPlayingQueueItem = {
   trackId: Scalars['ID'];
   playedAt: Scalars['DateTime'];
   endedAt: Scalars['DateTime'];
+  creatorId: Scalars['ID'];
 };
 
 export type INowPlaying = {
@@ -351,10 +352,10 @@ export type INowPlaying = {
 
 export type INowPlayingReaction = {
   id: Scalars['ID'];
-  mine: Array<INowPlayingReactionType>;
+  mine?: Maybe<INowPlayingReactionType>;
   heart: Scalars['Int'];
-  crying: Scalars['Int'];
-  tear_joy: Scalars['Int'];
+  cry: Scalars['Int'];
+  joy: Scalars['Int'];
   fire: Scalars['Int'];
 };
 
@@ -636,6 +637,7 @@ export type INowPlayingQueueItemResolvers<ContextType = MyGQLContext, ParentType
   trackId?: Resolver<IResolversTypes['ID'], ParentType, ContextType>;
   playedAt?: Resolver<IResolversTypes['DateTime'], ParentType, ContextType>;
   endedAt?: Resolver<IResolversTypes['DateTime'], ParentType, ContextType>;
+  creatorId?: Resolver<IResolversTypes['ID'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType>;
 };
 
@@ -647,10 +649,10 @@ export type INowPlayingResolvers<ContextType = MyGQLContext, ParentType extends 
 
 export type INowPlayingReactionResolvers<ContextType = MyGQLContext, ParentType extends IResolversParentTypes['NowPlayingReaction'] = IResolversParentTypes['NowPlayingReaction']> = {
   id?: Resolver<IResolversTypes['ID'], ParentType, ContextType>;
-  mine?: Resolver<Array<IResolversTypes['NowPlayingReactionType']>, ParentType, ContextType>;
+  mine?: Resolver<Maybe<IResolversTypes['NowPlayingReactionType']>, ParentType, ContextType>;
   heart?: Resolver<IResolversTypes['Int'], ParentType, ContextType>;
-  crying?: Resolver<IResolversTypes['Int'], ParentType, ContextType>;
-  tear_joy?: Resolver<IResolversTypes['Int'], ParentType, ContextType>;
+  cry?: Resolver<IResolversTypes['Int'], ParentType, ContextType>;
+  joy?: Resolver<IResolversTypes['Int'], ParentType, ContextType>;
   fire?: Resolver<IResolversTypes['Int'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType>;
 };

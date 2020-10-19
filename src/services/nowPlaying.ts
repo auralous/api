@@ -2,7 +2,10 @@ import { AuthenticationError, ForbiddenError } from "apollo-server-errors";
 import { BaseService, ServiceInit } from "./base";
 import { PUBSUB_CHANNELS, REDIS_KEY } from "../lib/constant";
 import { NowPlayingItemDbObject } from "../types/db";
-import { INowPlayingReactionType } from "../types/resolvers.gen";
+import {
+  INowPlayingReaction,
+  INowPlayingReactionType,
+} from "../types/resolvers.gen";
 
 export class NowPlayingService extends BaseService {
   constructor(options: ServiceInit) {
@@ -91,9 +94,10 @@ export class NowPlayingService extends BaseService {
     if (!currItem) return null;
 
     // If the reaction already eists, the below returns 0 / does nothing
-    const result = await this.context.redis.sadd(
+    const result = await this.context.redis.hset(
       REDIS_KEY.nowPlayingReaction(id, currItem.id),
-      `${this.context.user._id}|${reaction}`
+      this.context.user._id,
+      reaction
     );
 
     if (result) {
@@ -106,12 +110,12 @@ export class NowPlayingService extends BaseService {
     id: string,
     currQueueItemId: string | undefined
   ) {
-    const reactions = {
+    const reactions: INowPlayingReaction = {
       id,
-      mine: [] as INowPlayingReactionType[],
+      mine: null,
       [INowPlayingReactionType.Heart]: 0,
-      [INowPlayingReactionType.Crying]: 0,
-      [INowPlayingReactionType.TearJoy]: 0,
+      [INowPlayingReactionType.Cry]: 0,
+      [INowPlayingReactionType.Joy]: 0,
       [INowPlayingReactionType.Fire]: 0,
     };
     if (currQueueItemId) {
@@ -119,7 +123,7 @@ export class NowPlayingService extends BaseService {
       for (const eachReaction of allReactions) {
         reactions[eachReaction.reaction] += 1;
         if (eachReaction.userId === this.context.user?._id)
-          reactions.mine.push(eachReaction.reaction);
+          reactions.mine = eachReaction.reaction;
       }
     }
     return reactions;
@@ -129,12 +133,12 @@ export class NowPlayingService extends BaseService {
     id: string,
     currQueueItemId: string
   ): Promise<{ userId: string; reaction: INowPlayingReactionType }[]> {
-    const arr = await this.context.redis.smembers(
+    const o = await this.context.redis.hgetall(
       REDIS_KEY.nowPlayingReaction(id, currQueueItemId)
     );
-    return arr.map((str) => {
-      const [userId, reaction] = str.split("|");
-      return { userId, reaction: reaction as INowPlayingReactionType };
-    });
+    return Object.entries(o).map(([userId, reaction]) => ({
+      userId,
+      reaction: reaction as INowPlayingReactionType,
+    }));
   }
 }

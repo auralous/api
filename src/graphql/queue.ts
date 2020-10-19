@@ -40,8 +40,16 @@ export const typeDefs = `
 
 export const resolvers: IResolvers = {
   Query: {
-    async queue(parent, { id }) {
-      return { id, items: [] };
+    async queue(parent, { id }, { services, user }) {
+      const [resourceType, resourceId] = id.split(":");
+      switch (resourceType) {
+        case "room": {
+          if (!(await services.Room.isViewable(resourceId, user?._id)))
+            return null;
+          return { id, items: [] };
+        }
+      }
+      return null;
     },
   },
   Mutation: {
@@ -149,12 +157,12 @@ export const resolvers: IResolvers = {
     },
   },
   Queue: {
-    async items({ id }, args, { services, user }) {
-      const [resourceType, resourceId] = id.split(":");
+    async items({ id }, args, { services }) {
+      const [resourceType] = id.split(":");
       switch (resourceType) {
         case "room": {
-          if (!(await services.Room.isViewable(resourceId, user?._id)))
-            return [];
+          // if (!(await services.Room.isViewable(resourceId, user?._id)))
+          //   return [];
           return services.Queue.findById(id);
         }
       }

@@ -118,7 +118,6 @@ export class RoomService extends BaseService {
       },
       { returnOriginal: false }
     );
-    console.log(room);
     if (!room) throw new ForbiddenError("Cannot update room");
     // save to cache
     this.loader.clear(_id).prime(_id, room);

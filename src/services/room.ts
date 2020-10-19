@@ -132,6 +132,18 @@ export class RoomService extends BaseService {
     return room;
   }
 
+  async isViewable(id: string, userId?: string): Promise<boolean> {
+    const room = await this.findById(id);
+    if (!room) return false;
+    return room.isPublic || this.isMember(id, userId);
+  }
+
+  async isMember(id: string, userId?: string): Promise<boolean> {
+    const room = await this.findById(id);
+    if (!room || !userId) return false;
+    return room.creatorId === userId || !!room.collabs?.includes(userId);
+  }
+
   async updateMembershipById(
     _id: string,
     username: string,

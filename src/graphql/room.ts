@@ -149,13 +149,15 @@ export const resolvers: IResolvers = {
     },
   },
   RoomState: {
-    userIds({ id }, args, { services }) {
+    async userIds({ id }, args, { services, user }) {
+      if (!(await services.Room.isViewable(id, user?._id))) return [];
       return services.Room.getCurrentUsers(id);
     },
     anyoneCanAdd({ id }, args, { services }) {
       return services.Room.findById(id).then((s) => s?.anyoneCanAdd || false);
     },
-    collabs({ id }, args, { services }) {
+    collabs({ id }, args, { services, user }) {
+      if (!services.Room.isViewable(id, user?._id)) return [];
       return services.Room.findById(id).then((s) => s?.collabs || []);
     },
   },

@@ -36,9 +36,15 @@ export class RoomService extends BaseService {
   async create({
     title,
     description,
+    isPublic,
+    anyoneCanAdd,
+    password,
   }: {
     title: string;
     description?: string | null;
+    isPublic: boolean;
+    anyoneCanAdd?: boolean | null;
+    password?: string | null;
   }) {
     if (!this.context.user) throw new AuthenticationError("");
     const {
@@ -47,9 +53,11 @@ export class RoomService extends BaseService {
       _id: nanoid(12),
       title,
       description: description || undefined,
-      isPublic: true,
+      isPublic,
       creatorId: this.context.user._id,
       createdAt: new Date(),
+      ...(typeof anyoneCanAdd === "boolean" && { anyoneCanAdd }),
+      ...(typeof password === "string" && { password }),
     });
     this.loader.clear(room._id).prime(room._id, room);
     return room;
@@ -91,6 +99,7 @@ export class RoomService extends BaseService {
       image,
       anyoneCanAdd,
       collabs,
+      password,
     }: NullablePartial<RoomDbObject>
   ) {
     if (!this.context.user) throw new AuthenticationError("");
@@ -106,10 +115,12 @@ export class RoomService extends BaseService {
           ...(image !== undefined && { image }),
           ...(collabs && { collabs }),
           ...(typeof anyoneCanAdd === "boolean" && { anyoneCanAdd }),
+          ...(typeof password === "string" && { password }),
         },
       },
       { returnOriginal: false }
     );
+    console.log(room);
     if (!room) throw new ForbiddenError("Cannot update room");
     // save to cache
     this.loader.clear(_id).prime(_id, room);

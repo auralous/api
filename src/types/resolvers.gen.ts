@@ -132,6 +132,9 @@ export type IMutationDeleteMeOauthArgs = {
 export type IMutationCreateRoomArgs = {
   title: Scalars['String'];
   description?: Maybe<Scalars['String']>;
+  isPublic: Scalars['Boolean'];
+  anyoneCanAdd?: Maybe<Scalars['Boolean']>;
+  password?: Maybe<Scalars['String']>;
 };
 
 
@@ -141,6 +144,7 @@ export type IMutationUpdateRoomArgs = {
   description?: Maybe<Scalars['String']>;
   image?: Maybe<Scalars['Upload']>;
   anyoneCanAdd?: Maybe<Scalars['Boolean']>;
+  password?: Maybe<Scalars['String']>;
 };
 
 
@@ -252,6 +256,7 @@ export enum IRoomMembership {
 export type IRoom = {
   id: Scalars['ID'];
   title: Scalars['String'];
+  isPublic: Scalars['Boolean'];
   description?: Maybe<Scalars['String']>;
   image: Scalars['String'];
   creator: IUser;
@@ -506,7 +511,7 @@ export type IMutationResolvers<ContextType = MyGQLContext, ParentType extends IR
   me?: Resolver<Maybe<IResolversTypes['User']>, ParentType, ContextType, RequireFields<IMutationMeArgs, never>>;
   deleteMe?: Resolver<IResolversTypes['Boolean'], ParentType, ContextType>;
   deleteMeOauth?: Resolver<IResolversTypes['Boolean'], ParentType, ContextType, RequireFields<IMutationDeleteMeOauthArgs, 'provider'>>;
-  createRoom?: Resolver<IResolversTypes['Room'], ParentType, ContextType, RequireFields<IMutationCreateRoomArgs, 'title'>>;
+  createRoom?: Resolver<IResolversTypes['Room'], ParentType, ContextType, RequireFields<IMutationCreateRoomArgs, 'title' | 'isPublic'>>;
   updateRoom?: Resolver<IResolversTypes['Room'], ParentType, ContextType, RequireFields<IMutationUpdateRoomArgs, 'id'>>;
   updateRoomMembership?: Resolver<IResolversTypes['Boolean'], ParentType, ContextType, RequireFields<IMutationUpdateRoomMembershipArgs, 'id'>>;
   deleteRoom?: Resolver<IResolversTypes['ID'], ParentType, ContextType, RequireFields<IMutationDeleteRoomArgs, 'id'>>;
@@ -558,6 +563,7 @@ export type IUserOauthProviderResolvers<ContextType = MyGQLContext, ParentType e
 export type IRoomResolvers<ContextType = MyGQLContext, ParentType extends IResolversParentTypes['Room'] = IResolversParentTypes['Room']> = {
   id?: Resolver<IResolversTypes['ID'], ParentType, ContextType>;
   title?: Resolver<IResolversTypes['String'], ParentType, ContextType>;
+  isPublic?: Resolver<IResolversTypes['Boolean'], ParentType, ContextType>;
   description?: Resolver<Maybe<IResolversTypes['String']>, ParentType, ContextType>;
   image?: Resolver<IResolversTypes['String'], ParentType, ContextType>;
   creator?: Resolver<IResolversTypes['User'], ParentType, ContextType>;

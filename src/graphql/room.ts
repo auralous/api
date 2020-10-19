@@ -19,8 +19,8 @@ export const typeDefs = `
   }
 
   extend type Mutation {
-    createRoom(title: String!, description: String): Room!
-    updateRoom(id: ID!, title: String, description: String, image: Upload, anyoneCanAdd: Boolean): Room!
+    createRoom(title: String!, description: String, isPublic: Boolean! anyoneCanAdd: Boolean, password: String): Room!
+    updateRoom(id: ID!, title: String, description: String, image: Upload, anyoneCanAdd: Boolean, password: String): Room!
     updateRoomMembership(id: ID!, username: String, userId: String, role: RoomMembership): Boolean!
     deleteRoom(id: ID!): ID!
   }
@@ -32,6 +32,7 @@ export const typeDefs = `
   type Room {
     id: ID!
     title: String!
+    isPublic: Boolean!
     description: String
     image: String!
     creator: User!
@@ -76,12 +77,21 @@ export const resolvers: IResolvers = {
     },
   },
   Mutation: {
-    createRoom(parent, { title, description }, { services }) {
-      return services.Room.create({ title, description });
+    createRoom(
+      parent,
+      { title, description, isPublic, anyoneCanAdd },
+      { services }
+    ) {
+      return services.Room.create({
+        title,
+        description,
+        isPublic,
+        anyoneCanAdd,
+      });
     },
     async updateRoom(
       parent,
-      { id, title, description, image: imageFile, anyoneCanAdd },
+      { id, title, description, image: imageFile, anyoneCanAdd, password },
       { user, services }
     ) {
       if (!user) throw new AuthenticationError("");
@@ -97,6 +107,7 @@ export const resolvers: IResolvers = {
         description,
         image,
         anyoneCanAdd,
+        password,
       });
     },
     async updateRoomMembership(

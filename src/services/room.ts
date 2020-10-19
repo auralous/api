@@ -86,9 +86,7 @@ export class RoomService extends BaseService {
       const { _id } = rooms[i];
       this.loader.clear(_id).prime(_id, rooms[i]);
     }
-    return rooms.filter(
-      (room) => room.isPublic || room.creatorId === this.context.user?._id
-    );
+    return rooms;
   }
 
   async updateById(

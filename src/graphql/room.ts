@@ -35,7 +35,7 @@ export const typeDefs = `
     isPublic: Boolean!
     description: String
     image: String!
-    creator: User!
+    creatorId: ID!
     createdAt: DateTime!
   }
 
@@ -139,11 +139,6 @@ export const resolvers: IResolvers = {
   },
   Room: {
     id: ({ _id }) => _id,
-    async creator({ creatorId }, args, { services }) {
-      const user = await services.User.findById(creatorId);
-      if (!user) throw new Error("Creator not found.");
-      return user;
-    },
     image({ image, _id }) {
       return image || defaultAvatar("room", _id);
     },

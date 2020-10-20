@@ -3,8 +3,8 @@ import fastJson from "fast-json-stringify";
 import fetch from "node-fetch";
 import { URL } from "url";
 import { BaseService, ServiceInit } from "./base";
-import { REDIS_KEY } from "../lib/constant";
-import { PlatformName } from "../types/common";
+import { CONFIG, REDIS_KEY } from "../lib/constant";
+import { OdesliResponse, PlatformName } from "../types/common";
 import { TrackDbObject, ArtistDbObject } from "../types/db";
 
 const stringifyTrack = fastJson({
@@ -112,32 +112,39 @@ export class TrackService extends BaseService {
     return track || null;
   }
 
-  async findTrackFromAnotherPlatform(
-    id: string,
-    platform: PlatformName
-  ): Promise<TrackDbObject | null> {
-    const [originalPlatform, externalId] = id.split(":");
+  async crossFindTracks(
+    id: string
+  ): Promise<Record<PlatformName, string | undefined>> {
+    const [platformName, externalId] = id.split(":");
 
-    // Same platform, the track we are looking for is itself
-    if (originalPlatform === platform) return this.findOrCreate(id);
+    const cacheKey = REDIS_KEY.crossTracks(id);
 
+    const cache = (await this.context.redis.hgetall(cacheKey)) as Record<
+      PlatformName,
+      string | undefined
+    >;
+
+    if (Object.keys(cache).length > 0) return cache;
+
+    // Not found in cache, try to fetch
     const res = await fetch(
-      `https://api.song.link/v1-alpha.1/links?platform=${originalPlatform}&type=song&id=${externalId}&key=${process.env.SONGLINK_KEY}`
+      `https://api.song.link/v1-alpha.1/links?platform=${platformName}&type=song&id=${externalId}&key=${process.env.SONGLINK_KEY}`
     );
+    const json: OdesliResponse = await res.json();
 
-    const json = await res.json();
+    if (!("linksByPlatform" in json)) return cache; // cache = {}
 
-    const entityUniqueId = json.linksByPlatform?.[platform]?.entityUniqueId as
-      | string
-      | undefined;
+    cache.youtube = json.linksByPlatform.youtube?.entityUniqueId.split("::")[1];
+    cache.spotify = json.linksByPlatform.spotify?.entityUniqueId.split("::")[1];
 
-    const trackId = entityUniqueId ? entityUniqueId.split("::")[1] : null;
+    // Save to cache with expiry
+    cache.youtube &&
+      this.context.redis.hset(cacheKey, "youtube", cache.youtube);
+    cache.spotify &&
+      this.context.redis.hset(cacheKey, "spotify", cache.spotify);
+    this.context.redis.expire(cacheKey, CONFIG.crossTrackMaxAge);
 
-    if (trackId) {
-      const track = await this.findOrCreate(`${platform}:${trackId}`);
-      return track;
-    }
-    return null;
+    return cache;
   }
 
   async search({

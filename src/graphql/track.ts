@@ -27,9 +27,9 @@ export const typeDefs = `
   }
 
   type CrossTracks {
-    originalId: ID!
-    youtube: Track
-    spotify: Track
+    id: ID!
+    youtube: ID
+    spotify: ID
   }
 
   type Artist {
@@ -51,21 +51,11 @@ export const resolvers: IResolvers = {
       if (track) setCacheControl?.(CONFIG.trackMaxAge);
       return track;
     },
-    async crossTracks(
-      parent,
-      { id: originalId },
-      { services, setCacheControl }
-    ) {
-      const [youtube, spotify] = await Promise.all([
-        services.Track.findTrackFromAnotherPlatform(originalId, "youtube"),
-        services.Track.findTrackFromAnotherPlatform(originalId, "spotify"),
-      ]);
-      if (!youtube && !spotify) return null;
+    async crossTracks(parent, { id }, { services, setCacheControl }) {
       setCacheControl?.(CONFIG.crossTrackMaxAge);
       return {
-        originalId,
-        youtube,
-        spotify,
+        id,
+        ...(await services.Track.crossFindTracks(id)),
       };
     },
     async searchTrack(

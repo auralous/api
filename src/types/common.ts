@@ -27,3 +27,16 @@ export type MyGQLContext = {
 };
 
 export type OAuthProviderName = "youtube" | "twitter" | "facebook" | "spotify";
+
+export type OdesliResponse =
+  | {
+      entityUniqueId: string;
+      userCountry: string;
+      pageUrl: string;
+      linksByPlatform: {
+        [platform in PlatformName]?: {
+          entityUniqueId: string;
+        };
+      };
+    }
+  | { statusCode: 404 };

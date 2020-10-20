@@ -28,11 +28,12 @@ export const REDIS_KEY = {
   },
   track: (platformAndId: string) => `track:${platformAndId}`,
   artist: (platformAndId: string) => `artist:${platformAndId}`,
+  crossTracks: (platformAndId: string) => `crossTracks:${platformAndId}`,
 } as const;
 
 export const CONFIG = {
-  trackMaxAge: 7 * 24 * 60 * 60, // sec
-  crossTrackMaxAge: 3 * 24 * 60 * 60,
+  trackMaxAge: 14 * 24 * 60 * 60, // sec
+  crossTrackMaxAge: 7 * 24 * 60 * 60,
   userMaxAge: 4 * 60 * 60,
   searchMaxAge: 2 * 60 * 60,
   randomRoomsMaxAge: 10 * 60,

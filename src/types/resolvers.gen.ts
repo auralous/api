@@ -151,7 +151,7 @@ export type IMutationUpdateRoomArgs = {
 
 export type IMutationJoinPrivateRoomArgs = {
   id: Scalars['ID'];
-  password?: Maybe<Scalars['String']>;
+  password: Scalars['String'];
 };
 
 
@@ -295,9 +295,9 @@ export type ITrack = {
 };
 
 export type ICrossTracks = {
-  originalId: Scalars['ID'];
-  youtube?: Maybe<ITrack>;
-  spotify?: Maybe<ITrack>;
+  id: Scalars['ID'];
+  youtube?: Maybe<Scalars['ID']>;
+  spotify?: Maybe<Scalars['ID']>;
 };
 
 export type IArtist = {
@@ -454,7 +454,7 @@ export type IResolversTypes = {
   RoomState: ResolverTypeWrapper<IRoomState>;
   PlatformName: IPlatformName;
   Track: ResolverTypeWrapper<TrackDbObject>;
-  CrossTracks: ResolverTypeWrapper<Omit<ICrossTracks, 'youtube' | 'spotify'> & { youtube?: Maybe<IResolversTypes['Track']>, spotify?: Maybe<IResolversTypes['Track']> }>;
+  CrossTracks: ResolverTypeWrapper<ICrossTracks>;
   Artist: ResolverTypeWrapper<ArtistDbObject>;
   Message: ResolverTypeWrapper<IMessage>;
   MessageParticipant: ResolverTypeWrapper<IMessageParticipant>;
@@ -484,7 +484,7 @@ export type IResolversParentTypes = {
   Room: RoomDbObject;
   RoomState: IRoomState;
   Track: TrackDbObject;
-  CrossTracks: Omit<ICrossTracks, 'youtube' | 'spotify'> & { youtube?: Maybe<IResolversParentTypes['Track']>, spotify?: Maybe<IResolversParentTypes['Track']> };
+  CrossTracks: ICrossTracks;
   Artist: ArtistDbObject;
   Message: IMessage;
   MessageParticipant: IMessageParticipant;
@@ -520,7 +520,7 @@ export type IMutationResolvers<ContextType = MyGQLContext, ParentType extends IR
   deleteMeOauth?: Resolver<IResolversTypes['Boolean'], ParentType, ContextType, RequireFields<IMutationDeleteMeOauthArgs, 'provider'>>;
   createRoom?: Resolver<IResolversTypes['Room'], ParentType, ContextType, RequireFields<IMutationCreateRoomArgs, 'title' | 'isPublic'>>;
   updateRoom?: Resolver<IResolversTypes['Room'], ParentType, ContextType, RequireFields<IMutationUpdateRoomArgs, 'id'>>;
-  joinPrivateRoom?: Resolver<IResolversTypes['Boolean'], ParentType, ContextType, RequireFields<IMutationJoinPrivateRoomArgs, 'id'>>;
+  joinPrivateRoom?: Resolver<IResolversTypes['Boolean'], ParentType, ContextType, RequireFields<IMutationJoinPrivateRoomArgs, 'id' | 'password'>>;
   updateRoomMembership?: Resolver<IResolversTypes['Boolean'], ParentType, ContextType, RequireFields<IMutationUpdateRoomMembershipArgs, 'id'>>;
   deleteRoom?: Resolver<IResolversTypes['ID'], ParentType, ContextType, RequireFields<IMutationDeleteRoomArgs, 'id'>>;
   addMessage?: Resolver<IResolversTypes['Boolean'], ParentType, ContextType, RequireFields<IMutationAddMessageArgs, 'roomId' | 'message'>>;
@@ -600,9 +600,9 @@ export type ITrackResolvers<ContextType = MyGQLContext, ParentType extends IReso
 };
 
 export type ICrossTracksResolvers<ContextType = MyGQLContext, ParentType extends IResolversParentTypes['CrossTracks'] = IResolversParentTypes['CrossTracks']> = {
-  originalId?: Resolver<IResolversTypes['ID'], ParentType, ContextType>;
-  youtube?: Resolver<Maybe<IResolversTypes['Track']>, ParentType, ContextType>;
-  spotify?: Resolver<Maybe<IResolversTypes['Track']>, ParentType, ContextType>;
+  id?: Resolver<IResolversTypes['ID'], ParentType, ContextType>;
+  youtube?: Resolver<Maybe<IResolversTypes['ID']>, ParentType, ContextType>;
+  spotify?: Resolver<Maybe<IResolversTypes['ID']>, ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType>;
 };
 

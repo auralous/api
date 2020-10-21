@@ -1,6 +1,6 @@
 import { CONFIG } from "../lib/constant";
 import { isDefined } from "../lib/utils";
-import { TrackDbObject } from "../types/db";
+import { URL } from "url";
 import { IResolvers } from "../types/resolvers.gen";
 
 export const typeDefs = `
@@ -10,7 +10,7 @@ export const typeDefs = `
   }
 
   extend type Query {
-    track(id: ID, uri: String): Track
+    track(id: ID!): Track
     crossTracks(id: ID!): CrossTracks
     searchTrack(platform: PlatformName!, query: String!): [Track!]!
   }
@@ -44,10 +44,8 @@ export const typeDefs = `
 
 export const resolvers: IResolvers = {
   Query: {
-    async track(parent, { uri, id }, { services, setCacheControl }) {
-      let track: TrackDbObject | null = null;
-      if (uri) track = await services.Track.findByUri(uri);
-      else if (id) track = await services.Track.findOrCreate(id);
+    async track(parent, { id }, { services, setCacheControl }) {
+      const track = await services.Track.findOrCreate(id);
       if (track) setCacheControl?.(CONFIG.trackMaxAge);
       return track;
     },
@@ -63,9 +61,18 @@ export const resolvers: IResolvers = {
       { platform, query },
       { services, setCacheControl }
     ) {
-      const results = await services.Track.search({ platform, query });
-      setCacheControl?.(CONFIG.searchMaxAge);
-      return results;
+      try {
+        const track = await services.Track.findByUri(new URL(query));
+        if (track) {
+          setCacheControl?.(CONFIG.trackMaxAge);
+          return [track];
+        }
+        return [];
+      } catch (e) {
+        // It is not a URL
+        setCacheControl?.(CONFIG.searchMaxAge);
+        return services.Track.search({ platform, query });
+      }
     },
   },
   Track: {

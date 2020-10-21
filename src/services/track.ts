@@ -68,14 +68,7 @@ export class TrackService extends BaseService {
     return this.loader.load(REDIS_KEY.track(id));
   }
 
-  async findByUri(inputUri: string) {
-    let uri: URL;
-    try {
-      uri = new URL(inputUri);
-    } catch (e) {
-      return null;
-    }
-
+  async findByUri(uri: URL) {
     let externalId: null | string = null;
     let platform: undefined | PlatformName;
 

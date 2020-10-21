@@ -6,6 +6,7 @@ import {
   ArtistDbObject,
 } from "../../types/db";
 import { AllServices } from "../types";
+import { isDefined } from "../../lib/utils";
 /// <reference path="spotify-api" />
 
 const BASE_URL = "https://api.spotify.com/v1";
@@ -145,6 +146,48 @@ export default class SpotifyService {
     return match?.[1] || null;
   }
 
+  getPlaylistIdFromUri(uri: string): string | null {
+    const regExp = /^https:\/\/open.spotify.com\/playlist\/([a-zA-Z0-9]+)/;
+    const match = uri.match(regExp);
+    if (!match) return null;
+    return match?.[1] || null;
+  }
+
+  async getTracksByPlaylistId(playlistId: string): Promise<TrackDbObject[]> {
+    const accessToken =
+      (await this.getAccessToken()) || (await getATusingClientCredential());
+    const tracks: TrackDbObject[] = [];
+    let trackData: SpotifyApi.PlaylistTrackResponse | null = await fetch(
+      `${BASE_URL}/playlists/${playlistId}/tracks`,
+      {
+        headers: {
+          Authorization: `Authorization: Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+      }
+    ).then((response) => (response.ok ? response.json() : null));
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      if (!trackData) break;
+      tracks.push(
+        ...trackData.items
+          .map((trackItem) =>
+            !trackItem.is_local ? parseTrack(trackItem.track) : null
+          )
+          .filter(isDefined)
+      );
+      if (trackData.next)
+        trackData = await fetch(trackData.next, {
+          headers: {
+            Authorization: `Authorization: Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+          },
+        }).then((response) => (response.ok ? response.json() : null));
+      else break;
+    }
+    return tracks;
+  }
+
   async searchTracks(searchQuery: string): Promise<TrackDbObject[]> {
     // We may offload some of the work using user's token
     const accessToken =
@@ -159,9 +202,7 @@ export default class SpotifyService {
           "Content-Type": "application/json",
         },
       }
-    )
-      // TODO: May want to handle error
-      .then((response) => (response.ok ? response.json() : null));
+    ).then((response) => (response.ok ? response.json() : null));
     return json?.tracks?.items.map(parseTrack) || [];
   }
 

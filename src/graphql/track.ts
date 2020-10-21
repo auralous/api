@@ -62,16 +62,15 @@ export const resolvers: IResolvers = {
       { services, setCacheControl }
     ) {
       try {
-        const track = await services.Track.findByUri(new URL(query));
-        if (track) {
-          setCacheControl?.(CONFIG.trackMaxAge);
-          return [track];
-        }
-        return [];
+        const trackOrTracks = await services.Track.findByUri(new URL(query));
+        if (!trackOrTracks) return [];
+        if (Array.isArray(trackOrTracks)) return trackOrTracks;
+        setCacheControl?.(CONFIG.trackMaxAge);
+        return [trackOrTracks];
       } catch (e) {
         // It is not a URL
         setCacheControl?.(CONFIG.searchMaxAge);
-        return services.Track.search({ platform, query });
+        return services.Track.search(platform, query);
       }
     },
   },

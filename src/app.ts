@@ -3,6 +3,7 @@ import passport from "passport";
 import cors from "cors";
 // @ts-ignore
 import { graphqlUploadExpress } from "graphql-upload";
+import { parse as parseQS } from "querystring";
 import { session } from "./middleware/session";
 import appAuth from "./auth/route";
 import healthApp from "./health/route";
@@ -12,6 +13,17 @@ import { ExtendedIncomingMessage } from "./types/common";
 const app = nc<ExtendedIncomingMessage>();
 
 app.use("/health", healthApp);
+
+// compat parse url, passport not work properly without this
+app.use((req, res, next) => {
+  const idx = req.url!.indexOf("?");
+  req.query =
+    idx !== -1
+      ? (parseQS(req.url!.substring(idx + 1)) as Record<string, string>)
+      : null;
+  req.path = idx !== -1 ? req.url!.substring(0, idx) : req.url;
+  next();
+});
 
 // cors for dev
 if (process.env.NODE_ENV !== "production")

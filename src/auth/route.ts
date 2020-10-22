@@ -43,8 +43,6 @@ createRoute(appAuth, "google", {
   prompt: "consent",
   accessType: "offline",
 });
-createRoute(appAuth, "facebook", { scope: ["email"] });
-createRoute(appAuth, "twitter");
 createRoute(appAuth, "spotify", {
   scope: [
     "user-read-email",
@@ -56,6 +54,8 @@ createRoute(appAuth, "spotify", {
     "streaming",
   ],
 });
+// createRoute(appAuth, "facebook", { scope: ["email"] });
+// createRoute(appAuth, "twitter");
 
 appAuth.post("/logout", async (req, res) => {
   // req.logout();

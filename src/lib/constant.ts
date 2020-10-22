@@ -36,6 +36,7 @@ export const CONFIG = {
   crossTrackMaxAge: 7 * 24 * 60 * 60,
   userMaxAge: 4 * 60 * 60,
   searchMaxAge: 2 * 60 * 60,
+  searchPlaylistMaxAge: 10 * 60,
   randomRoomsMaxAge: 10 * 60,
 } as const;
 

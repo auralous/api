@@ -68,27 +68,16 @@ export class TrackService extends BaseService {
     return this.loader.load(REDIS_KEY.track(id));
   }
 
-  async findByUri(inputUri: string) {
-    let uri: URL;
-    try {
-      uri = new URL(inputUri);
-    } catch (e) {
-      return null;
-    }
-
+  async findByUri(uri: URL): Promise<TrackDbObject | TrackDbObject[] | null> {
     let externalId: null | string = null;
-    let platform: undefined | PlatformName;
-
-    for (platform of ["youtube", "spotify"] as const) {
-      if (
-        (externalId = this.services.Service[platform].getTrackIdFromUri(
-          uri.href
-        ))
-      )
-        break;
+    for (const platform of ["youtube", "spotify"] as const) {
+      const platformService = this.services.Service[platform];
+      if ((externalId = platformService.getPlaylistIdFromUri(uri.href)))
+        return platformService.getTracksByPlaylistId(externalId);
+      else if ((externalId = platformService.getTrackIdFromUri(uri.href)))
+        return this.findOrCreate(`${platform}:${externalId}`);
     }
-    if (!externalId || !platform) return null;
-    return this.findOrCreate(`${platform}:${externalId}`);
+    return null;
   }
 
   async save(id: string, track: TrackDbObject) {
@@ -147,20 +136,8 @@ export class TrackService extends BaseService {
     return cache;
   }
 
-  async search({
-    platform,
-    query,
-  }: {
-    platform: PlatformName;
-    query: string;
-  }): Promise<TrackDbObject[]> {
-    if (platform === "youtube")
-      return this.services.Service.youtube.searchTracks(query, {
-        Track: this.services.Track,
-      });
-    else if (platform === "spotify")
-      return this.services.Service.spotify.searchTracks(query);
-    else return [];
+  search(platform: PlatformName, query: string): Promise<TrackDbObject[]> {
+    return this.services.Service[platform].searchTracks(query);
   }
 
   // Artists

@@ -70,8 +70,7 @@ export type IQuerySearchRoomsArgs = {
 
 
 export type IQueryTrackArgs = {
-  id?: Maybe<Scalars['ID']>;
-  uri?: Maybe<Scalars['String']>;
+  id: Scalars['ID'];
 };
 
 
@@ -505,7 +504,7 @@ export type IQueryResolvers<ContextType = MyGQLContext, ParentType extends IReso
   rooms?: Resolver<Maybe<Array<IResolversTypes['Room']>>, ParentType, ContextType, RequireFields<IQueryRoomsArgs, never>>;
   exploreRooms?: Resolver<Array<IResolversTypes['Room']>, ParentType, ContextType, RequireFields<IQueryExploreRoomsArgs, 'by'>>;
   searchRooms?: Resolver<Array<IResolversTypes['Room']>, ParentType, ContextType, RequireFields<IQuerySearchRoomsArgs, 'query'>>;
-  track?: Resolver<Maybe<IResolversTypes['Track']>, ParentType, ContextType, RequireFields<IQueryTrackArgs, never>>;
+  track?: Resolver<Maybe<IResolversTypes['Track']>, ParentType, ContextType, RequireFields<IQueryTrackArgs, 'id'>>;
   crossTracks?: Resolver<Maybe<IResolversTypes['CrossTracks']>, ParentType, ContextType, RequireFields<IQueryCrossTracksArgs, 'id'>>;
   searchTrack?: Resolver<Array<IResolversTypes['Track']>, ParentType, ContextType, RequireFields<IQuerySearchTrackArgs, 'platform' | 'query'>>;
   queue?: Resolver<Maybe<IResolversTypes['Queue']>, ParentType, ContextType, RequireFields<IQueryQueueArgs, 'id'>>;

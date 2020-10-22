@@ -1,6 +1,5 @@
 import { google } from "googleapis";
 import fetch from "node-fetch";
-import { TrackService } from "../track";
 import { ServiceInit } from "../base";
 import { isDefined } from "../../lib/utils";
 import { MAX_TRACK_DURATION } from "../../lib/constant";
@@ -82,7 +81,9 @@ export default class YoutubeService {
     version: "v3",
     auth: this.oauth2Client,
   });
+  private TrackService;
   constructor(options: ServiceInit) {
+    this.TrackService = options.services.Track;
     if (options.context.user) {
       const googleProvider = options.context.user.oauth.youtube;
       if (googleProvider) {
@@ -152,10 +153,45 @@ export default class YoutubeService {
     return match?.[7]?.length === 11 ? match[7] : null;
   }
 
-  async searchTracks(
-    searchQuery: string,
-    { Track }: { Track: TrackService }
-  ): Promise<TrackDbObject[]> {
+  getPlaylistIdFromUri(uri: string): string | null {
+    if (!uri.includes("youtube")) return null;
+    const regExp = /^.*((v\/)|(\/u\/\w\/)|(\/playlist\?)|(watch\?))?list?=?([^#&?]*).*/;
+    const match = uri.match(regExp);
+    return match?.[6] || null;
+  }
+
+  async getTracksByPlaylistId(id: string): Promise<TrackDbObject[]> {
+    const tracks: TrackDbObject[] = [];
+    let trackData = await this.youtube.playlistItems.list({
+      part: ["contentDetails"],
+      fields: "nextPageToken,items/contentDetails/videoId",
+      playlistId: id,
+    });
+    // eslint-disable-next-line
+    while (true) {
+      const trackItems = (
+        await Promise.all(
+          (trackData.data.items || []).map((trackItemData) =>
+            this.TrackService.findOrCreate(
+              `youtube:${trackItemData.contentDetails!.videoId}`
+            )
+          )
+        )
+      ).filter(isDefined);
+      tracks.push(...trackItems);
+      if (trackData.data.nextPageToken)
+        trackData = await this.youtube.playlistItems.list({
+          part: ["contentDetails"],
+          fields: "nextPageToken,items/contentDetails/videoId",
+          playlistId: id,
+          pageToken: trackData.data.nextPageToken,
+        });
+      else break;
+    }
+    return tracks;
+  }
+
+  async searchTracks(searchQuery: string): Promise<TrackDbObject[]> {
     // Using unofficial YTMusic API
     const filterParams = {
       song: "RAAGAAgACgA",
@@ -197,7 +233,9 @@ export default class YoutubeService {
         musicResponsiveListItemRenderer.doubleTapCommand.watchEndpoint.videoId
     );
 
-    const promises = videoIds.map((i) => Track.findOrCreate(`youtube:${i}`));
+    const promises = videoIds.map((i) =>
+      this.TrackService.findOrCreate(`youtube:${i}`)
+    );
 
     return Promise.all<TrackDbObject | null>(promises).then((tracks) =>
       // A track should only be less than 7 minutes... maybe. You know, 777

@@ -2,8 +2,6 @@ import nc from "next-connect";
 import passport from "passport";
 import cors from "cors";
 // @ts-ignore
-import parser from "@polka/url";
-// @ts-ignore
 import { graphqlUploadExpress } from "graphql-upload";
 import { session } from "./middleware/session";
 import appAuth from "./auth/route";
@@ -14,14 +12,6 @@ import { ExtendedIncomingMessage } from "./types/common";
 const app = nc<ExtendedIncomingMessage>();
 
 app.use("/health", healthApp);
-
-// compat
-app.use((req, res, next) => {
-  const info = parser(req, true);
-  req.query = info.query;
-  req.path = info.pathname;
-  next();
-});
 
 // cors for dev
 if (process.env.NODE_ENV !== "production")

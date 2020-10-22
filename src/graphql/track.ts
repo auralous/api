@@ -64,7 +64,10 @@ export const resolvers: IResolvers = {
       try {
         const trackOrTracks = await services.Track.findByUri(new URL(query));
         if (!trackOrTracks) return [];
-        if (Array.isArray(trackOrTracks)) return trackOrTracks;
+        if (Array.isArray(trackOrTracks)) {
+          setCacheControl?.(CONFIG.searchPlaylistMaxAge);
+          return trackOrTracks;
+        }
         setCacheControl?.(CONFIG.trackMaxAge);
         return [trackOrTracks];
       } catch (e) {

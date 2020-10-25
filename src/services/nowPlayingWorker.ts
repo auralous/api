@@ -2,7 +2,7 @@ import type { Db } from "mongodb";
 import type Redis from "ioredis";
 import { buildServices } from "./services";
 import { RoomDbObject, NowPlayingItemDbObject } from "../types/db";
-import { PUBSUB_CHANNELS, REDIS_KEY } from "../lib/constant";
+import { PUBSUB_CHANNELS } from "../lib/constant";
 import type { PubSub } from "../lib/pubsub";
 import { MyGQLContext } from "../types/common";
 
@@ -48,6 +48,8 @@ export class NowPlayingWorker {
   private async resolveRoom(
     roomId: string
   ): Promise<NowPlayingItemDbObject | null> {
+    console.log(roomId);
+
     const now = new Date();
 
     const prevCurrentTrack = await this.services.NowPlaying.findById(
@@ -67,8 +69,8 @@ export class NowPlayingWorker {
       return prevCurrentTrack;
     }
 
-    const queueId = REDIS_KEY.queue(`room:${roomId}`);
-    const playedQueueId = REDIS_KEY.queue(`room:${roomId}:played`);
+    const queueId = `room:${roomId}`;
+    const playedQueueId = `room:${roomId}:played`;
 
     let currentTrack: NowPlayingItemDbObject | null = null;
 

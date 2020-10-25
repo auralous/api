@@ -13,6 +13,7 @@ import { redis } from "./db/redis";
 import { pubsub } from "./lib/pubsub";
 import { ExtendedIncomingMessage, MyGQLContext } from "./types/common";
 import { UserDbObject } from "./types/db";
+import { SubscriptionConnection } from "@benzene/ws/dist/connection";
 
 const USER_ERR_CODES = [
   "UNAUTHENTICATED",
@@ -50,7 +51,13 @@ export const httpHandle = httpHandler(GQL, {
   },
 });
 
-const $roomStateSubId = Symbol("conn#roomStateSubId");
+const $onSubComplete = Symbol("conn#onSubComplete");
+
+const getOnSubCompleteObject = (
+  t: SubscriptionConnection & {
+    [$onSubComplete]: { [key: string]: () => void };
+  }
+) => (t[$onSubComplete] = t[$onSubComplete] || {});
 
 export const wsHandle = wsHandler(GQL, {
   context: async (
@@ -69,19 +76,25 @@ export const wsHandle = wsHandler(GQL, {
     return ctx;
   },
   onStart(id, { document, contextValue, variableValues }) {
+    // Register user appearance in room
     if (getOperationAST(document)?.name?.value === "onNowPlayingUpdated") {
-      (contextValue as MyGQLContext).services.User.setPresence({
-        roomId: variableValues!.id,
-      });
-      (this as any)[$roomStateSubId] = id;
+      const onSubComplete = getOnSubCompleteObject(this as any);
+      const [resourceType, resourceId] = variableValues?.id.split(":");
+      if (resourceType !== "room") return;
+      const context = contextValue as MyGQLContext;
+      if (!context.user) return;
+      context.services.Room.setUserPresence(resourceId, context.user._id, true);
+      onSubComplete[id] = () =>
+        context.user &&
+        context.services.Room.setUserPresence(
+          resourceId,
+          context.user._id,
+          false
+        );
     }
   },
   onComplete(id) {
-    if ((this as any)[$roomStateSubId] === id) {
-      (this as any)[$roomStateSubId] = null;
-      (this.context as MyGQLContext).services.User.setPresence({
-        roomId: null,
-      });
-    }
+    const onSubComplete = getOnSubCompleteObject(this as any);
+    onSubComplete[id]?.();
   },
 });

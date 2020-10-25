@@ -48,8 +48,6 @@ export class NowPlayingWorker {
   private async resolveRoom(
     roomId: string
   ): Promise<NowPlayingItemDbObject | null> {
-    console.log(roomId);
-
     const now = new Date();
 
     const prevCurrentTrack = await this.services.NowPlaying.findById(

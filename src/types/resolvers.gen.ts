@@ -421,7 +421,7 @@ export type TypeResolveFn<TTypes, TParent = {}, TContext = {}> = (
   info: GraphQLResolveInfo
 ) => Maybe<TTypes> | Promise<Maybe<TTypes>>;
 
-export type IsTypeOfResolverFn<T = {}> = (obj: T, info: GraphQLResolveInfo) => boolean | Promise<boolean>;
+export type IsTypeOfResolverFn<T = {}, TContext = {}> = (obj: T, context: TContext, info: GraphQLResolveInfo) => boolean | Promise<boolean>;
 
 export type NextResolverFn<T> = () => Promise<T>;
 
@@ -550,7 +550,7 @@ export type IUserResolvers<ContextType = MyGQLContext, ParentType extends IResol
   username?: Resolver<IResolversTypes['String'], ParentType, ContextType>;
   bio?: Resolver<Maybe<IResolversTypes['String']>, ParentType, ContextType>;
   profilePicture?: Resolver<IResolversTypes['String'], ParentType, ContextType>;
-  __isTypeOf?: IsTypeOfResolverFn<ParentType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
 export type IUserAuthWrapperResolvers<ContextType = MyGQLContext, ParentType extends IResolversParentTypes['UserAuthWrapper'] = IResolversParentTypes['UserAuthWrapper']> = {
@@ -558,13 +558,13 @@ export type IUserAuthWrapperResolvers<ContextType = MyGQLContext, ParentType ext
   twitter?: Resolver<Maybe<IResolversTypes['UserOauthProvider']>, ParentType, ContextType>;
   facebook?: Resolver<Maybe<IResolversTypes['UserOauthProvider']>, ParentType, ContextType>;
   spotify?: Resolver<Maybe<IResolversTypes['UserOauthProvider']>, ParentType, ContextType>;
-  __isTypeOf?: IsTypeOfResolverFn<ParentType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
 export type IUserOauthProviderResolvers<ContextType = MyGQLContext, ParentType extends IResolversParentTypes['UserOauthProvider'] = IResolversParentTypes['UserOauthProvider']> = {
   provider?: Resolver<IResolversTypes['OAuthProviderName'], ParentType, ContextType>;
   id?: Resolver<IResolversTypes['ID'], ParentType, ContextType>;
-  __isTypeOf?: IsTypeOfResolverFn<ParentType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
 export type IRoomResolvers<ContextType = MyGQLContext, ParentType extends IResolversParentTypes['Room'] = IResolversParentTypes['Room']> = {
@@ -575,7 +575,7 @@ export type IRoomResolvers<ContextType = MyGQLContext, ParentType extends IResol
   image?: Resolver<IResolversTypes['String'], ParentType, ContextType>;
   creatorId?: Resolver<IResolversTypes['ID'], ParentType, ContextType>;
   createdAt?: Resolver<IResolversTypes['DateTime'], ParentType, ContextType>;
-  __isTypeOf?: IsTypeOfResolverFn<ParentType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
 export type IRoomStateResolvers<ContextType = MyGQLContext, ParentType extends IResolversParentTypes['RoomState'] = IResolversParentTypes['RoomState']> = {
@@ -583,7 +583,7 @@ export type IRoomStateResolvers<ContextType = MyGQLContext, ParentType extends I
   userIds?: Resolver<Array<IResolversTypes['String']>, ParentType, ContextType>;
   anyoneCanAdd?: Resolver<IResolversTypes['Boolean'], ParentType, ContextType>;
   collabs?: Resolver<Array<IResolversTypes['String']>, ParentType, ContextType>;
-  __isTypeOf?: IsTypeOfResolverFn<ParentType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
 export type ITrackResolvers<ContextType = MyGQLContext, ParentType extends IResolversParentTypes['Track'] = IResolversParentTypes['Track']> = {
@@ -595,14 +595,14 @@ export type ITrackResolvers<ContextType = MyGQLContext, ParentType extends IReso
   title?: Resolver<IResolversTypes['String'], ParentType, ContextType>;
   image?: Resolver<IResolversTypes['String'], ParentType, ContextType>;
   url?: Resolver<IResolversTypes['String'], ParentType, ContextType>;
-  __isTypeOf?: IsTypeOfResolverFn<ParentType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
 export type ICrossTracksResolvers<ContextType = MyGQLContext, ParentType extends IResolversParentTypes['CrossTracks'] = IResolversParentTypes['CrossTracks']> = {
   id?: Resolver<IResolversTypes['ID'], ParentType, ContextType>;
   youtube?: Resolver<Maybe<IResolversTypes['ID']>, ParentType, ContextType>;
   spotify?: Resolver<Maybe<IResolversTypes['ID']>, ParentType, ContextType>;
-  __isTypeOf?: IsTypeOfResolverFn<ParentType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
 export type IArtistResolvers<ContextType = MyGQLContext, ParentType extends IResolversParentTypes['Artist'] = IResolversParentTypes['Artist']> = {
@@ -612,7 +612,7 @@ export type IArtistResolvers<ContextType = MyGQLContext, ParentType extends IRes
   name?: Resolver<IResolversTypes['String'], ParentType, ContextType>;
   image?: Resolver<IResolversTypes['String'], ParentType, ContextType>;
   url?: Resolver<IResolversTypes['String'], ParentType, ContextType>;
-  __isTypeOf?: IsTypeOfResolverFn<ParentType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
 export type IMessageResolvers<ContextType = MyGQLContext, ParentType extends IResolversParentTypes['Message'] = IResolversParentTypes['Message']> = {
@@ -620,7 +620,7 @@ export type IMessageResolvers<ContextType = MyGQLContext, ParentType extends IRe
   createdAt?: Resolver<IResolversTypes['DateTime'], ParentType, ContextType>;
   message?: Resolver<IResolversTypes['String'], ParentType, ContextType>;
   from?: Resolver<IResolversTypes['MessageParticipant'], ParentType, ContextType>;
-  __isTypeOf?: IsTypeOfResolverFn<ParentType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
 export type IMessageParticipantResolvers<ContextType = MyGQLContext, ParentType extends IResolversParentTypes['MessageParticipant'] = IResolversParentTypes['MessageParticipant']> = {
@@ -629,20 +629,20 @@ export type IMessageParticipantResolvers<ContextType = MyGQLContext, ParentType 
   name?: Resolver<IResolversTypes['String'], ParentType, ContextType>;
   photo?: Resolver<IResolversTypes['String'], ParentType, ContextType>;
   uri?: Resolver<IResolversTypes['String'], ParentType, ContextType>;
-  __isTypeOf?: IsTypeOfResolverFn<ParentType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
 export type IQueueItemResolvers<ContextType = MyGQLContext, ParentType extends IResolversParentTypes['QueueItem'] = IResolversParentTypes['QueueItem']> = {
   id?: Resolver<IResolversTypes['ID'], ParentType, ContextType>;
   trackId?: Resolver<IResolversTypes['String'], ParentType, ContextType>;
   creatorId?: Resolver<IResolversTypes['String'], ParentType, ContextType>;
-  __isTypeOf?: IsTypeOfResolverFn<ParentType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
 export type IQueueResolvers<ContextType = MyGQLContext, ParentType extends IResolversParentTypes['Queue'] = IResolversParentTypes['Queue']> = {
   id?: Resolver<IResolversTypes['ID'], ParentType, ContextType>;
   items?: Resolver<Array<IResolversTypes['QueueItem']>, ParentType, ContextType>;
-  __isTypeOf?: IsTypeOfResolverFn<ParentType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
 export type INowPlayingQueueItemResolvers<ContextType = MyGQLContext, ParentType extends IResolversParentTypes['NowPlayingQueueItem'] = IResolversParentTypes['NowPlayingQueueItem']> = {
@@ -651,13 +651,13 @@ export type INowPlayingQueueItemResolvers<ContextType = MyGQLContext, ParentType
   playedAt?: Resolver<IResolversTypes['DateTime'], ParentType, ContextType>;
   endedAt?: Resolver<IResolversTypes['DateTime'], ParentType, ContextType>;
   creatorId?: Resolver<IResolversTypes['ID'], ParentType, ContextType>;
-  __isTypeOf?: IsTypeOfResolverFn<ParentType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
 export type INowPlayingResolvers<ContextType = MyGQLContext, ParentType extends IResolversParentTypes['NowPlaying'] = IResolversParentTypes['NowPlaying']> = {
   id?: Resolver<IResolversTypes['ID'], ParentType, ContextType>;
   currentTrack?: Resolver<Maybe<IResolversTypes['NowPlayingQueueItem']>, ParentType, ContextType>;
-  __isTypeOf?: IsTypeOfResolverFn<ParentType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
 export type INowPlayingReactionResolvers<ContextType = MyGQLContext, ParentType extends IResolversParentTypes['NowPlayingReaction'] = IResolversParentTypes['NowPlayingReaction']> = {
@@ -667,7 +667,7 @@ export type INowPlayingReactionResolvers<ContextType = MyGQLContext, ParentType 
   cry?: Resolver<IResolversTypes['Int'], ParentType, ContextType>;
   joy?: Resolver<IResolversTypes['Int'], ParentType, ContextType>;
   fire?: Resolver<IResolversTypes['Int'], ParentType, ContextType>;
-  __isTypeOf?: IsTypeOfResolverFn<ParentType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
 export type IResolvers<ContextType = MyGQLContext> = {

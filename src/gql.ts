@@ -1,6 +1,6 @@
-import { GraphQL, httpHandler } from "@benzene/server";
-import { PersistedAutomatic } from "@benzene/persisted";
-import { wsHandler } from "@benzene/ws";
+import crypto from "crypto";
+import { GraphQL, httpHandler, persistedQueryPresets } from "@benzene/server";
+import { wsHandler, SubscriptionConnection } from "@benzene/ws";
 
 import { formatError, getOperationAST } from "graphql";
 import * as Sentry from "@sentry/node";
@@ -13,7 +13,6 @@ import { redis } from "./db/redis";
 import { pubsub } from "./lib/pubsub";
 import { ExtendedIncomingMessage, MyGQLContext } from "./types/common";
 import { UserDbObject } from "./types/db";
-import { SubscriptionConnection } from "@benzene/ws/dist/connection";
 
 const USER_ERR_CODES = [
   "UNAUTHENTICATED",
@@ -34,7 +33,9 @@ const GQL = new GraphQL({
     Sentry.captureException(err);
     return formatError(err);
   },
-  persisted: new PersistedAutomatic(),
+  persisted: persistedQueryPresets.automatic({
+    sha256: (query) => crypto.createHash("sha256").update(query).digest("hex"),
+  }),
 });
 
 export const httpHandle = httpHandler(GQL, {

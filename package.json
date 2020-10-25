@@ -13,9 +13,8 @@
     "lint": "eslint ./ --ext js,ts,tsx --ignore-path .gitignore"
   },
   "dependencies": {
-    "@benzene/persisted": "^0.0.1",
-    "@benzene/server": "^0.1.4",
-    "@benzene/ws": "^0.1.3",
+    "@benzene/server": "^0.1.5",
+    "@benzene/ws": "^0.2.1",
     "@graphql-tools/schema": "^6.2.4",
     "@sentry/node": "^5.27.0",
     "apollo-server-errors": "^2.4.2",

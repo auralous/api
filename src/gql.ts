@@ -1,6 +1,6 @@
-import { GraphQL, httpHandler } from "@benzene/server";
-import { PersistedAutomatic } from "@benzene/persisted";
-import { wsHandler } from "@benzene/ws";
+import crypto from "crypto";
+import { GraphQL, httpHandler, persistedQueryPresets } from "@benzene/server";
+import { wsHandler, SubscriptionConnection } from "@benzene/ws";
 
 import { formatError, getOperationAST } from "graphql";
 import * as Sentry from "@sentry/node";
@@ -33,7 +33,9 @@ const GQL = new GraphQL({
     Sentry.captureException(err);
     return formatError(err);
   },
-  persisted: new PersistedAutomatic(),
+  persisted: persistedQueryPresets.automatic({
+    sha256: (query) => crypto.createHash("sha256").update(query).digest("hex"),
+  }),
 });
 
 export const httpHandle = httpHandler(GQL, {
@@ -50,7 +52,13 @@ export const httpHandle = httpHandler(GQL, {
   },
 });
 
-const $roomStateSubId = Symbol("conn#roomStateSubId");
+const $onSubComplete = Symbol("conn#onSubComplete");
+
+const getOnSubCompleteObject = (
+  t: SubscriptionConnection & {
+    [$onSubComplete]: { [key: string]: () => void };
+  }
+) => (t[$onSubComplete] = t[$onSubComplete] || {});
 
 export const wsHandle = wsHandler(GQL, {
   context: async (
@@ -69,19 +77,25 @@ export const wsHandle = wsHandler(GQL, {
     return ctx;
   },
   onStart(id, { document, contextValue, variableValues }) {
+    // Register user appearance in room
     if (getOperationAST(document)?.name?.value === "onNowPlayingUpdated") {
-      (contextValue as MyGQLContext).services.User.setPresence({
-        roomId: variableValues!.id,
-      });
-      (this as any)[$roomStateSubId] = id;
+      const onSubComplete = getOnSubCompleteObject(this as any);
+      const [resourceType, resourceId] = variableValues?.id.split(":");
+      if (resourceType !== "room") return;
+      const context = contextValue as MyGQLContext;
+      if (!context.user) return;
+      context.services.Room.setUserPresence(resourceId, context.user._id, true);
+      onSubComplete[id] = () =>
+        context.user &&
+        context.services.Room.setUserPresence(
+          resourceId,
+          context.user._id,
+          false
+        );
     }
   },
   onComplete(id) {
-    if ((this as any)[$roomStateSubId] === id) {
-      (this as any)[$roomStateSubId] = null;
-      (this.context as MyGQLContext).services.User.setPresence({
-        roomId: null,
-      });
-    }
+    const onSubComplete = getOnSubCompleteObject(this as any);
+    onSubComplete[id]?.();
   },
 });

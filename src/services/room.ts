@@ -235,23 +235,12 @@ export class RoomService extends BaseService {
     );
   }
 
-  async setUserPresence(_id: string, joining: boolean) {
-    const room = await this.findById(_id);
-    if (!room) return;
-    if (this.context.user) {
-      if (joining === true) {
-        await this.context.redis.sadd(
-          REDIS_KEY.roomUsers(_id),
-          this.context.user._id
-        );
-      } else {
-        await this.context.redis.srem(
-          REDIS_KEY.roomUsers(_id),
-          this.context.user._id
-        );
-      }
-      this.notifyStateUpdate(_id);
-    }
+  async setUserPresence(_id: string, userId: string, joining: boolean) {
+    await this.context.redis[joining ? "sadd" : "srem"](
+      REDIS_KEY.roomUsers(_id),
+      userId
+    );
+    this.notifyStateUpdate(_id);
   }
 
   async getCurrentUsers(_id: string): Promise<string[]> {

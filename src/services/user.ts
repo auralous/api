@@ -258,34 +258,4 @@ export class UserService extends BaseService {
 
     delete this.context.user.oauth[provider];
   }
-
-  // Room Function
-  async setPresence({ roomId }: { roomId?: string | null } = {}) {
-    if (!this.context.user) return;
-
-    if (roomId !== undefined) {
-      const lastRoomId = await this.context.redis.hget(
-        `user:${this.context.user._id}:state`,
-        "where"
-      );
-      if (lastRoomId && lastRoomId !== roomId) {
-        const [, roomTypeId] = lastRoomId.split(":");
-        await this.services.Room.setUserPresence(roomTypeId, false);
-      }
-      if (roomId) {
-        await this.context.redis.hset(
-          `user:${this.context.user._id}:state`,
-          "where",
-          roomId
-        );
-        const [, roomTypeId] = roomId.split(":");
-        await this.services.Room.setUserPresence(roomTypeId, true);
-      } else {
-        await this.context.redis.hdel(
-          `user:${this.context.user._id}:state`,
-          "where"
-        );
-      }
-    }
-  }
 }

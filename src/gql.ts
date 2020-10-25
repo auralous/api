@@ -80,15 +80,17 @@ export const wsHandle = wsHandler(GQL, {
     // Register user appearance in room
     if (getOperationAST(document)?.name?.value === "onNowPlayingUpdated") {
       const onSubComplete = getOnSubCompleteObject(this as any);
-      const [resourceType, resourceId] = variableValues?.id.split(":");
-      if (resourceType !== "room") return;
       const context = contextValue as MyGQLContext;
       if (!context.user) return;
-      context.services.Room.setUserPresence(resourceId, context.user._id, true);
+      context.services.Room.setUserPresence(
+        variableValues?.id,
+        context.user._id,
+        true
+      );
       onSubComplete[id] = () =>
         context.user &&
         context.services.Room.setUserPresence(
-          resourceId,
+          variableValues?.id,
           context.user._id,
           false
         );

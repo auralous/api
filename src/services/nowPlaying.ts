@@ -58,22 +58,18 @@ export class NowPlayingService extends BaseService {
 
   async skipCurrentTrack(id: string): Promise<boolean> {
     if (!this.context.user) throw new AuthenticationError("");
-    const [resourceType, resourceId] = id.split(":");
-    if (resourceType === "room") {
-      const room = await this.services.Room.findById(resourceId);
-      if (!room) throw new ForbiddenError("Room does not exist");
-      const currentTrack = await this.findById(id);
-      if (!currentTrack) return false;
-      if (
-        room.creatorId !== this.context.user._id &&
-        currentTrack.creatorId !== this.context.user._id
-      )
-        throw new AuthenticationError("You are not allowed to make changes");
-      await this.removeById(id);
-      await this.requestResolve(id);
-      return true;
-    }
-    throw new Error("Invalid NowPlaying Id");
+    const room = await this.services.Room.findById(id);
+    if (!room) throw new ForbiddenError("Room does not exist");
+    const currentTrack = await this.findById(id);
+    if (!currentTrack) return false;
+    if (
+      room.creatorId !== this.context.user._id &&
+      currentTrack.creatorId !== this.context.user._id
+    )
+      throw new AuthenticationError("You are not allowed to make changes");
+    await this.removeById(id);
+    await this.requestResolve(id);
+    return true;
   }
 
   // NowPlaying Reaction

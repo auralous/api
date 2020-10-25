@@ -2,7 +2,7 @@ import type { Db } from "mongodb";
 import type Redis from "ioredis";
 import { buildServices } from "./services";
 import { RoomDbObject, NowPlayingItemDbObject } from "../types/db";
-import { PUBSUB_CHANNELS } from "../lib/constant";
+import { PUBSUB_CHANNELS, REDIS_KEY } from "../lib/constant";
 import type { PubSub } from "../lib/pubsub";
 import { MyGQLContext } from "../types/common";
 
@@ -34,23 +34,15 @@ export class NowPlayingWorker {
       .toArray();
 
     for (const room of roomArray) {
-      this.addJob(`room:${room._id}`, 0);
+      this.addJob(room._id, 0);
     }
   }
 
-  async addJob(id: string, delay: number) {
+  addJob(id: string, delay: number) {
     // Cancel previous job
     clearTimeout(this.timers[id]);
-    const [type, typeId] = id.split(":");
     // Schedule new job
-    this.timers[id] = setTimeout(
-      (type: "room", typeId: string) => {
-        if (type === "room") this.resolveRoom(typeId);
-      },
-      delay,
-      type,
-      typeId
-    );
+    this.timers[id] = setTimeout(() => this.resolveRoom(id), delay);
   }
 
   private async resolveRoom(
@@ -59,7 +51,7 @@ export class NowPlayingWorker {
     const now = new Date();
 
     const prevCurrentTrack = await this.services.NowPlaying.findById(
-      `room:${roomId}`,
+      roomId,
       true
     );
 
@@ -71,12 +63,12 @@ export class NowPlayingWorker {
         0,
         prevCurrentTrack.endedAt.getTime() - now.getTime()
       );
-      this.addJob(`room:${roomId}`, retryIn);
+      this.addJob(roomId, retryIn);
       return prevCurrentTrack;
     }
 
-    const queueId = `room:${roomId}`;
-    const playedQueueId = `room:${roomId}:played`;
+    const queueId = REDIS_KEY.queue(`room:${roomId}`);
+    const playedQueueId = REDIS_KEY.queue(`room:${roomId}:played`);
 
     let currentTrack: NowPlayingItemDbObject | null = null;
 
@@ -105,19 +97,16 @@ export class NowPlayingWorker {
       if (prevCurrentTrack)
         await this.services.Queue.pushItems(playedQueueId, prevCurrentTrack);
 
-      await this.services.NowPlaying.setById(`room:${roomId}`, currentTrack);
+      await this.services.NowPlaying.setById(roomId, currentTrack);
       // Setup future job
-      this.addJob(
-        `room:${roomId}`,
-        currentTrack.endedAt.getTime() - now.getTime()
-      );
+      this.addJob(roomId, currentTrack.endedAt.getTime() - now.getTime());
     } else {
       // Cannot figure out a current track
     }
 
     // Publish to subscription
-    this.services.NowPlaying.notifyUpdate(`room:${roomId}`, currentTrack);
-    this.services.NowPlaying.notifyReactionUpdate(`room:${roomId}`, undefined);
+    this.services.NowPlaying.notifyUpdate(roomId, currentTrack);
+    this.services.NowPlaying.notifyReactionUpdate(roomId, undefined);
 
     return currentTrack;
   }

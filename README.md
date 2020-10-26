@@ -2,24 +2,7 @@
 
 > Music Together
 
-This is the `stereo-api` codebase that powers [Stereo API Server](https://api.withstereo.com/). It is a JavaScript GraphQL Server using [benzene](https://github.com/hoangvvo/benzene) written in [TypeScript](https://github.com/microsoft/TypeScript).
-
-## What is Stereo
-
-Stereo is a completely-free and community-driven project that lets you play & listen to music in sync with friends in public or private "rooms".
-
-Stereo currently supports streaming music on [YouTube](https://www.youtube.com/) and [Spotify](https://www.spotify.com/).
-
-## Other repositories
-
-Stereo consists of several other repos containing server or mobile apps, some of which or open sourced.
-
-- Web: The [Next.js](https://github.com/vercel/next.js) app that powers [Stereo](https://withstereo.com/) Web App
-- Mobile (React Native): TBD
-
 ## Environment variables
-
-Certain environment variables are required to run this application:
 
 - `APP_URI`: URL of this web app
 - `API_URI`: URL of the API Server
@@ -58,12 +41,6 @@ path/to/create-cluster stop
 ```
 
 Run `yarn dev` to start the development server.
-
-## Simple Setup
-
-Create your Redis Cluster and MongoDb instance by any way. Build the app using `yarn build`.
-
-Set the required environment variables by any mean and start the app with `yarn start`. This should start Stereo API in port `4000` unless a specific `PORT` env variable is set.
 
 ## Kubernetes Setup
 
@@ -142,6 +119,8 @@ kubectl port-forward --namespace default svc/redis-cluster-s 6379:6379
 redis-cli -h 127.0.0.1 -p 6379 -a $REDIS_PASSWORD
 ```
 
+Tip: Use `CLUSTER NODES` to determine the master node.
+
 ### API Application
 
 Open [./stereo/templates/configmap.yaml](./stereo/templates/configmap.yaml) and update the values accordingly.
@@ -212,37 +191,20 @@ helm repo add jetstack https://charts.jetstack.io
 ## Install the cert-manager helm chart
 helm install cert-manager-s --namespace cert-manager jetstack/cert-manager --create-namespace
 
-# Make sure to set spec.acme.email
+## Make sure to set spec.acme.email
 kubectl apply -f charts/yaml/letsencrypt-prod.yaml
-```
 
-Check the status by running:
-
-```bash
+## Check status
 kubectl describe certificate stereo-api-tls
 ```
-
-Otherwise, you can set up HTTPS on proxy like [Cloudflare](https://www.cloudflare.com/)
 
 ## Workflows
 
 ### Docker
 
-Build Docker image
-
 ```bash
 docker build -t hvvo/stereo-api .
-```
-
-Set the required environment variables inside `.env` and start the Docker image. `-p` binds port `4000` of the container to port 8080 of the host machine.
-
-```bash
 docker run --env-file .env -p 4000:8080 hvvo/stereo-api
-```
-
-Push Docker image to Docker Hub
-
-```bash
 docker push hvvo/stereo-api
 ```
 

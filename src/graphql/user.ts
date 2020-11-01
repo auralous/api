@@ -1,4 +1,4 @@
-import { AuthenticationError } from "apollo-server-errors";
+import { AuthenticationError } from "../error";
 import { uploadStreamToCloudinary } from "../lib/cloudinary";
 import { IResolvers } from "../types/resolvers.gen";
 import { defaultAvatar } from "../lib/defaultAvatar";

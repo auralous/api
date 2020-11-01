@@ -1,4 +1,4 @@
-import { AuthenticationError, ForbiddenError } from "apollo-server-errors";
+import { AuthenticationError, ForbiddenError } from "../error/index";
 import { BaseService, ServiceInit } from "./base";
 import { PUBSUB_CHANNELS, REDIS_KEY } from "../lib/constant";
 import { NowPlayingItemDbObject } from "../types/db";

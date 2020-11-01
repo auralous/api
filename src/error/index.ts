@@ -1,6 +1,6 @@
 import { GraphQLError } from "graphql";
 
-class StereoGraphQLError extends GraphQLError {
+export class StereoGraphQLError extends GraphQLError {
   constructor(
     message: string,
     code?: string,

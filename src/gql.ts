@@ -11,27 +11,34 @@ import { applySession } from "./middleware/session";
 import { db } from "./db/mongo";
 import { redis } from "./db/redis";
 import { pubsub } from "./lib/pubsub";
+import { StereoGraphQLError } from "./error/index";
 import { ExtendedIncomingMessage, MyGQLContext } from "./types/common";
 import { UserDbObject } from "./types/db";
 
-const USER_ERR_CODES = [
-  "UNAUTHENTICATED",
-  "FORBIDDEN",
-  "BAD_USER_INPUT",
-  "PERSISTED_QUERY_NOT_FOUND",
-];
+const EXPECTED_ERR_CODES = ["PERSISTED_QUERY_NOT_FOUND"];
 
 const GQL = new GraphQL({
   schema,
   formatError: (err) => {
-    if (err.extensions?.code && USER_ERR_CODES.includes(err.extensions.code)) {
-      // This is a user error
+    if (
+      err.extensions?.code &&
+      EXPECTED_ERR_CODES.includes(err.extensions.code)
+    ) {
+      // expected error
       return formatError(err);
     }
-    if (err.message === "Must provide query string.") return formatError(err);
-    // This is a internal error
-    Sentry.captureException(err);
-    return formatError(err);
+    if (err.originalError) {
+      if (err.originalError instanceof StereoGraphQLError)
+        // user error
+        return formatError(err);
+      else {
+        // internal error
+        Sentry.captureException(err);
+        return formatError(err);
+      }
+    }
+    // graphql error
+    else return formatError(err);
   },
   persisted: persistedQueryPresets.automatic({
     sha256: (query) => crypto.createHash("sha256").update(query).digest("hex"),

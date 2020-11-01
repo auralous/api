@@ -2,7 +2,7 @@ import {
   AuthenticationError,
   ForbiddenError,
   UserInputError,
-} from "apollo-server-errors";
+} from "../error/index";
 import { PUBSUB_CHANNELS } from "../lib/constant";
 import { IResolvers } from "../types/resolvers.gen";
 
@@ -70,7 +70,7 @@ export const resolvers: IResolvers = {
 
       switch (action) {
         case "add": {
-          if (!tracks) throw new UserInputError("missing tracks");
+          if (!tracks) throw new UserInputError("Missing tracks", ["tracks"]);
           if (!canAdd)
             throw new ForbiddenError(
               "You are not allowed to add to this queue"
@@ -87,7 +87,7 @@ export const resolvers: IResolvers = {
         }
         case "remove":
           if (typeof position !== "number")
-            throw new UserInputError("missing position");
+            throw new UserInputError("Missing position", ["position"]);
 
           if (!canEditOthers && queue[position].creatorId !== user._id)
             throw new ForbiddenError(`You cannot remove other people's tracks`);
@@ -96,12 +96,13 @@ export const resolvers: IResolvers = {
           break;
         case "reorder":
           if (typeof insertPosition !== "number")
-            throw new UserInputError("missing destination position");
-          if (
-            typeof position !== "number" ||
-            typeof insertPosition !== "number"
-          )
-            throw new UserInputError("missing originate position");
+            throw new UserInputError("Missing destination position", [
+              "insertPosition",
+            ]);
+          if (typeof position !== "number")
+            throw new UserInputError("Missing originated position", [
+              "position",
+            ]);
 
           if (!canEditOthers)
             throw new ForbiddenError(

@@ -1,4 +1,4 @@
-import { AuthenticationError, UserInputError } from "apollo-server-errors";
+import { AuthenticationError, UserInputError } from "../error/index";
 import { CONFIG, PUBSUB_CHANNELS } from "../lib/constant";
 import { uploadStreamToCloudinary } from "../lib/cloudinary";
 import { defaultAvatar } from "../lib/defaultAvatar";
@@ -66,7 +66,7 @@ export const resolvers: IResolvers = {
           return rooms;
         }
         default:
-          throw new UserInputError("Invalid `by` parameter");
+          throw new UserInputError("Invalid `by` parameter", ["by"]);
       }
     },
     searchRooms(parent, { query, limit }, { services }) {
@@ -120,7 +120,11 @@ export const resolvers: IResolvers = {
         await services.Room.updateMembershipById(id, username, role);
       else if (userId)
         await services.Room.updateMembershipById(id, userId, role, true);
-      else throw new UserInputError("Provide either username or userId");
+      else
+        throw new UserInputError("Must provide either username or userId", [
+          "username",
+          "userId",
+        ]);
       return true;
     },
     async joinPrivateRoom(parent, { id, password }, { services, user }) {

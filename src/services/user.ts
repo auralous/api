@@ -1,14 +1,14 @@
 import DataLoader from "dataloader";
-import {
-  AuthenticationError,
-  ForbiddenError,
-  UserInputError,
-} from "apollo-server-errors";
 import { FilterQuery } from "mongodb";
 import { nanoid } from "nanoid";
 import slug from "slug";
 // @ts-ignore
 import { hri } from "human-readable-ids";
+import {
+  AuthenticationError,
+  ForbiddenError,
+  UserInputError,
+} from "../error/index";
 import { deleteCloudinaryImagesByPrefix } from "../lib/cloudinary";
 import { BaseService, ServiceInit } from "./base";
 import { UserDbObject, UserOauthProvider } from "../types/db";
@@ -129,7 +129,7 @@ export class UserService extends BaseService {
     if (username) {
       const checkUser = await this.findByUsername(username);
       if (checkUser && checkUser._id !== this.context.user._id)
-        throw new UserInputError("This username has been taken");
+        throw new UserInputError("This username has been taken", ["username"]);
     }
     const { value: user } = await this.collection.findOneAndUpdate(
       { _id: this.context.user._id },
@@ -188,7 +188,7 @@ export class UserService extends BaseService {
       [`oauth.${provider}.id`]: id,
     }));
     if (isUsedElsewhere) {
-      throw new UserInputError(
+      throw new ForbiddenError(
         `This '${provider}' account is linked to a different Stereo account.`
       );
     }
@@ -200,7 +200,7 @@ export class UserService extends BaseService {
 
       // Check that this is not another account from the same provider
       if (id !== thisOauth.id)
-        throw new UserInputError(
+        throw new ForbiddenError(
           `This Stereo account is linked to a different '${provider}' account.`
         );
 

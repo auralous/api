@@ -1,5 +1,5 @@
 import { nanoid } from "nanoid/non-secure";
-import { AuthenticationError } from "apollo-server-errors";
+import { AuthenticationError } from "../error/index";
 import { IResolvers } from "../types/resolvers.gen";
 import { PUBSUB_CHANNELS } from "../lib/constant";
 

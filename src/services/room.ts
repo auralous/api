@@ -1,12 +1,12 @@
 import DataLoader from "dataloader";
 import { UpdateQuery } from "mongodb";
+import { nanoid } from "nanoid";
+import { BaseService, ServiceInit } from "./base";
 import {
   AuthenticationError,
   ForbiddenError,
   UserInputError,
-} from "apollo-server-errors";
-import { nanoid } from "nanoid";
-import { BaseService, ServiceInit } from "./base";
+} from "../error/index";
 import { deleteByPattern } from "../db/redis";
 import { PUBSUB_CHANNELS, REDIS_KEY } from "../lib/constant";
 import { deleteCloudinaryImagesByPrefix } from "../lib/cloudinary";
@@ -154,10 +154,14 @@ export class RoomService extends BaseService {
       isUserId ? "findById" : "findByUsername"
     ](username);
 
-    if (!addingUser) throw new UserInputError("User does not exist");
+    if (!addingUser)
+      throw new UserInputError("User does not exist", ["username"]);
 
     if (addingUser._id === this.context.user._id && !DANGEROUSLY_BYPASS_CHECK)
-      throw new UserInputError(`You added yourself... Wait you can't do that!`);
+      throw new UserInputError(
+        `You added yourself... Wait you can't do that!`,
+        ["userId"]
+      );
 
     let update: UpdateQuery<RoomDbObject>;
 

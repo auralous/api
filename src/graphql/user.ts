@@ -6,13 +6,13 @@ import { CONFIG } from "../lib/constant";
 import { UserDbObject } from "../types/db";
 
 export const typeDefs = `
-  extend type Query {
+  type Query {
     me: User
     user(username: String, id: ID): User
     meAuth: UserAuthWrapper
   }
 
-  extend type Mutation {
+  type Mutation {
     me(name: String, username: String, bio: String, profilePicture: Upload): User
     deleteMe: Boolean!
     deleteMeOauth(provider: OAuthProviderName!): Boolean!

@@ -5,7 +5,7 @@ import { defaultAvatar } from "../lib/defaultAvatar";
 import { IResolvers, IRoomMembership } from "../types/resolvers.gen";
 
 export const typeDefs = `
-  extend type Query {
+  type Query {
     room(id: ID!): Room
     roomState(id: ID!): RoomState
     rooms(creatorId: String): [Room!]
@@ -18,7 +18,7 @@ export const typeDefs = `
     collab
   }
 
-  extend type Mutation {
+  type Mutation {
     createRoom(title: String!, description: String, isPublic: Boolean! anyoneCanAdd: Boolean, password: String): Room!
     updateRoom(id: ID!, title: String, description: String, image: Upload, anyoneCanAdd: Boolean, password: String): Room!
     joinPrivateRoom(id: ID!, password: String!): Boolean!
@@ -26,7 +26,7 @@ export const typeDefs = `
     deleteRoom(id: ID!): ID!
   }
 
-  extend type Subscription {
+  type Subscription {
     roomStateUpdated(id: ID!): RoomState
   }
 

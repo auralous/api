@@ -4,11 +4,11 @@ import { IResolvers } from "../types/resolvers.gen";
 import { PUBSUB_CHANNELS } from "../lib/constant";
 
 export const typeDefs = `
-  extend type Mutation {
+  type Mutation {
     addMessage(roomId: ID!, message: String!): Boolean!
   }
 
-  extend type Subscription {
+  type Subscription {
     messageAdded(roomId: ID!): Message!
   }
 

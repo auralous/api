@@ -9,7 +9,7 @@ export const typeDefs = `
     spotify
   }
 
-  extend type Query {
+  type Query {
     track(id: ID!): Track
     crossTracks(id: ID!): CrossTracks
     searchTrack(platform: PlatformName!, query: String!): [Track!]!

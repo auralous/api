@@ -18,8 +18,9 @@ export type Scalars = {
   Upload: any;
 };
 
+
+
 export type IQuery = {
-  _empty?: Maybe<Scalars['String']>;
   me?: Maybe<IUser>;
   user?: Maybe<IUser>;
   meAuth?: Maybe<IUserAuthWrapper>;
@@ -100,7 +101,6 @@ export type IQueryNowPlayingReactionsArgs = {
 };
 
 export type IMutation = {
-  _empty?: Maybe<Scalars['String']>;
   me?: Maybe<IUser>;
   deleteMe: Scalars['Boolean'];
   deleteMeOauth: Scalars['Boolean'];
@@ -192,8 +192,38 @@ export type IMutationSkipNowPlayingArgs = {
   id: Scalars['ID'];
 };
 
+export enum IOAuthProviderName {
+  Youtube = 'youtube',
+  Twitter = 'twitter',
+  Facebook = 'facebook',
+  Spotify = 'spotify'
+}
+
+export type IUser = {
+  id: Scalars['ID'];
+  username: Scalars['String'];
+  bio?: Maybe<Scalars['String']>;
+  profilePicture: Scalars['String'];
+};
+
+export type IUserAuthWrapper = {
+  youtube?: Maybe<IUserOauthProvider>;
+  twitter?: Maybe<IUserOauthProvider>;
+  facebook?: Maybe<IUserOauthProvider>;
+  spotify?: Maybe<IUserOauthProvider>;
+};
+
+export type IUserOauthProvider = {
+  provider: IOAuthProviderName;
+  id: Scalars['ID'];
+};
+
+export enum IRoomMembership {
+  Host = 'host',
+  Collab = 'collab'
+}
+
 export type ISubscription = {
-  _empty?: Maybe<Scalars['String']>;
   roomStateUpdated?: Maybe<IRoomState>;
   messageAdded: IMessage;
   queueUpdated: IQueue;
@@ -225,39 +255,6 @@ export type ISubscriptionNowPlayingUpdatedArgs = {
 export type ISubscriptionNowPlayingReactionsUpdatedArgs = {
   id: Scalars['ID'];
 };
-
-
-
-export enum IOAuthProviderName {
-  Youtube = 'youtube',
-  Twitter = 'twitter',
-  Facebook = 'facebook',
-  Spotify = 'spotify'
-}
-
-export type IUser = {
-  id: Scalars['ID'];
-  username: Scalars['String'];
-  bio?: Maybe<Scalars['String']>;
-  profilePicture: Scalars['String'];
-};
-
-export type IUserAuthWrapper = {
-  youtube?: Maybe<IUserOauthProvider>;
-  twitter?: Maybe<IUserOauthProvider>;
-  facebook?: Maybe<IUserOauthProvider>;
-  spotify?: Maybe<IUserOauthProvider>;
-};
-
-export type IUserOauthProvider = {
-  provider: IOAuthProviderName;
-  id: Scalars['ID'];
-};
-
-export enum IRoomMembership {
-  Host = 'host',
-  Collab = 'collab'
-}
 
 export type IRoom = {
   id: Scalars['ID'];
@@ -435,20 +432,20 @@ export type DirectiveResolverFn<TResult = {}, TParent = {}, TContext = {}, TArgs
 
 /** Mapping between all available schema types and the resolvers types */
 export type IResolversTypes = {
+  DateTime: ResolverTypeWrapper<Scalars['DateTime']>;
+  Upload: ResolverTypeWrapper<Scalars['Upload']>;
   Query: ResolverTypeWrapper<{}>;
   String: ResolverTypeWrapper<Scalars['String']>;
   ID: ResolverTypeWrapper<Scalars['ID']>;
   Int: ResolverTypeWrapper<Scalars['Int']>;
   Mutation: ResolverTypeWrapper<{}>;
   Boolean: ResolverTypeWrapper<Scalars['Boolean']>;
-  Subscription: ResolverTypeWrapper<{}>;
-  DateTime: ResolverTypeWrapper<Scalars['DateTime']>;
-  Upload: ResolverTypeWrapper<Scalars['Upload']>;
   OAuthProviderName: IOAuthProviderName;
   User: ResolverTypeWrapper<UserDbObject>;
   UserAuthWrapper: ResolverTypeWrapper<IUserAuthWrapper>;
   UserOauthProvider: ResolverTypeWrapper<IUserOauthProvider>;
   RoomMembership: IRoomMembership;
+  Subscription: ResolverTypeWrapper<{}>;
   Room: ResolverTypeWrapper<RoomDbObject>;
   RoomState: ResolverTypeWrapper<IRoomState>;
   PlatformName: IPlatformName;
@@ -468,18 +465,18 @@ export type IResolversTypes = {
 
 /** Mapping between all available schema types and the resolvers parents */
 export type IResolversParentTypes = {
+  DateTime: Scalars['DateTime'];
+  Upload: Scalars['Upload'];
   Query: {};
   String: Scalars['String'];
   ID: Scalars['ID'];
   Int: Scalars['Int'];
   Mutation: {};
   Boolean: Scalars['Boolean'];
-  Subscription: {};
-  DateTime: Scalars['DateTime'];
-  Upload: Scalars['Upload'];
   User: UserDbObject;
   UserAuthWrapper: IUserAuthWrapper;
   UserOauthProvider: IUserOauthProvider;
+  Subscription: {};
   Room: RoomDbObject;
   RoomState: IRoomState;
   Track: TrackDbObject;
@@ -494,8 +491,15 @@ export type IResolversParentTypes = {
   NowPlayingReaction: INowPlayingReaction;
 };
 
+export interface IDateTimeScalarConfig extends GraphQLScalarTypeConfig<IResolversTypes['DateTime'], any> {
+  name: 'DateTime';
+}
+
+export interface IUploadScalarConfig extends GraphQLScalarTypeConfig<IResolversTypes['Upload'], any> {
+  name: 'Upload';
+}
+
 export type IQueryResolvers<ContextType = MyGQLContext, ParentType extends IResolversParentTypes['Query'] = IResolversParentTypes['Query']> = {
-  _empty?: Resolver<Maybe<IResolversTypes['String']>, ParentType, ContextType>;
   me?: Resolver<Maybe<IResolversTypes['User']>, ParentType, ContextType>;
   user?: Resolver<Maybe<IResolversTypes['User']>, ParentType, ContextType, RequireFields<IQueryUserArgs, never>>;
   meAuth?: Resolver<Maybe<IResolversTypes['UserAuthWrapper']>, ParentType, ContextType>;
@@ -513,7 +517,6 @@ export type IQueryResolvers<ContextType = MyGQLContext, ParentType extends IReso
 };
 
 export type IMutationResolvers<ContextType = MyGQLContext, ParentType extends IResolversParentTypes['Mutation'] = IResolversParentTypes['Mutation']> = {
-  _empty?: Resolver<Maybe<IResolversTypes['String']>, ParentType, ContextType>;
   me?: Resolver<Maybe<IResolversTypes['User']>, ParentType, ContextType, RequireFields<IMutationMeArgs, never>>;
   deleteMe?: Resolver<IResolversTypes['Boolean'], ParentType, ContextType>;
   deleteMeOauth?: Resolver<IResolversTypes['Boolean'], ParentType, ContextType, RequireFields<IMutationDeleteMeOauthArgs, 'provider'>>;
@@ -527,23 +530,6 @@ export type IMutationResolvers<ContextType = MyGQLContext, ParentType extends IR
   reactNowPlaying?: Resolver<Maybe<IResolversTypes['Boolean']>, ParentType, ContextType, RequireFields<IMutationReactNowPlayingArgs, 'id' | 'reaction'>>;
   skipNowPlaying?: Resolver<Maybe<IResolversTypes['Boolean']>, ParentType, ContextType, RequireFields<IMutationSkipNowPlayingArgs, 'id'>>;
 };
-
-export type ISubscriptionResolvers<ContextType = MyGQLContext, ParentType extends IResolversParentTypes['Subscription'] = IResolversParentTypes['Subscription']> = {
-  _empty?: SubscriptionResolver<Maybe<IResolversTypes['String']>, "_empty", ParentType, ContextType>;
-  roomStateUpdated?: SubscriptionResolver<Maybe<IResolversTypes['RoomState']>, "roomStateUpdated", ParentType, ContextType, RequireFields<ISubscriptionRoomStateUpdatedArgs, 'id'>>;
-  messageAdded?: SubscriptionResolver<IResolversTypes['Message'], "messageAdded", ParentType, ContextType, RequireFields<ISubscriptionMessageAddedArgs, 'roomId'>>;
-  queueUpdated?: SubscriptionResolver<IResolversTypes['Queue'], "queueUpdated", ParentType, ContextType, RequireFields<ISubscriptionQueueUpdatedArgs, 'id'>>;
-  nowPlayingUpdated?: SubscriptionResolver<Maybe<IResolversTypes['NowPlaying']>, "nowPlayingUpdated", ParentType, ContextType, RequireFields<ISubscriptionNowPlayingUpdatedArgs, 'id'>>;
-  nowPlayingReactionsUpdated?: SubscriptionResolver<Maybe<IResolversTypes['NowPlayingReaction']>, "nowPlayingReactionsUpdated", ParentType, ContextType, RequireFields<ISubscriptionNowPlayingReactionsUpdatedArgs, 'id'>>;
-};
-
-export interface IDateTimeScalarConfig extends GraphQLScalarTypeConfig<IResolversTypes['DateTime'], any> {
-  name: 'DateTime';
-}
-
-export interface IUploadScalarConfig extends GraphQLScalarTypeConfig<IResolversTypes['Upload'], any> {
-  name: 'Upload';
-}
 
 export type IUserResolvers<ContextType = MyGQLContext, ParentType extends IResolversParentTypes['User'] = IResolversParentTypes['User']> = {
   id?: Resolver<IResolversTypes['ID'], ParentType, ContextType>;
@@ -565,6 +551,14 @@ export type IUserOauthProviderResolvers<ContextType = MyGQLContext, ParentType e
   provider?: Resolver<IResolversTypes['OAuthProviderName'], ParentType, ContextType>;
   id?: Resolver<IResolversTypes['ID'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+};
+
+export type ISubscriptionResolvers<ContextType = MyGQLContext, ParentType extends IResolversParentTypes['Subscription'] = IResolversParentTypes['Subscription']> = {
+  roomStateUpdated?: SubscriptionResolver<Maybe<IResolversTypes['RoomState']>, "roomStateUpdated", ParentType, ContextType, RequireFields<ISubscriptionRoomStateUpdatedArgs, 'id'>>;
+  messageAdded?: SubscriptionResolver<IResolversTypes['Message'], "messageAdded", ParentType, ContextType, RequireFields<ISubscriptionMessageAddedArgs, 'roomId'>>;
+  queueUpdated?: SubscriptionResolver<IResolversTypes['Queue'], "queueUpdated", ParentType, ContextType, RequireFields<ISubscriptionQueueUpdatedArgs, 'id'>>;
+  nowPlayingUpdated?: SubscriptionResolver<Maybe<IResolversTypes['NowPlaying']>, "nowPlayingUpdated", ParentType, ContextType, RequireFields<ISubscriptionNowPlayingUpdatedArgs, 'id'>>;
+  nowPlayingReactionsUpdated?: SubscriptionResolver<Maybe<IResolversTypes['NowPlayingReaction']>, "nowPlayingReactionsUpdated", ParentType, ContextType, RequireFields<ISubscriptionNowPlayingReactionsUpdatedArgs, 'id'>>;
 };
 
 export type IRoomResolvers<ContextType = MyGQLContext, ParentType extends IResolversParentTypes['Room'] = IResolversParentTypes['Room']> = {
@@ -671,14 +665,14 @@ export type INowPlayingReactionResolvers<ContextType = MyGQLContext, ParentType 
 };
 
 export type IResolvers<ContextType = MyGQLContext> = {
-  Query?: IQueryResolvers<ContextType>;
-  Mutation?: IMutationResolvers<ContextType>;
-  Subscription?: ISubscriptionResolvers<ContextType>;
   DateTime?: GraphQLScalarType;
   Upload?: GraphQLScalarType;
+  Query?: IQueryResolvers<ContextType>;
+  Mutation?: IMutationResolvers<ContextType>;
   User?: IUserResolvers<ContextType>;
   UserAuthWrapper?: IUserAuthWrapperResolvers<ContextType>;
   UserOauthProvider?: IUserOauthProviderResolvers<ContextType>;
+  Subscription?: ISubscriptionResolvers<ContextType>;
   Room?: IRoomResolvers<ContextType>;
   RoomState?: IRoomStateResolvers<ContextType>;
   Track?: ITrackResolvers<ContextType>;

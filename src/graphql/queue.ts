@@ -25,15 +25,15 @@ export const typeDefs = `
     items: [QueueItem!]!
   }
 
-  extend type Query {
+  type Query {
     queue(id:ID!): Queue
   }
 
-  extend type Mutation {
+  type Mutation {
     updateQueue(id:ID!, action: QueueAction!, tracks: [ID!], position: Int, insertPosition: Int): Boolean!
   }
 
-  extend type Subscription {
+  type Subscription {
     queueUpdated(id: ID!): Queue!
   }
 `;

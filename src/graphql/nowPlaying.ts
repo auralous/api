@@ -8,15 +8,15 @@ export const typeDefs = `
     fire
     cry
   }
-  extend type Query {
+  type Query {
     nowPlaying(id: ID!): NowPlaying
     nowPlayingReactions(id: ID!): NowPlayingReaction
   }
-  extend type Mutation {
+  type Mutation {
     reactNowPlaying(id: ID!, reaction: NowPlayingReactionType!): Boolean
     skipNowPlaying(id: ID!): Boolean
   }
-  extend type Subscription {
+  type Subscription {
     nowPlayingUpdated(id: ID!): NowPlaying
     nowPlayingReactionsUpdated(id: ID!): NowPlayingReaction
   }
@@ -43,7 +43,6 @@ export const typeDefs = `
 
 export const resolvers: IResolvers = {
   Query: {
-    // @ts-ignore
     async nowPlaying(parent, { id }, { services }) {
       const currentTrack = await services.NowPlaying.findById(id);
       return {

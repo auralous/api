@@ -67,6 +67,7 @@ httpProxy:
     allowCredentials: true
     allowOrigin:
       - "https://withstereo.com"
+      - "http://localhost:3000"
     allowMethods:
       - GET
       - POST

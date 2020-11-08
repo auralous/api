@@ -2,7 +2,6 @@ import DataLoader from "dataloader";
 import fastJson from "fast-json-stringify";
 import fetch from "node-fetch";
 import { URL } from "url";
-import Services from ".";
 import { CONFIG, REDIS_KEY } from "../lib/constant";
 import { OdesliResponse, PlatformName } from "../types/common";
 import { TrackDbObject, ArtistDbObject } from "../types/db";
@@ -55,12 +54,13 @@ export class TrackService {
   private loader: DataLoader<string, TrackDbObject | null>;
   private artistLoader: DataLoader<string, ArtistDbObject | null>;
 
-  private userService: UserService;
-
   private _youtube?: YoutubeService;
   private _spotify?: SpotifyService;
 
-  constructor(private context: ServiceContext, self: Services) {
+  constructor(
+    private context: ServiceContext,
+    private userService: UserService
+  ) {
     this.loader = this.artistLoader = new DataLoader(
       (keys) => {
         // REDIS_CLUSTER: mget not work without hash tags
@@ -70,7 +70,6 @@ export class TrackService {
       },
       { cache: !context.isWs }
     );
-    this.userService = self.User;
   }
 
   get youtube() {

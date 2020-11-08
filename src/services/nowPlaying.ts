@@ -8,16 +8,13 @@ import {
 import { QueueService } from "./queue";
 import { RoomService } from "./room";
 import { ServiceContext } from "./types";
-import type Services from ".";
 
 export class NowPlayingService {
-  private queueService: QueueService;
-  private roomService: RoomService;
-
-  constructor(private context: ServiceContext, self: Services) {
-    this.queueService = self.Queue;
-    this.roomService = self.Room;
-  }
+  constructor(
+    private context: ServiceContext,
+    private queueService: QueueService,
+    private roomService: RoomService
+  ) {}
 
   async findById(
     id: string,

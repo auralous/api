@@ -14,15 +14,15 @@ import { NullablePartial } from "../types/utils";
 import { IRoomMembership, IRoomState } from "../types/resolvers.gen";
 import { UserService } from "./user";
 import { ServiceContext } from "./types";
-import type Services from ".";
 
 export class RoomService {
   private collection = this.context.db.collection<RoomDbObject>("rooms");
   private loader: DataLoader<string, RoomDbObject | null>;
 
-  private userService: UserService;
-
-  constructor(private context: ServiceContext, self: Services) {
+  constructor(
+    private context: ServiceContext,
+    private userService: UserService
+  ) {
     this.loader = new DataLoader(
       async (keys) => {
         const rooms = await this.collection
@@ -35,7 +35,6 @@ export class RoomService {
       },
       { cache: !context.isWs }
     );
-    this.userService = self.User;
   }
 
   async create({

@@ -6,7 +6,7 @@ import { ServiceContext } from "./base";
 import { NowPlayingService } from "./nowPlaying";
 import { QueueService } from "./queue";
 import { RoomService } from "./room";
-import { ServiceService } from "./service";
+import { MusicService } from "./music";
 import { TrackService } from "./track";
 import { UserService } from "./user";
 import { AllServices } from "./types";
@@ -53,7 +53,7 @@ export function buildServices(
     cache: true,
     services,
   });
-  services.Service = new ServiceService({
+  services.Music = new MusicService({
     context: serviceContext,
     cache: true,
     services,

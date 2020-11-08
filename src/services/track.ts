@@ -71,7 +71,7 @@ export class TrackService extends BaseService {
   async findByUri(uri: URL): Promise<TrackDbObject | TrackDbObject[] | null> {
     let externalId: null | string = null;
     for (const platform of ["youtube", "spotify"] as const) {
-      const platformService = this.services.Service[platform];
+      const platformService = this.services.Music[platform];
       if ((externalId = platformService.getPlaylistIdFromUri(uri.href)))
         return platformService.getTracksByPlaylistId(externalId);
       else if ((externalId = platformService.getTrackIdFromUri(uri.href)))
@@ -91,9 +91,9 @@ export class TrackService extends BaseService {
     if (!track) {
       const [platform, externalId] = id.split(":");
       if (platform === "youtube") {
-        track = await this.services.Service.youtube.getTrack(externalId);
+        track = await this.services.Music.youtube.getTrack(externalId);
       } else if (platform === "spotify") {
-        track = await this.services.Service.spotify.getTrack(externalId);
+        track = await this.services.Music.spotify.getTrack(externalId);
       }
       if (!track) return null;
       await this.save(id, track);
@@ -137,7 +137,7 @@ export class TrackService extends BaseService {
   }
 
   search(platform: PlatformName, query: string): Promise<TrackDbObject[]> {
-    return this.services.Service[platform].searchTracks(query);
+    return this.services.Music[platform].searchTracks(query);
   }
 
   // Artists
@@ -158,9 +158,9 @@ export class TrackService extends BaseService {
     if (!artist) {
       const [platform, externalId] = id.split(":");
       if (platform === "youtube")
-        artist = await this.services.Service.youtube.getArtist(externalId);
+        artist = await this.services.Music.youtube.getArtist(externalId);
       else if (platform === "spotify")
-        artist = await this.services.Service.spotify.getArtist(externalId);
+        artist = await this.services.Music.spotify.getArtist(externalId);
       if (artist) await this.saveArtist(id, artist);
     }
     return artist;

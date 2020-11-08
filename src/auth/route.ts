@@ -77,7 +77,7 @@ appAuth.get("/mAuth", async (req, res) => {
       if (req.user.oauth.youtube) prov = IPlatformName.Youtube;
       else if (req.user.oauth.spotify) prov = IPlatformName.Spotify;
       if (prov) {
-        const accessToken = await services.Service[prov].getAccessToken();
+        const accessToken = await services.Music[prov].getAccessToken();
         if (accessToken)
           return res
             .writeHead(200, undefined, { "content-type": "application/json" })

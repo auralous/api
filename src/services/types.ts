@@ -1,7 +1,7 @@
 import { NowPlayingService } from "./nowPlaying";
 import { QueueService } from "./queue";
 import { RoomService } from "./room";
-import { ServiceService } from "./service";
+import { MusicService } from "./music";
 import { TrackService } from "./track";
 import { UserService } from "./user";
 
@@ -11,5 +11,5 @@ export interface AllServices {
   Room: RoomService;
   Track: TrackService;
   User: UserService;
-  Service: ServiceService;
+  Music: MusicService;
 }

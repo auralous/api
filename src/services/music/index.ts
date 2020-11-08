@@ -2,7 +2,7 @@ import { BaseService, ServiceInit } from "../base";
 import YoutubeService from "./youtube";
 import SpotifyService from "./spotify";
 
-export class ServiceService extends BaseService {
+export class MusicService extends BaseService {
   youtube: YoutubeService;
   spotify: SpotifyService;
   constructor(private init: ServiceInit) {

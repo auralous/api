@@ -1,15 +1,22 @@
 import { AuthenticationError, ForbiddenError } from "../error/index";
-import { BaseService, ServiceInit } from "./base";
 import { PUBSUB_CHANNELS, REDIS_KEY } from "../lib/constant";
 import { NowPlayingItemDbObject } from "../types/db";
 import {
   INowPlayingReaction,
   INowPlayingReactionType,
 } from "../types/resolvers.gen";
+import { QueueService } from "./queue";
+import { RoomService } from "./room";
+import { ServiceContext } from "./types";
+import type Services from ".";
 
-export class NowPlayingService extends BaseService {
-  constructor(options: ServiceInit) {
-    super(options);
+export class NowPlayingService {
+  private queueService: QueueService;
+  private roomService: RoomService;
+
+  constructor(private context: ServiceContext, self: Services) {
+    this.queueService = self.Queue;
+    this.roomService = self.Room;
   }
 
   async findById(
@@ -20,7 +27,7 @@ export class NowPlayingService extends BaseService {
       .get(REDIS_KEY.nowPlaying(id))
       .then((npStr) =>
         npStr
-          ? (this.services.Queue.parseItem(npStr) as NowPlayingItemDbObject)
+          ? (this.queueService.parseItem(npStr) as NowPlayingItemDbObject)
           : null
       );
     if (!currTrack) return null;
@@ -48,7 +55,7 @@ export class NowPlayingService extends BaseService {
   async setById(id: string, queueItem: NowPlayingItemDbObject) {
     await this.context.redis.set(
       REDIS_KEY.nowPlaying(id),
-      this.services.Queue.stringifyItem(queueItem)
+      this.queueService.stringifyItem(queueItem)
     );
   }
 
@@ -58,7 +65,7 @@ export class NowPlayingService extends BaseService {
 
   async skipCurrentTrack(id: string): Promise<boolean> {
     if (!this.context.user) throw new AuthenticationError("");
-    const room = await this.services.Room.findById(id);
+    const room = await this.roomService.findById(id);
     if (!room) throw new ForbiddenError("Room does not exist");
     const currentTrack = await this.findById(id);
     if (!currentTrack) return false;

@@ -1,6 +1,6 @@
 import type { Db } from "mongodb";
 import type Redis from "ioredis";
-import { buildServices } from "./services";
+import Services from "../services";
 import { RoomDbObject, NowPlayingItemDbObject } from "../types/db";
 import { PUBSUB_CHANNELS } from "../lib/constant";
 import type { PubSub } from "../lib/pubsub";
@@ -24,10 +24,14 @@ export class NowPlayingWorker {
   async init(db: Db, redis: Redis.Cluster) {
     // This is called upon service startup to set up delay jobs
     // To process NowPlaying for all rooms in database
-    this.services = buildServices(
-      { user: null, db, redis, pubsub: this.pubsub },
-      { cache: false }
-    );
+    this.services = new Services({
+      user: null,
+      db,
+      redis,
+      pubsub: this.pubsub,
+      // isWs means no cache
+      isWs: true,
+    });
     const roomArray = await db
       .collection<RoomDbObject>("rooms")
       .find({})

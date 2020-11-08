@@ -1,9 +1,9 @@
 import { nanoid } from "nanoid/non-secure";
 import fastJson from "fast-json-stringify";
-import { BaseService, ServiceInit } from "./base";
 import { reorder } from "../lib/utils";
 import { REDIS_KEY, PUBSUB_CHANNELS } from "../lib/constant";
 import { NowPlayingItemDbObject, QueueItemDbObject } from "../types/db";
+import { ServiceContext } from "./types";
 
 const queueItemStringify = fastJson({
   title: "Queue Item",
@@ -19,10 +19,8 @@ const queueItemStringify = fastJson({
   required: ["id", "trackId", "creatorId"],
 });
 
-export class QueueService extends BaseService {
-  constructor(options: ServiceInit) {
-    super(options);
-  }
+export class QueueService {
+  constructor(private context: ServiceContext) {}
 
   notifyUpdate(id: string) {
     this.context.pubsub.publish(PUBSUB_CHANNELS.queueUpdated, {

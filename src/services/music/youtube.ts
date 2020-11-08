@@ -1,9 +1,11 @@
 import { google } from "googleapis";
 import fetch from "node-fetch";
-import { ServiceInit } from "../base";
 import { isDefined } from "../../lib/utils";
 import { MAX_TRACK_DURATION } from "../../lib/constant";
 import { ArtistDbObject, TrackDbObject } from "../../types/db";
+import { ServiceContext } from "../types";
+import { TrackService } from "../track";
+import { UserService } from "../user";
 
 function parseDurationToMs(str: string) {
   let miliseconds = 0;
@@ -81,33 +83,38 @@ export default class YoutubeService {
     version: "v3",
     auth: this.oauth2Client,
   });
-  private TrackService;
-  constructor(options: ServiceInit) {
-    this.TrackService = options.services.Track;
-    if (options.context.user) {
-      const googleProvider = options.context.user.oauth.youtube;
-      if (googleProvider) {
-        this.oauth2Client.setCredentials({
-          access_token: googleProvider.accessToken,
-          refresh_token: googleProvider.refreshToken,
-        });
-        // Handling refresh tokens
-        this.oauth2Client.on("tokens", async (tokens) => {
-          options.services.User.updateMeOauth("youtube", {
-            id: googleProvider.id,
-            accessToken: tokens.access_token,
-            refreshToken: tokens.refresh_token,
-            ...(tokens.expiry_date && {
-              expiredAt: new Date(tokens.expiry_date),
-            }),
-          });
-        });
+  constructor(
+    context: ServiceContext,
+    private userService: UserService,
+    private trackService: TrackService
+  ) {
+    if (context.user) {
+      const gp = context.user.oauth.youtube;
+      if (gp?.accessToken && gp.refreshToken) {
+        this.register(gp.id, gp.accessToken, gp.refreshToken);
       }
     }
     if (!this.oauth2Client.credentials.access_token) {
       // Fallback to using API Key
       this.oauth2Client.apiKey = process.env.GOOGLE_API_KEY;
     }
+  }
+
+  private register(id: string, accessToken: string, refreshToken: string) {
+    this.oauth2Client.setCredentials({
+      access_token: accessToken,
+      refresh_token: refreshToken,
+    });
+    this.oauth2Client.on("tokens", async (tokens) => {
+      this.userService.updateMeOauth("youtube", {
+        id,
+        accessToken: tokens.access_token,
+        refreshToken: tokens.refresh_token,
+        ...(tokens.expiry_date && {
+          expiredAt: new Date(tokens.expiry_date),
+        }),
+      });
+    });
   }
 
   async getAccessToken(): Promise<string | null> {
@@ -172,7 +179,7 @@ export default class YoutubeService {
       const trackItems = (
         await Promise.all(
           (trackData.data.items || []).map((trackItemData) =>
-            this.TrackService.findOrCreate(
+            this.trackService.findOrCreate(
               `youtube:${trackItemData.contentDetails!.videoId}`
             )
           )
@@ -234,7 +241,7 @@ export default class YoutubeService {
     );
 
     const promises = videoIds.map((i) =>
-      this.TrackService.findOrCreate(`youtube:${i}`)
+      this.trackService.findOrCreate(`youtube:${i}`)
     );
 
     return Promise.all<TrackDbObject | null>(promises).then((tracks) =>

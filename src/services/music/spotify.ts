@@ -1,12 +1,12 @@
 import fetch from "node-fetch";
-import { ServiceInit } from "../base";
 import {
   UserOauthProvider,
   TrackDbObject,
   ArtistDbObject,
 } from "../../types/db";
-import { AllServices } from "../types";
 import { isDefined } from "../../lib/utils";
+import { UserService } from "../user";
+import { ServiceContext } from "../types";
 /// <reference path="spotify-api" />
 
 const BASE_URL = "https://api.spotify.com/v1";
@@ -65,11 +65,8 @@ function parseTrack(result: SpotifyApi.TrackObjectFull): TrackDbObject {
 export default class SpotifyService {
   private BASE_URL = "https://api.spotify.com/v1";
   auth: UserOauthProvider<"spotify"> | null;
-  private services: AllServices;
-
-  constructor(options: ServiceInit) {
-    this.services = options.services;
-    this.auth = options.context.user?.oauth["spotify"] || null;
+  constructor(context: ServiceContext, private userService: UserService) {
+    this.auth = context.user?.oauth["spotify"] || null;
   }
 
   private async refreshAccessToken(): Promise<string | null> {
@@ -94,7 +91,7 @@ export default class SpotifyService {
       return null;
     const json = await refreshResponse.json();
     // Update tokens
-    await this.services.User.updateMeOauth("spotify", {
+    await this.userService.updateMeOauth("spotify", {
       id: this.auth.id,
       accessToken: json.access_token,
       expiredAt: new Date(Date.now() + json.expires_in * 1000),

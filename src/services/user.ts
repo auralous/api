@@ -10,16 +10,20 @@ import {
   UserInputError,
 } from "../error/index";
 import { deleteCloudinaryImagesByPrefix } from "../lib/cloudinary";
-import { BaseService, ServiceInit } from "./base";
 import { UserDbObject, UserOauthProvider } from "../types/db";
 import { OAuthProviderName } from "../types/common";
 import { NullablePartial } from "../types/utils";
+import { RoomService } from "./room";
+import { ServiceContext } from "./types";
+import type Services from ".";
 
-export class UserService extends BaseService {
+export class UserService {
   private collection = this.context.db.collection<UserDbObject>("users");
   private loader: DataLoader<string, UserDbObject | null>;
-  constructor(options: ServiceInit) {
-    super(options);
+
+  private roomService: RoomService;
+
+  constructor(private context: ServiceContext, self: Services) {
     this.loader = new DataLoader(
       async (keys) => {
         const users = await this.collection
@@ -32,8 +36,9 @@ export class UserService extends BaseService {
             null
         );
       },
-      { cache: options.cache }
+      { cache: !context.isWs }
     );
+    this.roomService = self.Room;
   }
 
   get me() {
@@ -158,7 +163,7 @@ export class UserService extends BaseService {
     if (!deletedCount)
       throw new ForbiddenError("Cannot deactivate your account");
     await Promise.all([
-      this.services.Room.deleteByCreatorId(this.context.user._id),
+      this.roomService.deleteByCreatorId(this.context.user._id),
       deleteCloudinaryImagesByPrefix(`users/${this.context.user._id}`),
     ]);
     return true;

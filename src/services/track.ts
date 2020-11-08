@@ -2,10 +2,13 @@ import DataLoader from "dataloader";
 import fastJson from "fast-json-stringify";
 import fetch from "node-fetch";
 import { URL } from "url";
-import { BaseService, ServiceInit } from "./base";
+import Services from ".";
 import { CONFIG, REDIS_KEY } from "../lib/constant";
 import { OdesliResponse, PlatformName } from "../types/common";
 import { TrackDbObject, ArtistDbObject } from "../types/db";
+import { SpotifyService, YoutubeService } from "./music";
+import { ServiceContext } from "./types";
+import { UserService } from "./user";
 
 const stringifyTrack = fastJson({
   title: "Track",
@@ -48,11 +51,16 @@ const stringifyArtist = fastJson({
   required: ["id", "platform", "externalId", "name", "url", "image"],
 });
 
-export class TrackService extends BaseService {
+export class TrackService {
   private loader: DataLoader<string, TrackDbObject | null>;
   private artistLoader: DataLoader<string, ArtistDbObject | null>;
-  constructor(options: ServiceInit) {
-    super(options);
+
+  private userService: UserService;
+
+  private _youtube?: YoutubeService;
+  private _spotify?: SpotifyService;
+
+  constructor(private context: ServiceContext, self: Services) {
     this.loader = this.artistLoader = new DataLoader(
       (keys) => {
         // REDIS_CLUSTER: mget not work without hash tags
@@ -60,8 +68,23 @@ export class TrackService extends BaseService {
           keys.map((key) => this.context.redis.get(key))
         ).then((results) => results.map((r) => (r ? JSON.parse(r) : null)));
       },
-      { cache: options.cache }
+      { cache: !context.isWs }
     );
+    this.userService = self.User;
+  }
+
+  get youtube() {
+    if (this._youtube) return this._youtube;
+    return (this._youtube = new YoutubeService(
+      this.context,
+      this.userService,
+      this
+    ));
+  }
+
+  get spotify() {
+    if (this._spotify) return this._spotify;
+    return (this._spotify = new SpotifyService(this.context, this.userService));
   }
 
   private find(id: string) {
@@ -71,7 +94,7 @@ export class TrackService extends BaseService {
   async findByUri(uri: URL): Promise<TrackDbObject | TrackDbObject[] | null> {
     let externalId: null | string = null;
     for (const platform of ["youtube", "spotify"] as const) {
-      const platformService = this.services.Music[platform];
+      const platformService = this[platform];
       if ((externalId = platformService.getPlaylistIdFromUri(uri.href)))
         return platformService.getTracksByPlaylistId(externalId);
       else if ((externalId = platformService.getTrackIdFromUri(uri.href)))
@@ -91,9 +114,9 @@ export class TrackService extends BaseService {
     if (!track) {
       const [platform, externalId] = id.split(":");
       if (platform === "youtube") {
-        track = await this.services.Music.youtube.getTrack(externalId);
+        track = await this.youtube.getTrack(externalId);
       } else if (platform === "spotify") {
-        track = await this.services.Music.spotify.getTrack(externalId);
+        track = await this.spotify.getTrack(externalId);
       }
       if (!track) return null;
       await this.save(id, track);
@@ -137,7 +160,7 @@ export class TrackService extends BaseService {
   }
 
   search(platform: PlatformName, query: string): Promise<TrackDbObject[]> {
-    return this.services.Music[platform].searchTracks(query);
+    return this[platform].searchTracks(query);
   }
 
   // Artists
@@ -158,9 +181,9 @@ export class TrackService extends BaseService {
     if (!artist) {
       const [platform, externalId] = id.split(":");
       if (platform === "youtube")
-        artist = await this.services.Music.youtube.getArtist(externalId);
+        artist = await this.youtube.getArtist(externalId);
       else if (platform === "spotify")
-        artist = await this.services.Music.spotify.getArtist(externalId);
+        artist = await this.spotify.getArtist(externalId);
       if (artist) await this.saveArtist(id, artist);
     }
     return artist;

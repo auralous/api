@@ -10,8 +10,8 @@ import { Strategy as SpotifyStrategy } from "passport-spotify";
 import { db } from "../db/mongo";
 import { redis } from "../db/redis";
 import { pubsub } from "../lib/pubsub";
+import Services from "../services";
 import { UserDbObject } from "../types/db";
-import { buildServices } from "../services/services";
 import { OAuthProviderName, ExtendedIncomingMessage } from "../types/common";
 
 function authCallback(
@@ -40,10 +40,7 @@ function authCallback(
     refreshToken: token2,
   };
 
-  const services = buildServices(
-    { user: req.user || null, db, redis, pubsub },
-    { cache: false }
-  );
+  const services = new Services({ user: req.user || null, db, redis, pubsub });
 
   if (req.user) {
     // Logged in. Associate account with user
@@ -80,10 +77,7 @@ passport.serializeUser((user: UserDbObject, done) => {
 });
 
 passport.deserializeUser((id: string, done) => {
-  const services = buildServices(
-    { user: null, db, redis, pubsub },
-    { cache: false }
-  );
+  const services = new Services({ user: null, db, redis, pubsub });
   services.User.findById(id).then((user) => done(null, user || null));
 });
 

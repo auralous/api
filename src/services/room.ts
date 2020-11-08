@@ -1,7 +1,6 @@
 import DataLoader from "dataloader";
 import { UpdateQuery } from "mongodb";
 import { nanoid } from "nanoid";
-import { BaseService, ServiceInit } from "./base";
 import {
   AuthenticationError,
   ForbiddenError,
@@ -13,12 +12,17 @@ import { deleteCloudinaryImagesByPrefix } from "../lib/cloudinary";
 import { RoomDbObject } from "../types/db";
 import { NullablePartial } from "../types/utils";
 import { IRoomMembership, IRoomState } from "../types/resolvers.gen";
+import { UserService } from "./user";
+import { ServiceContext } from "./types";
+import type Services from ".";
 
-export class RoomService extends BaseService {
+export class RoomService {
   private collection = this.context.db.collection<RoomDbObject>("rooms");
   private loader: DataLoader<string, RoomDbObject | null>;
-  constructor(options: ServiceInit) {
-    super(options);
+
+  private userService: UserService;
+
+  constructor(private context: ServiceContext, self: Services) {
     this.loader = new DataLoader(
       async (keys) => {
         const rooms = await this.collection
@@ -29,8 +33,9 @@ export class RoomService extends BaseService {
           (key) => rooms.find((room: RoomDbObject) => room._id === key) || null
         );
       },
-      { cache: options.cache }
+      { cache: !context.isWs }
     );
+    this.userService = self.User;
   }
 
   async create({
@@ -163,7 +168,7 @@ export class RoomService extends BaseService {
   ) {
     if (!this.context.user) throw new AuthenticationError("");
 
-    const addingUser = await this.services.User[
+    const addingUser = await this.userService[
       isUserId ? "findById" : "findByUsername"
     ](username);
 

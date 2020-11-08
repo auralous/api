@@ -1,10 +1,8 @@
 import crypto from "crypto";
-import { GraphQL, httpHandler, persistedQueryPresets } from "@benzene/server";
+import { Benzene, httpHandler, persistedQueryPresets } from "@benzene/server";
 import { wsHandler, SubscriptionConnection } from "@benzene/ws";
-
 import { formatError, getOperationAST } from "graphql";
 import * as Sentry from "@sentry/node";
-// @ts-ignore
 import { buildContext } from "./graphql/context";
 import schema from "./graphql/schema";
 import { applySession } from "./middleware/session";
@@ -17,7 +15,7 @@ import { UserDbObject } from "./types/db";
 
 const EXPECTED_ERR_CODES = ["PERSISTED_QUERY_NOT_FOUND"];
 
-const GQL = new GraphQL({
+const GQL = new Benzene({
   schema,
   formatError: (err) => {
     if (
@@ -54,7 +52,7 @@ export const httpHandle = httpHandler(GQL, {
       redis,
       pubsub,
     });
-    (ctx as any).setCacheControl = req.setCacheControl;
+    ctx.setCacheControl = req.setCacheControl;
     return ctx;
   },
 });
@@ -63,7 +61,7 @@ const $onSubComplete = Symbol("conn#onSubComplete");
 
 const getOnSubCompleteObject = (
   t: SubscriptionConnection & {
-    [$onSubComplete]: { [key: string]: () => void };
+    [$onSubComplete]?: { [key: string]: () => void };
   }
 ) => (t[$onSubComplete] = t[$onSubComplete] || {});
 
@@ -86,7 +84,7 @@ export const wsHandle = wsHandler(GQL, {
   onStart(id, { document, contextValue, variableValues }) {
     // Register user appearance in room
     if (getOperationAST(document)?.name?.value === "onNowPlayingUpdated") {
-      const onSubComplete = getOnSubCompleteObject(this as any);
+      const onSubComplete = getOnSubCompleteObject(this);
       const context = contextValue as MyGQLContext;
       if (!context.user) return;
       context.services.Room.setUserPresence(
@@ -104,7 +102,7 @@ export const wsHandle = wsHandler(GQL, {
     }
   },
   onComplete(id) {
-    const onSubComplete = getOnSubCompleteObject(this as any);
+    const onSubComplete = getOnSubCompleteObject(this);
     onSubComplete[id]?.();
   },
 });

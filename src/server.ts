@@ -7,7 +7,7 @@ Sentry.init({
   },
 });
 
-import { createServer } from "http";
+import { createServer, RequestListener } from "http";
 import * as WebSocket from "ws";
 import { wsHandle } from "./gql";
 import app from "./app";
@@ -17,10 +17,12 @@ import { NowPlayingWorker } from "./services/nowPlayingWorker";
 import { pubsub } from "./lib/pubsub";
 
 // http
-const port = parseInt(process.env.PORT!, 10) || 4000;
-const server = createServer(app as any);
+const port = parseInt(process.env.PORT as string, 10) || 4000;
+const server = createServer((app as unknown) as RequestListener);
 
 // subscription
+type ExtendedWebSocket = WebSocket & { isAlive: boolean };
+
 const wss = new WebSocket.Server({
   server,
   path: "/graphql",
@@ -29,18 +31,17 @@ const wss = new WebSocket.Server({
 wss.on("connection", wsHandle);
 
 // ping-pong
-wss.on("connection", (socket) => {
-  (socket as any).isAlive = true;
-  socket.on("pong", () => ((socket as any).isAlive = true));
+wss.on("connection", (socket: ExtendedWebSocket) => {
+  socket.isAlive = true;
+  socket.on("pong", () => (socket.isAlive = true));
 });
 
 const wssPingPong = setInterval(() => {
-  wss.clients.forEach((ws) => {
-    // Require pong message every 30s or assume dead and terminate
-    if ((ws as any).isAlive === false) return ws.terminate();
-    (ws as any).isAlive = false;
-    ws.ping();
-  });
+  for (const socket of wss.clients as Set<ExtendedWebSocket>) {
+    if (socket.isAlive === false) return socket.terminate();
+    socket.isAlive = false;
+    socket.ping();
+  }
 }, 30000);
 
 wss.on("close", () => clearInterval(wssPingPong));

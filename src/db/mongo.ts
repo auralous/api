@@ -3,7 +3,7 @@ import { UserDbObject, RoomDbObject } from "../types/db";
 
 export let db: Db;
 
-export const client = new MongoClient(process.env.MONGODB_URI!, {
+export const client = new MongoClient(process.env.MONGODB_URI as string, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 });

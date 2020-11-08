@@ -16,12 +16,12 @@ app.use("/health", healthApp);
 
 // compat parse url, passport not work properly without this
 app.use((req, res, next) => {
-  const idx = req.url!.indexOf("?");
+  const idx = req.url.indexOf("?");
   req.query =
     idx !== -1
-      ? (parseQS(req.url!.substring(idx + 1)) as Record<string, string>)
+      ? (parseQS(req.url.substring(idx + 1)) as Record<string, string>)
       : null;
-  req.path = idx !== -1 ? req.url!.substring(0, idx) : req.url;
+  req.path = idx !== -1 ? req.url.substring(0, idx) : req.url;
   next();
 });
 

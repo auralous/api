@@ -23,7 +23,8 @@ function createRoute(
       if (req.user)
         redirect(
           `${process.env.APP_URI}/auth/callback${
-            (req.user as any).isNew ? "?isNew=1" : ""
+            // @ts-expect-error: isNew is a special field to check if user is newly registered
+            req.user.isNew ? "?isNew=1" : ""
           }`
         );
       else redirect(`${process.env.APP_URI}/auth/callback?error=unknown`);

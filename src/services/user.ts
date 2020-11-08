@@ -104,8 +104,8 @@ export class UserService extends BaseService {
           [authTokens.provider]: authTokens,
         },
       });
-      // Temporary set isNew flag to redirect user to Welcome page
-      (this.context.user as any).isNew = true;
+      // @ts-expect-error: isNew is a special field to check if user is newly registered
+      this.context.user.isNew = true;
     } else {
       // If user exists, update OAuth information
       await this.updateMeOauth(authTokens.provider, authTokens);
@@ -180,8 +180,6 @@ export class UserService extends BaseService {
   ) {
     if (!this.context.user) return null;
 
-    const $set: any = {};
-
     // Make sure this provider is not linked with another account
     const isUsedElsewhere = !!(await this.collection.countDocuments({
       _id: { $ne: this.context.user._id },
@@ -203,18 +201,6 @@ export class UserService extends BaseService {
         throw new ForbiddenError(
           `This Stereo account is linked to a different '${provider}' account.`
         );
-
-      if (accessToken !== undefined)
-        thisOauth.accessToken = $set[
-          `oauth.${provider}.accessToken`
-        ] = accessToken;
-      if (refreshToken !== undefined)
-        thisOauth.refreshToken = $set[
-          `oauth.${provider}.refreshToken`
-        ] = refreshToken;
-      if (expiredAt !== undefined) {
-        thisOauth.expiredAt = $set[`oauth.${provider}.expiredAt`] = expiredAt;
-      }
     } else {
       // Only allow 1 music account
       if (
@@ -223,21 +209,22 @@ export class UserService extends BaseService {
       ) {
         throw new ForbiddenError("You can only connect to one Music provider");
       }
-      // Connect to a new account
-      $set[`oauth.${provider}`] = (this.context.user.oauth[
-        provider
-      ] as UserOauthProvider<typeof provider>) = {
-        id,
-        provider,
-        ...(accessToken !== undefined && { accessToken }),
-        ...(refreshToken !== undefined && { refreshToken }),
-        ...(expiredAt !== undefined && { expiredAt }),
-      };
-      // Reinitialize with the new auth
-      this.services.Service.reinitialize();
     }
 
-    await this.collection.updateOne({ _id: this.context.user._id }, { $set });
+    (this.context.user.oauth[provider] as UserOauthProvider<
+      typeof provider
+    >) = {
+      id,
+      provider,
+      ...(accessToken !== undefined && { accessToken }),
+      ...(refreshToken !== undefined && { refreshToken }),
+      ...(expiredAt !== undefined && { expiredAt }),
+    };
+
+    await this.collection.updateOne(
+      { _id: this.context.user._id },
+      { $set: { oauth: this.context.user.oauth } }
+    );
 
     this.loader
       .clear(this.context.user._id)

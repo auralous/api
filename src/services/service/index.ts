@@ -10,9 +10,4 @@ export class ServiceService extends BaseService {
     this.youtube = new YoutubeService(init);
     this.spotify = new SpotifyService(init);
   }
-
-  reinitialize() {
-    this.youtube = new YoutubeService(this.init);
-    this.spotify = new SpotifyService(this.init);
-  }
 }

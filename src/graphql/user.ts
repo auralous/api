@@ -51,11 +51,10 @@ export const resolvers: IResolvers = {
       setCacheControl?.(0, "PRIVATE");
       return user;
     },
-    // @ts-ignore
+    // @ts-expect-error: Invalid TS error
     async meAuth(parent, args, { user, setCacheControl }) {
       setCacheControl?.(0, "PRIVATE");
-      if (!user) return null;
-      return user.oauth;
+      return user?.oauth;
     },
     async user(parent, { username, id }, { services, setCacheControl }) {
       let user: UserDbObject | null = null;

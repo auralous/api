@@ -19,7 +19,7 @@ function authCallback(
   token1: string,
   token2: string,
   profile: Profile,
-  done: (err: any, user: UserDbObject | null) => void
+  done: (err: Error | null, user: UserDbObject | null) => void
 ) {
   const { id, displayName: name, emails } = profile;
   let profilePicture = profile.photos?.[0]?.value || null;

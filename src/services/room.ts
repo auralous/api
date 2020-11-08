@@ -12,7 +12,7 @@ import { PUBSUB_CHANNELS, REDIS_KEY } from "../lib/constant";
 import { deleteCloudinaryImagesByPrefix } from "../lib/cloudinary";
 import { RoomDbObject } from "../types/db";
 import { NullablePartial } from "../types/utils";
-import { IRoomMembership } from "../types/resolvers.gen";
+import { IRoomMembership, IRoomState } from "../types/resolvers.gen";
 
 export class RoomService extends BaseService {
   private collection = this.context.db.collection<RoomDbObject>("rooms");
@@ -65,12 +65,28 @@ export class RoomService extends BaseService {
 
   notifyStateUpdate(id: string) {
     this.context.pubsub.publish(PUBSUB_CHANNELS.roomStateUpdated, {
-      roomStateUpdated: { id },
+      roomStateUpdated: this.getRoomState(id),
     });
   }
 
   findById(id: string) {
     return this.loader.load(id);
+  }
+
+  async getRoomState(id: string): Promise<IRoomState | null> {
+    const room = await this.services.Room.findById(id);
+    const isViewable = this.services.Room.isViewable(
+      id,
+      this.context.user?._id
+    );
+    if (!room) return null;
+
+    return {
+      id,
+      userIds: isViewable ? await this.services.Room.getCurrentUsers(id) : [],
+      anyoneCanAdd: room.anyoneCanAdd || false,
+      collabs: (isViewable && room.collabs) || [],
+    };
   }
 
   async findByCreatorId(creatorId: string) {

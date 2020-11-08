@@ -72,9 +72,8 @@ export const resolvers: IResolvers = {
     searchRooms(parent, { query, limit }, { services }) {
       return services.Room.search(query, limit);
     },
-    // @ts-ignore
-    roomState(parent, { id }) {
-      return { id };
+    roomState(parent, { id }, { services }) {
+      return services.Room.getRoomState(id);
     },
   },
   Mutation: {
@@ -160,19 +159,6 @@ export const resolvers: IResolvers = {
     id: ({ _id }) => _id,
     image({ image, _id }) {
       return image || defaultAvatar("room", _id);
-    },
-  },
-  RoomState: {
-    async userIds({ id }, args, { services, user }) {
-      if (!(await services.Room.isViewable(id, user?._id))) return [];
-      return services.Room.getCurrentUsers(id);
-    },
-    anyoneCanAdd({ id }, args, { services }) {
-      return services.Room.findById(id).then((s) => s?.anyoneCanAdd || false);
-    },
-    collabs({ id }, args, { services, user }) {
-      if (!services.Room.isViewable(id, user?._id)) return [];
-      return services.Room.findById(id).then((s) => s?.collabs || []);
     },
   },
 };

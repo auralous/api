@@ -74,16 +74,13 @@ export class RoomService extends BaseService {
   }
 
   async getRoomState(id: string): Promise<IRoomState | null> {
-    const room = await this.services.Room.findById(id);
-    const isViewable = this.services.Room.isViewable(
-      id,
-      this.context.user?._id
-    );
+    const room = await this.findById(id);
+    const isViewable = this.isViewable(id, this.context.user?._id);
     if (!room) return null;
 
     return {
       id,
-      userIds: isViewable ? await this.services.Room.getCurrentUsers(id) : [],
+      userIds: isViewable ? await this.getCurrentUsers(id) : [],
       anyoneCanAdd: room.anyoneCanAdd || false,
       collabs: (isViewable && room.collabs) || [],
     };

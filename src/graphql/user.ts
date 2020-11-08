@@ -1,9 +1,10 @@
 import { AuthenticationError } from "../error";
 import { uploadStreamToCloudinary } from "../lib/cloudinary";
-import { IResolvers } from "../types/resolvers.gen";
 import { defaultAvatar } from "../lib/defaultAvatar";
 import { CONFIG } from "../lib/constant";
-import { UserDbObject } from "../types/db";
+
+import type { IResolvers } from "../types/resolvers.gen";
+import type { UserDbObject } from "../types/db";
 
 export const typeDefs = `
   type Query {

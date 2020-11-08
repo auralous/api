@@ -1,10 +1,10 @@
 import type { IncomingMessage } from "http";
-import type { SessionData } from "next-session";
 import type { Db } from "mongodb";
-import Redis from "ioredis";
-import { UserDbObject } from "./db";
-import { PubSub } from "../lib/pubsub";
-import Services from "../services";
+import type Redis from "ioredis";
+import type { SessionData } from "next-session";
+import type { UserDbObject } from "./db";
+import type { PubSub } from "../lib/pubsub";
+import type Services from "../services";
 
 export type PlatformName = "youtube" | "spotify";
 

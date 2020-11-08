@@ -1,13 +1,14 @@
 import { AuthenticationError, ForbiddenError } from "../error/index";
 import { PUBSUB_CHANNELS, REDIS_KEY } from "../lib/constant";
-import { NowPlayingItemDbObject } from "../types/db";
 import {
   INowPlayingReaction,
   INowPlayingReactionType,
 } from "../types/resolvers.gen";
-import { QueueService } from "./queue";
-import { RoomService } from "./room";
-import { ServiceContext } from "./types";
+
+import type { QueueService } from "./queue";
+import type { RoomService } from "./room";
+import type { ServiceContext } from "./types";
+import type { NowPlayingItemDbObject } from "../types/db";
 
 export class NowPlayingService {
   constructor(

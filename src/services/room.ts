@@ -1,5 +1,4 @@
 import DataLoader from "dataloader";
-import { UpdateQuery } from "mongodb";
 import { nanoid } from "nanoid";
 import {
   AuthenticationError,
@@ -9,11 +8,13 @@ import {
 import { deleteByPattern } from "../db/redis";
 import { PUBSUB_CHANNELS, REDIS_KEY } from "../lib/constant";
 import { deleteCloudinaryImagesByPrefix } from "../lib/cloudinary";
-import { RoomDbObject } from "../types/db";
-import { NullablePartial } from "../types/utils";
 import { IRoomMembership, IRoomState } from "../types/resolvers.gen";
-import { UserService } from "./user";
-import { ServiceContext } from "./types";
+
+import type { UpdateQuery } from "mongodb";
+import type { UserService } from "./user";
+import type { ServiceContext } from "./types";
+import type { NullablePartial } from "../types/utils";
+import type { RoomDbObject } from "../types/db";
 
 export class RoomService {
   private collection = this.context.db.collection<RoomDbObject>("rooms");

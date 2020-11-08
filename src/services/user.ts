@@ -1,5 +1,4 @@
 import DataLoader from "dataloader";
-import { FilterQuery } from "mongodb";
 import { nanoid } from "nanoid";
 import slug from "slug";
 // @ts-ignore
@@ -10,10 +9,12 @@ import {
   UserInputError,
 } from "../error/index";
 import { deleteCloudinaryImagesByPrefix } from "../lib/cloudinary";
-import { UserDbObject, UserOauthProvider } from "../types/db";
-import { OAuthProviderName } from "../types/common";
-import { NullablePartial } from "../types/utils";
-import { ServiceContext } from "./types";
+
+import type { FilterQuery } from "mongodb";
+import type { ServiceContext } from "./types";
+import type { UserDbObject, UserOauthProvider } from "../types/db";
+import type { OAuthProviderName } from "../types/common";
+import type { NullablePartial } from "../types/utils";
 
 export class UserService {
   private collection = this.context.db.collection<UserDbObject>("users");

@@ -2,7 +2,9 @@ import { AuthenticationError, UserInputError } from "../error/index";
 import { CONFIG, PUBSUB_CHANNELS } from "../lib/constant";
 import { uploadStreamToCloudinary } from "../lib/cloudinary";
 import { defaultAvatar } from "../lib/defaultAvatar";
-import { IResolvers, IRoomMembership } from "../types/resolvers.gen";
+import { IRoomMembership } from "../types/resolvers.gen";
+
+import type { IResolvers } from "../types/resolvers.gen";
 
 export const typeDefs = `
   type Query {

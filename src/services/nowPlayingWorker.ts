@@ -1,10 +1,11 @@
+import Services from "../services";
+import { PUBSUB_CHANNELS } from "../lib/constant";
+
 import type { Db } from "mongodb";
 import type Redis from "ioredis";
-import Services from "../services";
-import { RoomDbObject, NowPlayingItemDbObject } from "../types/db";
-import { PUBSUB_CHANNELS } from "../lib/constant";
 import type { PubSub } from "../lib/pubsub";
-import { MyGQLContext } from "../types/common";
+import type { MyGQLContext } from "../types/common";
+import type { RoomDbObject, NowPlayingItemDbObject } from "../types/db";
 
 export class NowPlayingWorker {
   services!: MyGQLContext["services"];

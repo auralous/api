@@ -1,12 +1,13 @@
 import nc, { NextConnect } from "next-connect";
-import { ServerResponse } from "http";
 import passport from "./passport";
-import { ExtendedIncomingMessage } from "../types/common";
 import Services from "../services";
 import { db } from "../db/mongo";
 import { redis } from "../db/redis";
 import { pubsub } from "../lib/pubsub";
 import { IPlatformName } from "../types/resolvers.gen";
+
+import type { ServerResponse } from "http";
+import type { ExtendedIncomingMessage } from "../types/common";
 
 function createRoute(
   app: NextConnect<ExtendedIncomingMessage, ServerResponse>,

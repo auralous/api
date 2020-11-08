@@ -2,10 +2,11 @@ import { google } from "googleapis";
 import fetch from "node-fetch";
 import { isDefined } from "../../lib/utils";
 import { MAX_TRACK_DURATION } from "../../lib/constant";
-import { ArtistDbObject, TrackDbObject } from "../../types/db";
-import { ServiceContext } from "../types";
-import { TrackService } from "../track";
-import { UserService } from "../user";
+
+import type { ServiceContext } from "../types";
+import type { TrackService } from "../track";
+import type { UserService } from "../user";
+import type { ArtistDbObject, TrackDbObject } from "../../types/db";
 
 function parseDurationToMs(str: string) {
   let miliseconds = 0;

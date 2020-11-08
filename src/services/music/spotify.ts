@@ -1,12 +1,13 @@
 import fetch from "node-fetch";
-import {
+import { isDefined } from "../../lib/utils";
+
+import type { UserService } from "../user";
+import type { ServiceContext } from "../types";
+import type {
   UserOauthProvider,
   TrackDbObject,
   ArtistDbObject,
 } from "../../types/db";
-import { isDefined } from "../../lib/utils";
-import { UserService } from "../user";
-import { ServiceContext } from "../types";
 /// <reference path="spotify-api" />
 
 const BASE_URL = "https://api.spotify.com/v1";

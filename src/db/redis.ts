@@ -1,5 +1,6 @@
 import Redis from "ioredis";
 import url from "url";
+
 const MAXIMUM_RECONNECTION_ATTEMPT = 6;
 
 const redisUrls = (process.env.REDIS_URL as string).split(" ");

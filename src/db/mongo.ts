@@ -1,5 +1,6 @@
 import { MongoClient, Db } from "mongodb";
-import { UserDbObject, RoomDbObject } from "../types/db";
+
+import type { UserDbObject, RoomDbObject } from "../types/db";
 
 export let db: Db;
 

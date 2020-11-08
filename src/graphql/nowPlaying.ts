@@ -1,5 +1,7 @@
 import { PUBSUB_CHANNELS } from "../lib/constant";
-import { IResolvers, INowPlayingReactionType } from "../types/resolvers.gen";
+import { INowPlayingReactionType } from "../types/resolvers.gen";
+
+import type { IResolvers } from "../types/resolvers.gen";
 
 export const typeDefs = `
   enum NowPlayingReactionType {

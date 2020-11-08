@@ -4,7 +4,8 @@ import {
   UserInputError,
 } from "../error/index";
 import { PUBSUB_CHANNELS } from "../lib/constant";
-import { IResolvers } from "../types/resolvers.gen";
+
+import type { IResolvers } from "../types/resolvers.gen";
 
 export const typeDefs = `
   enum QueueAction {

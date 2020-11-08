@@ -2,12 +2,13 @@ import DataLoader from "dataloader";
 import fastJson from "fast-json-stringify";
 import fetch from "node-fetch";
 import { URL } from "url";
-import { CONFIG, REDIS_KEY } from "../lib/constant";
-import { OdesliResponse, PlatformName } from "../types/common";
-import { TrackDbObject, ArtistDbObject } from "../types/db";
 import { SpotifyService, YoutubeService } from "./music";
-import { ServiceContext } from "./types";
-import { UserService } from "./user";
+import { CONFIG, REDIS_KEY } from "../lib/constant";
+
+import type { ServiceContext } from "./types";
+import type { UserService } from "./user";
+import type { TrackDbObject, ArtistDbObject } from "../types/db";
+import type { OdesliResponse, PlatformName } from "../types/common";
 
 const stringifyTrack = fastJson({
   title: "Track",

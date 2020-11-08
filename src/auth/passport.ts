@@ -11,8 +11,11 @@ import { db } from "../db/mongo";
 import { redis } from "../db/redis";
 import { pubsub } from "../lib/pubsub";
 import Services from "../services";
-import { UserDbObject } from "../types/db";
-import { OAuthProviderName, ExtendedIncomingMessage } from "../types/common";
+import type { UserDbObject } from "../types/db";
+import type {
+  OAuthProviderName,
+  ExtendedIncomingMessage,
+} from "../types/common";
 
 function authCallback(
   req: ExtendedIncomingMessage,

@@ -10,8 +10,8 @@ import {
   typeDefs as NowPlaying,
   resolvers as nowPlayingResolvers,
 } from "./nowPlaying";
-import { MyGQLContext } from "../types/common";
-import { IResolvers } from "../types/resolvers.gen";
+
+import type { IResolvers } from "../types/resolvers.gen";
 
 const typeDefs = mergeTypeDefs([
   Base,
@@ -23,7 +23,7 @@ const typeDefs = mergeTypeDefs([
   NowPlaying,
 ]);
 
-const resolvers = mergeResolvers<MyGQLContext, Required<IResolvers>>([
+const resolvers = mergeResolvers([
   baseResolvers,
   userResolvers,
   roomResolvers,
@@ -33,4 +33,4 @@ const resolvers = mergeResolvers<MyGQLContext, Required<IResolvers>>([
   nowPlayingResolvers,
 ] as Required<IResolvers>[]);
 
-export default makeExecutableSchema<MyGQLContext>({ typeDefs, resolvers });
+export default makeExecutableSchema({ typeDefs, resolvers });

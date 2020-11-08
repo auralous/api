@@ -2,8 +2,9 @@ import { nanoid } from "nanoid/non-secure";
 import fastJson from "fast-json-stringify";
 import { reorder } from "../lib/utils";
 import { REDIS_KEY, PUBSUB_CHANNELS } from "../lib/constant";
-import { NowPlayingItemDbObject, QueueItemDbObject } from "../types/db";
-import { ServiceContext } from "./types";
+
+import type { ServiceContext } from "./types";
+import type { NowPlayingItemDbObject, QueueItemDbObject } from "../types/db";
 
 const queueItemStringify = fastJson({
   title: "Queue Item",

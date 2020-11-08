@@ -1,4 +1,4 @@
-import { PlatformName, OAuthProviderName } from "./common";
+import type { PlatformName, OAuthProviderName } from "./common";
 
 export interface UserOauthProvider<T extends OAuthProviderName> {
   provider: T;

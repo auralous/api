@@ -2,8 +2,9 @@ import { NowPlayingService } from "./nowPlaying";
 import { QueueService } from "./queue";
 import { RoomService } from "./room";
 import { TrackService } from "./track";
-import { ServiceContext } from "./types";
 import { UserService } from "./user";
+
+import type { ServiceContext } from "./types";
 
 export default class Services {
   User = new UserService(this.context);

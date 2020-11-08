@@ -1,7 +1,8 @@
 import { DateTimeResolver } from "graphql-scalars";
 // @ts-ignore
 import { GraphQLUpload } from "graphql-upload";
-import { IResolvers } from "../types/resolvers.gen";
+
+import type { IResolvers } from "../types/resolvers.gen";
 
 export const typeDefs = `
   # Custom

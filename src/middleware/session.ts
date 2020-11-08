@@ -2,10 +2,10 @@ import { expressSession } from "next-session/dist/compat";
 import { default as sessionMiddleware } from "next-session/dist/connect";
 import { applySession as createApplySession } from "next-session/dist/core";
 import connectRedis from "connect-redis";
-import { ServerResponse } from "http";
 import { URL } from "url";
 import { redis } from "../db/redis";
-import { ExtendedIncomingMessage } from "../types/common";
+import type { ServerResponse } from "http";
+import type { ExtendedIncomingMessage } from "../types/common";
 
 const RedisStore = connectRedis(expressSession);
 

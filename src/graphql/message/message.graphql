@@ -1,0 +1,22 @@
+type Mutation {
+  addMessage(roomId: ID!, message: String!): Boolean!
+}
+
+type Subscription {
+  messageAdded(roomId: ID!): Message!
+}
+
+type Message {
+  id: ID!
+  createdAt: DateTime!
+  message: String!
+  from: MessageParticipant!
+}
+
+type MessageParticipant {
+  type: String!
+  id: ID!
+  name: String!
+  photo: String!
+  uri: String!
+}

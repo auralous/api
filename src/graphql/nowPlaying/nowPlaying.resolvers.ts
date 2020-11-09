@@ -1,49 +1,10 @@
-import { PUBSUB_CHANNELS } from "../lib/constant";
-import { IResolvers, INowPlayingReactionType } from "../types/resolvers.gen";
+import { PUBSUB_CHANNELS } from "../../lib/constant";
+import { NowPlayingReactionType } from "../../types/index";
 
-export const typeDefs = `
-  enum NowPlayingReactionType {
-    heart
-    joy
-    fire
-    cry
-  }
-  extend type Query {
-    nowPlaying(id: ID!): NowPlaying
-    nowPlayingReactions(id: ID!): NowPlayingReaction
-  }
-  extend type Mutation {
-    reactNowPlaying(id: ID!, reaction: NowPlayingReactionType!): Boolean
-    skipNowPlaying(id: ID!): Boolean
-  }
-  extend type Subscription {
-    nowPlayingUpdated(id: ID!): NowPlaying
-    nowPlayingReactionsUpdated(id: ID!): NowPlayingReaction
-  }
-  type NowPlayingQueueItem {
-    id: ID!
-    trackId: ID!
-    playedAt: DateTime!
-    endedAt: DateTime!
-    creatorId: ID!
-  }
-  type NowPlaying {
-    id: ID!
-    currentTrack: NowPlayingQueueItem
-  }
-  type NowPlayingReaction {
-    id: ID!
-    mine: NowPlayingReactionType
-    heart: Int!
-    cry: Int!
-    joy: Int!
-    fire: Int!
-  }
-`;
+import type { Resolvers } from "../../types/index";
 
-export const resolvers: IResolvers = {
+const resolvers: Resolvers = {
   Query: {
-    // @ts-ignore
     async nowPlaying(parent, { id }, { services }) {
       const currentTrack = await services.NowPlaying.findById(id);
       return {
@@ -61,10 +22,10 @@ export const resolvers: IResolvers = {
         : {
             id,
             mine: null,
-            [INowPlayingReactionType.Heart]: 0,
-            [INowPlayingReactionType.Cry]: 0,
-            [INowPlayingReactionType.Joy]: 0,
-            [INowPlayingReactionType.Fire]: 0,
+            [NowPlayingReactionType.Heart]: 0,
+            [NowPlayingReactionType.Cry]: 0,
+            [NowPlayingReactionType.Joy]: 0,
+            [NowPlayingReactionType.Fire]: 0,
           };
     },
   },
@@ -96,3 +57,5 @@ export const resolvers: IResolvers = {
     },
   },
 };
+
+export default resolvers;

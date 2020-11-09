@@ -1,0 +1,37 @@
+type Query {
+  me: User
+  user(username: String, id: ID): User
+  meAuth: UserAuthWrapper
+}
+
+type Mutation {
+  me(name: String, username: String, bio: String, profilePicture: Upload): User
+  deleteMe: Boolean!
+  deleteMeOauth(provider: AuthProviderName!): Boolean!
+}
+
+enum AuthProviderName {
+  youtube
+  twitter
+  facebook
+  spotify
+}
+
+type User {
+  id: ID!
+  username: String!
+  bio: String
+  profilePicture: String!
+}
+
+type UserAuthWrapper {
+  youtube: UserOauthProvider
+  twitter: UserOauthProvider
+  facebook: UserOauthProvider
+  spotify: UserOauthProvider
+}
+
+type UserOauthProvider {
+  provider: AuthProviderName!
+  id: ID!
+}

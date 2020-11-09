@@ -1,33 +1,44 @@
+import Services from "../services";
+import { PUBSUB_CHANNELS } from "../lib/constant";
+
 import type { Db } from "mongodb";
 import type Redis from "ioredis";
-import { buildServices } from "./services";
-import { RoomDbObject, NowPlayingItemDbObject } from "../types/db";
-import { PUBSUB_CHANNELS } from "../lib/constant";
 import type { PubSub } from "../lib/pubsub";
-import { MyGQLContext } from "../types/common";
+import type { RoomDbObject, NowPlayingItemDbObject } from "../types/index";
 
 export class NowPlayingWorker {
-  services!: MyGQLContext["services"];
   timers: {
     [id: string]: NodeJS.Timeout;
   } = {};
+  nowPlayingService: Services["NowPlaying"];
+  queueService: Services["Queue"];
+  trackService: Services["Track"];
 
-  constructor(private pubsub: PubSub) {
+  constructor(db: Db, redis: Redis.Cluster, private pubsub: PubSub) {
     pubsub.sub.subscribe(PUBSUB_CHANNELS.nowPlayingResolve);
     pubsub.sub.on(
       "message",
       (channel, id) =>
         channel === PUBSUB_CHANNELS.nowPlayingResolve && this.addJob(id, 0)
     );
+    const { NowPlaying, Queue, Track } = new Services({
+      user: null,
+      db,
+      redis,
+      pubsub: this.pubsub,
+      // isWs means no cache
+      isWs: true,
+    });
+    this.nowPlayingService = NowPlaying;
+    this.queueService = Queue;
+    this.trackService = Track;
+    this.init(db);
   }
 
-  async init(db: Db, redis: Redis.Cluster) {
+  private async init(db: Db) {
+    console.log("Initializing NowPlaying jobs...");
     // This is called upon service startup to set up delay jobs
     // To process NowPlaying for all rooms in database
-    this.services = buildServices(
-      { user: null, db, redis, pubsub: this.pubsub },
-      { cache: false }
-    );
     const roomArray = await db
       .collection<RoomDbObject>("rooms")
       .find({})
@@ -36,6 +47,10 @@ export class NowPlayingWorker {
     for (const room of roomArray) {
       this.addJob(room._id, 0);
     }
+  }
+
+  static start(db: Db, redis: Redis.Cluster, pubsub: PubSub) {
+    return new NowPlayingWorker(db, redis, pubsub);
   }
 
   addJob(id: string, delay: number) {
@@ -50,7 +65,7 @@ export class NowPlayingWorker {
   ): Promise<NowPlayingItemDbObject | null> {
     const now = new Date();
 
-    const prevCurrentTrack = await this.services.NowPlaying.findById(
+    const prevCurrentTrack = await this.nowPlayingService.findById(
       roomId,
       true
     );
@@ -72,10 +87,10 @@ export class NowPlayingWorker {
 
     let currentTrack: NowPlayingItemDbObject | null = null;
 
-    const firstTrackInQueue = await this.services.Queue.shiftItem(queueId);
+    const firstTrackInQueue = await this.queueService.shiftItem(queueId);
 
     if (firstTrackInQueue) {
-      const detailNextTrack = await this.services.Track.findOrCreate(
+      const detailNextTrack = await this.trackService.findOrCreate(
         firstTrackInQueue.trackId
       );
 
@@ -95,9 +110,9 @@ export class NowPlayingWorker {
     if (currentTrack) {
       // Push previous nowPlaying to played queue
       if (prevCurrentTrack)
-        await this.services.Queue.pushItems(playedQueueId, prevCurrentTrack);
+        await this.queueService.pushItems(playedQueueId, prevCurrentTrack);
 
-      await this.services.NowPlaying.setById(roomId, currentTrack);
+      await this.nowPlayingService.setById(roomId, currentTrack);
       // Setup future job
       this.addJob(roomId, currentTrack.endedAt.getTime() - now.getTime());
     } else {
@@ -105,8 +120,8 @@ export class NowPlayingWorker {
     }
 
     // Publish to subscription
-    this.services.NowPlaying.notifyUpdate(roomId, currentTrack);
-    this.services.NowPlaying.notifyReactionUpdate(roomId, undefined);
+    this.nowPlayingService.notifyUpdate(roomId, currentTrack);
+    this.nowPlayingService.notifyReactionUpdate(roomId, undefined);
 
     return currentTrack;
   }

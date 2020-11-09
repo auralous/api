@@ -2,17 +2,19 @@ import { expressSession } from "next-session/dist/compat";
 import { default as sessionMiddleware } from "next-session/dist/connect";
 import { applySession as createApplySession } from "next-session/dist/core";
 import connectRedis from "connect-redis";
-import { ServerResponse } from "http";
 import { URL } from "url";
-import { redis } from "../db/redis";
-import { ExtendedIncomingMessage } from "../types/common";
+import { createRedisClient } from "../db/index";
+import type { ServerResponse } from "http";
+import type { ExtendedIncomingMessage } from "../types/index";
 
 const RedisStore = connectRedis(expressSession);
 
 const config = {
   name: "sid",
   // https://github.com/tj/connect-redis/issues/300
-  store: new RedisStore({ client: redis as any }),
+  store: new RedisStore({
+    client: createRedisClient() as any,
+  }),
   cookie: {
     domain: new URL(process.env.APP_URI as string).hostname,
     httpOnly: true,

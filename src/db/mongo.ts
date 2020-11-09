@@ -1,17 +1,8 @@
 import { MongoClient, Db } from "mongodb";
-import { UserDbObject, RoomDbObject } from "../types/db";
 
-export let db: Db;
+import type { UserDbObject, RoomDbObject } from "../types/index";
 
-export const client = new MongoClient(process.env.MONGODB_URI!, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-});
-
-let indexApplied = false;
-
-function applyIndex() {
-  indexApplied = true;
+function applyIndex(db: Db) {
   // user
   db.collection<UserDbObject>("users").createIndexes([
     { key: { username: 1 }, unique: true },
@@ -23,11 +14,13 @@ function applyIndex() {
   ]);
 }
 
-export async function connect() {
-  if (!client.isConnected()) {
-    await client.connect();
-  }
-  db = client.db();
-  if (!indexApplied) applyIndex();
-  return db;
+export async function createClient() {
+  const client = new MongoClient(process.env.MONGODB_URI as string, {
+    useNewUrlParser: true,
+    useUnifiedTopology: true,
+  });
+  await client.connect();
+  const db = client.db();
+  applyIndex(db);
+  return { client, db };
 }

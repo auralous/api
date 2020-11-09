@@ -1,8 +1,9 @@
 import Redis from "ioredis";
 import url from "url";
+
 const MAXIMUM_RECONNECTION_ATTEMPT = 6;
 
-const redisUrls = process.env.REDIS_URL!.split(" ");
+const redisUrls = (process.env.REDIS_URL as string).split(" ");
 const firstRedisURL = new url.URL(redisUrls[0]);
 
 export const createClient = () =>
@@ -17,8 +18,6 @@ export const createClient = () =>
       ...(firstRedisURL.password && { password: firstRedisURL.password }),
     },
   });
-
-export const redis = createClient();
 
 export function deleteByPattern(r: Redis.Cluster, pattern: string) {
   return r.keys(pattern).then((keys) => {

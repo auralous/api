@@ -1,48 +1,10 @@
-import { CONFIG } from "../lib/constant";
-import { isDefined } from "../lib/utils";
 import { URL } from "url";
-import { IResolvers } from "../types/resolvers.gen";
+import { CONFIG } from "../../lib/constant";
+import { isDefined } from "../../lib/utils";
 
-export const typeDefs = `
-  enum PlatformName {
-    youtube
-    spotify
-  }
+import type { Resolvers } from "../../types/index";
 
-  extend type Query {
-    track(id: ID!): Track
-    crossTracks(id: ID!): CrossTracks
-    searchTrack(platform: PlatformName!, query: String!): [Track!]!
-  }
-
-  type Track {
-    id: ID!
-    platform: PlatformName!
-    externalId: ID!
-    artists: [Artist!]!
-    duration: Int!
-    title: String!
-    image: String!
-    url: String!
-  }
-
-  type CrossTracks {
-    id: ID!
-    youtube: ID
-    spotify: ID
-  }
-
-  type Artist {
-    id: ID!
-    platform: PlatformName!
-    externalId: ID!
-    name: String!
-    image: String!
-    url: String!
-  }
-`;
-
-export const resolvers: IResolvers = {
+const resolvers: Resolvers = {
   Query: {
     async track(parent, { id }, { services, setCacheControl }) {
       const track = await services.Track.findOrCreate(id);
@@ -85,3 +47,5 @@ export const resolvers: IResolvers = {
     },
   },
 };
+
+export default resolvers;

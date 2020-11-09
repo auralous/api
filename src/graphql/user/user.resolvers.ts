@@ -1,61 +1,20 @@
-import { AuthenticationError } from "../error";
-import { uploadStreamToCloudinary } from "../lib/cloudinary";
-import { IResolvers } from "../types/resolvers.gen";
-import { defaultAvatar } from "../lib/defaultAvatar";
-import { CONFIG } from "../lib/constant";
-import { UserDbObject } from "../types/db";
+import { AuthenticationError } from "../../error";
+import { uploadStreamToCloudinary } from "../../lib/cloudinary";
+import { defaultAvatar } from "../../lib/defaultAvatar";
+import { CONFIG } from "../../lib/constant";
 
-export const typeDefs = `
-  extend type Query {
-    me: User
-    user(username: String, id: ID): User
-    meAuth: UserAuthWrapper
-  }
+import type { Resolvers, UserDbObject } from "../../types/index";
 
-  extend type Mutation {
-    me(name: String, username: String, bio: String, profilePicture: Upload): User
-    deleteMe: Boolean!
-    deleteMeOauth(provider: OAuthProviderName!): Boolean!
-  }
-
-  enum OAuthProviderName {
-    youtube
-    twitter
-    facebook
-    spotify
-  }
-
-  type User {
-    id: ID!
-    username: String!
-    bio: String
-    profilePicture: String!
-  }
-
-  type UserAuthWrapper {
-    youtube: UserOauthProvider
-    twitter: UserOauthProvider
-    facebook: UserOauthProvider
-    spotify: UserOauthProvider
-  }
-
-  type UserOauthProvider {
-    provider: OAuthProviderName!
-    id: ID!
-  }
-`;
-
-export const resolvers: IResolvers = {
+const resolvers: Resolvers = {
   Query: {
     me(parent, args, { user, setCacheControl }) {
       setCacheControl?.(0, "PRIVATE");
       return user;
     },
-    // @ts-ignore
+    // @ts-expect-error: Invalid TS error
     async meAuth(parent, args, { user, setCacheControl }) {
       setCacheControl?.(0, "PRIVATE");
-      if (!user) return null;
-      return user.oauth;
+      return user?.oauth;
     },
     async user(parent, { username, id }, { services, setCacheControl }) {
       let user: UserDbObject | null = null;
@@ -95,3 +54,5 @@ export const resolvers: IResolvers = {
     },
   },
 };
+
+export default resolvers;

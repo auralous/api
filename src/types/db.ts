@@ -1,6 +1,6 @@
-import { PlatformName, OAuthProviderName } from "./common";
+import type { PlatformName, AuthProviderName } from "./graphql.gen";
 
-export interface UserOauthProvider<T extends OAuthProviderName> {
+export interface UserOauthProvider<T extends AuthProviderName> {
   provider: T;
   accessToken?: string | null;
   refreshToken?: string | null;
@@ -15,10 +15,10 @@ export interface UserDbObject {
   profilePicture?: string;
   bio?: string | null;
   oauth: {
-    youtube?: UserOauthProvider<"youtube">;
-    spotify?: UserOauthProvider<"spotify">;
-    facebook?: UserOauthProvider<"facebook">;
-    twitter?: UserOauthProvider<"twitter">;
+    youtube?: UserOauthProvider<AuthProviderName.Youtube>;
+    spotify?: UserOauthProvider<AuthProviderName.Spotify>;
+    facebook?: UserOauthProvider<AuthProviderName.Facebook>;
+    twitter?: UserOauthProvider<AuthProviderName.Twitter>;
   };
 }
 
@@ -61,7 +61,7 @@ export interface TrackDbObject {
 
 export interface ArtistDbObject {
   id: string;
-  platform: string;
+  platform: PlatformName;
   externalId: string;
   name: string;
   url: string;

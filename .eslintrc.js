@@ -17,7 +17,7 @@ module.exports = {
     ecmaVersion: 2020,
     sourceType: "module",
   },
-  ignorePatterns: ["**/*.gen.ts"],
+  ignorePatterns: ["dist", "**/*.gen.ts"],
   plugins: ["@typescript-eslint"],
   rules: {
     "prettier/prettier": "error",

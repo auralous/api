@@ -1,12 +1,14 @@
 import fetch from "node-fetch";
-import { ServiceInit } from "../base";
-import {
+import { isDefined } from "../../lib/utils";
+import { PlatformName, AuthProviderName } from "../../types/index";
+
+import type { UserService } from "../user";
+import type { ServiceContext } from "../types";
+import type {
   UserOauthProvider,
   TrackDbObject,
   ArtistDbObject,
-} from "../../types/db";
-import { AllServices } from "../types";
-import { isDefined } from "../../lib/utils";
+} from "../../types/index";
 /// <reference path="spotify-api" />
 
 const BASE_URL = "https://api.spotify.com/v1";
@@ -50,7 +52,7 @@ function getATusingClientCredential(): string | Promise<string> {
 function parseTrack(result: SpotifyApi.TrackObjectFull): TrackDbObject {
   return {
     id: `spotify:${result.id}`,
-    platform: "spotify",
+    platform: PlatformName.Spotify,
     externalId: result.id,
     duration: result.duration_ms,
     title: result.name,
@@ -62,14 +64,11 @@ function parseTrack(result: SpotifyApi.TrackObjectFull): TrackDbObject {
   };
 }
 
-export default class SpotifyService {
+export class SpotifyService {
   private BASE_URL = "https://api.spotify.com/v1";
-  auth: UserOauthProvider<"spotify"> | null;
-  private services: AllServices;
-
-  constructor(options: ServiceInit) {
-    this.services = options.services;
-    this.auth = options.context.user?.oauth["spotify"] || null;
+  private auth: UserOauthProvider<AuthProviderName.Spotify> | null;
+  constructor(context: ServiceContext, private userService: UserService) {
+    this.auth = context.user?.oauth[AuthProviderName.Spotify] || null;
   }
 
   private async refreshAccessToken(): Promise<string | null> {
@@ -94,7 +93,7 @@ export default class SpotifyService {
       return null;
     const json = await refreshResponse.json();
     // Update tokens
-    await this.services.User.updateMeOauth("spotify", {
+    await this.userService.updateMeOauth(AuthProviderName.Spotify, {
       id: this.auth.id,
       accessToken: json.access_token,
       expiredAt: new Date(Date.now() + json.expires_in * 1000),
@@ -224,7 +223,7 @@ export default class SpotifyService {
     if (!json) return null;
     return {
       id: `spotify:${externalId}`,
-      platform: "spotify",
+      platform: PlatformName.Spotify,
       externalId,
       name: json.name,
       image: json.images?.[0]?.url || "",

@@ -4,7 +4,7 @@ export class StereoGraphQLError extends GraphQLError {
   constructor(
     message: string,
     code?: string,
-    extensions?: Record<string, any>
+    extensions?: Record<string, unknown>
   ) {
     if (code) (extensions = extensions || {}).code = code;
     super(

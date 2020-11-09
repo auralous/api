@@ -1,12 +1,11 @@
 import type { IncomingMessage } from "http";
-import type { SessionData } from "next-session";
 import type { Db } from "mongodb";
-import Redis from "ioredis";
-import { UserDbObject } from "./db";
-import { PubSub } from "../lib/pubsub";
-import { AllServices } from "../services/types";
-
-export type PlatformName = "youtube" | "spotify";
+import type Redis from "ioredis";
+import type { SessionData } from "next-session";
+import type { UserDbObject } from "./db";
+import type { PubSub } from "../lib/pubsub";
+import type Services from "../services";
+import type { PlatformName } from "./graphql.gen";
 
 type SetCachControl = (maxAge: number, scope?: "PRIVATE" | "PUBLIC") => void;
 
@@ -22,11 +21,9 @@ export type MyGQLContext = {
   redis: Redis.Cluster;
   pubsub: PubSub;
   user: UserDbObject | null;
-  services: AllServices;
+  services: Services;
   setCacheControl?: SetCachControl;
 };
-
-export type OAuthProviderName = "youtube" | "twitter" | "facebook" | "spotify";
 
 export type OdesliResponse =
   | {

@@ -2,10 +2,17 @@ import DataLoader from "dataloader";
 import fastJson from "fast-json-stringify";
 import fetch from "node-fetch";
 import { URL } from "url";
-import { BaseService, ServiceInit } from "./base";
+import { SpotifyService, YoutubeService } from "./music";
 import { CONFIG, REDIS_KEY } from "../lib/constant";
-import { OdesliResponse, PlatformName } from "../types/common";
-import { TrackDbObject, ArtistDbObject } from "../types/db";
+import { PlatformName } from "../types/index";
+
+import type { ServiceContext } from "./types";
+import type { UserService } from "./user";
+import type {
+  TrackDbObject,
+  ArtistDbObject,
+  OdesliResponse,
+} from "../types/index";
 
 const stringifyTrack = fastJson({
   title: "Track",
@@ -48,11 +55,17 @@ const stringifyArtist = fastJson({
   required: ["id", "platform", "externalId", "name", "url", "image"],
 });
 
-export class TrackService extends BaseService {
+export class TrackService {
   private loader: DataLoader<string, TrackDbObject | null>;
   private artistLoader: DataLoader<string, ArtistDbObject | null>;
-  constructor(options: ServiceInit) {
-    super(options);
+
+  private _youtube?: YoutubeService;
+  private _spotify?: SpotifyService;
+
+  constructor(
+    private context: ServiceContext,
+    private userService: UserService
+  ) {
     this.loader = this.artistLoader = new DataLoader(
       (keys) => {
         // REDIS_CLUSTER: mget not work without hash tags
@@ -60,8 +73,22 @@ export class TrackService extends BaseService {
           keys.map((key) => this.context.redis.get(key))
         ).then((results) => results.map((r) => (r ? JSON.parse(r) : null)));
       },
-      { cache: options.cache }
+      { cache: !context.isWs }
     );
+  }
+
+  get youtube() {
+    if (this._youtube) return this._youtube;
+    return (this._youtube = new YoutubeService(
+      this.context,
+      this.userService,
+      this
+    ));
+  }
+
+  get spotify() {
+    if (this._spotify) return this._spotify;
+    return (this._spotify = new SpotifyService(this.context, this.userService));
   }
 
   private find(id: string) {
@@ -70,8 +97,8 @@ export class TrackService extends BaseService {
 
   async findByUri(uri: URL): Promise<TrackDbObject | TrackDbObject[] | null> {
     let externalId: null | string = null;
-    for (const platform of ["youtube", "spotify"] as const) {
-      const platformService = this.services.Service[platform];
+    for (const platform of Object.values(PlatformName)) {
+      const platformService = this[platform];
       if ((externalId = platformService.getPlaylistIdFromUri(uri.href)))
         return platformService.getTracksByPlaylistId(externalId);
       else if ((externalId = platformService.getTrackIdFromUri(uri.href)))
@@ -90,11 +117,7 @@ export class TrackService extends BaseService {
     let track = await this.find(id);
     if (!track) {
       const [platform, externalId] = id.split(":");
-      if (platform === "youtube") {
-        track = await this.services.Service.youtube.getTrack(externalId);
-      } else if (platform === "spotify") {
-        track = await this.services.Service.spotify.getTrack(externalId);
-      }
+      track = await this[platform as PlatformName]?.getTrack(externalId);
       if (!track) return null;
       await this.save(id, track);
     }
@@ -123,21 +146,21 @@ export class TrackService extends BaseService {
 
     if (!("linksByPlatform" in json)) return cache; // cache = {}
 
-    cache.youtube = json.linksByPlatform.youtube?.entityUniqueId.split("::")[1];
-    cache.spotify = json.linksByPlatform.spotify?.entityUniqueId.split("::")[1];
-
-    // Save to cache with expiry
-    cache.youtube &&
-      this.context.redis.hset(cacheKey, "youtube", cache.youtube);
-    cache.spotify &&
-      this.context.redis.hset(cacheKey, "spotify", cache.spotify);
+    for (const platform of Object.values(PlatformName)) {
+      cache[platform] = json.linksByPlatform[platform]?.entityUniqueId.split(
+        "::"
+      )[1];
+      if (cache[platform]) {
+        this.context.redis.hset(cacheKey, platform, cache[platform] as string);
+      }
+    }
     this.context.redis.expire(cacheKey, CONFIG.crossTrackMaxAge);
 
     return cache;
   }
 
   search(platform: PlatformName, query: string): Promise<TrackDbObject[]> {
-    return this.services.Service[platform].searchTracks(query);
+    return this[platform].searchTracks(query);
   }
 
   // Artists
@@ -157,11 +180,9 @@ export class TrackService extends BaseService {
     let artist = await this.findArtist(id);
     if (!artist) {
       const [platform, externalId] = id.split(":");
-      if (platform === "youtube")
-        artist = await this.services.Service.youtube.getArtist(externalId);
-      else if (platform === "spotify")
-        artist = await this.services.Service.spotify.getArtist(externalId);
-      if (artist) await this.saveArtist(id, artist);
+      artist = await this[platform as PlatformName]?.getArtist(externalId);
+      if (!artist) return null;
+      await this.saveArtist(id, artist);
     }
     return artist;
   }

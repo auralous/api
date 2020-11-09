@@ -1,6 +1,6 @@
 /* eslint-disable camelcase */
 import { v2 as cloudinary } from "cloudinary";
-import { Stream } from "stream";
+import type { Stream } from "stream";
 
 export function uploadStreamToCloudinary(
   stream: Stream,

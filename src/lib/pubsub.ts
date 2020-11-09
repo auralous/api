@@ -1,8 +1,8 @@
-import { createClient } from "../db/redis";
+import { createRedisClient } from "../db/index";
 
 export class PubSub {
-  pub = createClient();
-  sub = createClient();
+  pub = createRedisClient();
+  sub = createRedisClient();
   _channels = new Set<string>();
   _subscribers = new Set<(inChannel: string, message: string) => void>();
   constructor() {
@@ -13,11 +13,11 @@ export class PubSub {
   publish(channel: string, message: Record<string, any>) {
     this.pub.publish(channel, JSON.stringify(message));
   }
-  on<T = any>(
+  on<T = unknown>(
     channel: string,
     filterFn?: (payload: T) => boolean
   ): AsyncIterableIterator<T | undefined> {
-    const pullQueue: ((value?: any) => void)[] = [];
+    const pullQueue: any[] = [];
     const pushQueue: T[] = [];
     let listening = true;
 
@@ -35,7 +35,7 @@ export class PubSub {
       const value: T = JSON.parse(message);
       if (filterFn?.(value) === false) return;
       if (pullQueue.length > 0) {
-        pullQueue.shift()!({ value, done: false });
+        pullQueue.shift()?.({ value, done: false });
       } else {
         pushQueue.push(value);
       }
@@ -77,5 +77,3 @@ export class PubSub {
     };
   }
 }
-
-export const pubsub = new PubSub();

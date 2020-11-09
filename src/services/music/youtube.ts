@@ -1,19 +1,30 @@
 import { google } from "googleapis";
 import fetch from "node-fetch";
-import { ServiceInit } from "../base";
 import { isDefined } from "../../lib/utils";
 import { MAX_TRACK_DURATION } from "../../lib/constant";
-import { ArtistDbObject, TrackDbObject } from "../../types/db";
+import { PlatformName, AuthProviderName } from "../../types/index";
+
+import type { ServiceContext } from "../types";
+import type { TrackService } from "../track";
+import type { UserService } from "../user";
+import type { ArtistDbObject, TrackDbObject } from "../../types/index";
 
 function parseDurationToMs(str: string) {
-  let miliseconds = 0;
-  const hours = str.match(/(\d+)(?=\s*H)/);
-  const minutes = str.match(/(\d+)(?=\s*M)/);
-  const seconds = str.match(/(\d+)(?=\s*S)/);
-  if (hours) miliseconds += parseInt(hours[1], 10) * 60 * 60 * 1000;
-  if (minutes) miliseconds += parseInt(minutes[1], 10) * 60 * 1000;
-  if (seconds) miliseconds += parseInt(seconds[1], 10) * 1000;
-  return miliseconds;
+  // https://developers.google.com/youtube/v3/docs/videos#contentDetails.duration
+  const a = str.match(/\d+/g);
+  if (!a) return 0;
+  let duration = 0;
+  if (a.length == 3) {
+    duration += parseInt(a[0]) * 3600;
+    duration += parseInt(a[1]) * 60;
+    duration += parseInt(a[2]);
+  } else if (a.length == 2) {
+    duration += parseInt(a[0]) * 60;
+    duration += parseInt(a[1]);
+  } else if (a.length == 1) {
+    duration += parseInt(a[0]);
+  }
+  return duration * 1000;
 }
 
 const INTERNAL_YTAPI = {
@@ -71,7 +82,7 @@ const INTERNAL_YTAPI = {
   baseUrl: "https://music.youtube.com/youtubei/v1",
 };
 
-export default class YoutubeService {
+export class YoutubeService {
   private oauth2Client = new google.auth.OAuth2(
     process.env.GOOGLE_CLIENT_KEY,
     process.env.GOOGLE_CLIENT_SECRET,
@@ -81,33 +92,38 @@ export default class YoutubeService {
     version: "v3",
     auth: this.oauth2Client,
   });
-  private TrackService;
-  constructor(options: ServiceInit) {
-    this.TrackService = options.services.Track;
-    if (options.context.user) {
-      const googleProvider = options.context.user.oauth.youtube;
-      if (googleProvider) {
-        this.oauth2Client.setCredentials({
-          access_token: googleProvider.accessToken,
-          refresh_token: googleProvider.refreshToken,
-        });
-        // Handling refresh tokens
-        this.oauth2Client.on("tokens", async (tokens) => {
-          options.services.User.updateMeOauth("youtube", {
-            id: googleProvider.id,
-            accessToken: tokens.access_token,
-            refreshToken: tokens.refresh_token,
-            ...(tokens.expiry_date && {
-              expiredAt: new Date(tokens.expiry_date),
-            }),
-          });
-        });
+  constructor(
+    context: ServiceContext,
+    private userService: UserService,
+    private trackService: TrackService
+  ) {
+    if (context.user) {
+      const gp = context.user.oauth.youtube;
+      if (gp?.accessToken && gp.refreshToken) {
+        this.register(gp.id, gp.accessToken, gp.refreshToken);
       }
     }
     if (!this.oauth2Client.credentials.access_token) {
       // Fallback to using API Key
       this.oauth2Client.apiKey = process.env.GOOGLE_API_KEY;
     }
+  }
+
+  private register(id: string, accessToken: string, refreshToken: string) {
+    this.oauth2Client.setCredentials({
+      access_token: accessToken,
+      refresh_token: refreshToken,
+    });
+    this.oauth2Client.on("tokens", async (tokens) => {
+      this.userService.updateMeOauth(AuthProviderName.Youtube, {
+        id,
+        accessToken: tokens.access_token,
+        refreshToken: tokens.refresh_token,
+        ...(tokens.expiry_date && {
+          expiredAt: new Date(tokens.expiry_date),
+        }),
+      });
+    });
   }
 
   async getAccessToken(): Promise<string | null> {
@@ -137,7 +153,7 @@ export default class YoutubeService {
     return {
       id: `youtube:${externalId}`,
       externalId,
-      platform: "youtube",
+      platform: PlatformName.Youtube,
       duration: msDuration,
       title: snippet.title as string,
       image: snippet.thumbnails?.high?.url as string,
@@ -172,8 +188,8 @@ export default class YoutubeService {
       const trackItems = (
         await Promise.all(
           (trackData.data.items || []).map((trackItemData) =>
-            this.TrackService.findOrCreate(
-              `youtube:${trackItemData.contentDetails!.videoId}`
+            this.trackService.findOrCreate(
+              `youtube:${trackItemData.contentDetails?.videoId}`
             )
           )
         )
@@ -234,7 +250,7 @@ export default class YoutubeService {
     );
 
     const promises = videoIds.map((i) =>
-      this.TrackService.findOrCreate(`youtube:${i}`)
+      this.trackService.findOrCreate(`youtube:${i}`)
     );
 
     return Promise.all<TrackDbObject | null>(promises).then((tracks) =>
@@ -254,7 +270,7 @@ export default class YoutubeService {
     if (!snippet) return null;
     return {
       id: `youtube:${externalId}`,
-      platform: "youtube",
+      platform: PlatformName.Youtube,
       externalId,
       name: snippet.title as string,
       image: snippet.thumbnails?.high?.url as string,

@@ -1,16 +1,18 @@
 import { AuthenticationError, ForbiddenError } from "../error/index";
-import { BaseService, ServiceInit } from "./base";
 import { PUBSUB_CHANNELS, REDIS_KEY } from "../lib/constant";
-import { NowPlayingItemDbObject } from "../types/db";
-import {
-  INowPlayingReaction,
-  INowPlayingReactionType,
-} from "../types/resolvers.gen";
+import { NowPlayingReaction, NowPlayingReactionType } from "../types/index";
 
-export class NowPlayingService extends BaseService {
-  constructor(options: ServiceInit) {
-    super(options);
-  }
+import type { QueueService } from "./queue";
+import type { RoomService } from "./room";
+import type { ServiceContext } from "./types";
+import type { NowPlayingItemDbObject } from "../types/index";
+
+export class NowPlayingService {
+  constructor(
+    private context: ServiceContext,
+    private queueService: QueueService,
+    private roomService: RoomService
+  ) {}
 
   async findById(
     id: string,
@@ -20,7 +22,7 @@ export class NowPlayingService extends BaseService {
       .get(REDIS_KEY.nowPlaying(id))
       .then((npStr) =>
         npStr
-          ? (this.services.Queue.parseItem(npStr) as NowPlayingItemDbObject)
+          ? (this.queueService.parseItem(npStr) as NowPlayingItemDbObject)
           : null
       );
     if (!currTrack) return null;
@@ -48,7 +50,7 @@ export class NowPlayingService extends BaseService {
   async setById(id: string, queueItem: NowPlayingItemDbObject) {
     await this.context.redis.set(
       REDIS_KEY.nowPlaying(id),
-      this.services.Queue.stringifyItem(queueItem)
+      this.queueService.stringifyItem(queueItem)
     );
   }
 
@@ -58,7 +60,7 @@ export class NowPlayingService extends BaseService {
 
   async skipCurrentTrack(id: string): Promise<boolean> {
     if (!this.context.user) throw new AuthenticationError("");
-    const room = await this.services.Room.findById(id);
+    const room = await this.roomService.findById(id);
     if (!room) throw new ForbiddenError("Room does not exist");
     const currentTrack = await this.findById(id);
     if (!currentTrack) return false;
@@ -83,7 +85,7 @@ export class NowPlayingService extends BaseService {
     });
   }
 
-  async reactNowPlaying(id: string, reaction: INowPlayingReactionType) {
+  async reactNowPlaying(id: string, reaction: NowPlayingReactionType) {
     if (!this.context.user) throw new AuthenticationError("");
 
     const currItem = await this.findById(id);
@@ -106,13 +108,13 @@ export class NowPlayingService extends BaseService {
     id: string,
     currQueueItemId: string | undefined
   ) {
-    const reactions: INowPlayingReaction = {
+    const reactions: NowPlayingReaction = {
       id,
       mine: null,
-      [INowPlayingReactionType.Heart]: 0,
-      [INowPlayingReactionType.Cry]: 0,
-      [INowPlayingReactionType.Joy]: 0,
-      [INowPlayingReactionType.Fire]: 0,
+      [NowPlayingReactionType.Heart]: 0,
+      [NowPlayingReactionType.Cry]: 0,
+      [NowPlayingReactionType.Joy]: 0,
+      [NowPlayingReactionType.Fire]: 0,
     };
     if (currQueueItemId) {
       const allReactions = await this.getAllReactions(id, currQueueItemId);
@@ -128,13 +130,13 @@ export class NowPlayingService extends BaseService {
   async getAllReactions(
     id: string,
     currQueueItemId: string
-  ): Promise<{ userId: string; reaction: INowPlayingReactionType }[]> {
+  ): Promise<{ userId: string; reaction: NowPlayingReactionType }[]> {
     const o = await this.context.redis.hgetall(
       REDIS_KEY.nowPlayingReaction(id, currQueueItemId)
     );
     return Object.entries(o).map(([userId, reaction]) => ({
       userId,
-      reaction: reaction as INowPlayingReactionType,
+      reaction: reaction as NowPlayingReactionType,
     }));
   }
 }

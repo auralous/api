@@ -1,15 +1,12 @@
-import { NowPlayingService } from "./nowPlaying";
-import { QueueService } from "./queue";
-import { RoomService } from "./room";
-import { ServiceService } from "./service";
-import { TrackService } from "./track";
-import { UserService } from "./user";
+import type { Db } from "mongodb";
+import type IORedis from "ioredis";
+import type { UserDbObject } from "../types/index";
+import type { PubSub } from "../lib/pubsub";
 
-export interface AllServices {
-  NowPlaying: NowPlayingService;
-  Queue: QueueService;
-  Room: RoomService;
-  Track: TrackService;
-  User: UserService;
-  Service: ServiceService;
+export interface ServiceContext {
+  db: Db;
+  redis: IORedis.Cluster;
+  pubsub: PubSub;
+  user: UserDbObject | null;
+  isWs?: boolean;
 }

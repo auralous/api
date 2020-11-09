@@ -1,55 +1,12 @@
-import { AuthenticationError, UserInputError } from "../error/index";
-import { CONFIG, PUBSUB_CHANNELS } from "../lib/constant";
-import { uploadStreamToCloudinary } from "../lib/cloudinary";
-import { defaultAvatar } from "../lib/defaultAvatar";
-import { IResolvers, IRoomMembership } from "../types/resolvers.gen";
+import { AuthenticationError, UserInputError } from "../../error/index";
+import { CONFIG, PUBSUB_CHANNELS } from "../../lib/constant";
+import { uploadStreamToCloudinary } from "../../lib/cloudinary";
+import { defaultAvatar } from "../../lib/defaultAvatar";
+import { RoomMembership } from "../../types/index";
 
-export const typeDefs = `
-  extend type Query {
-    room(id: ID!): Room
-    roomState(id: ID!): RoomState
-    rooms(creatorId: String): [Room!]
-    exploreRooms(by: String!): [Room!]!
-    searchRooms(query: String!, limit: Int): [Room!]!
-  }
+import type { Resolvers } from "../../types/index";
 
-  enum RoomMembership {
-    host
-    collab
-  }
-
-  extend type Mutation {
-    createRoom(title: String!, description: String, isPublic: Boolean! anyoneCanAdd: Boolean, password: String): Room!
-    updateRoom(id: ID!, title: String, description: String, image: Upload, anyoneCanAdd: Boolean, password: String): Room!
-    joinPrivateRoom(id: ID!, password: String!): Boolean!
-    updateRoomMembership(id: ID!, username: String, userId: String, role: RoomMembership): Boolean!
-    deleteRoom(id: ID!): ID!
-  }
-
-  extend type Subscription {
-    roomStateUpdated(id: ID!): RoomState
-  }
-
-  type Room {
-    id: ID!
-    title: String!
-    isPublic: Boolean!
-    description: String
-    image: String!
-    creatorId: ID!
-    createdAt: DateTime!
-  }
-
-  type RoomState {
-    id: ID!
-    userIds: [String!]!
-    # Settings
-    anyoneCanAdd: Boolean!
-    collabs: [String!]!
-  }
-`;
-
-export const resolvers: IResolvers = {
+const resolvers: Resolvers = {
   Query: {
     room(parent, { id }, { services }) {
       return services.Room.findById(id);
@@ -59,22 +16,18 @@ export const resolvers: IResolvers = {
       return null;
     },
     async exploreRooms(parent, { by }, { services, setCacheControl }) {
-      switch (by) {
-        case "random": {
-          const rooms = await services.Room.findRandom(20);
-          if (rooms) setCacheControl?.(CONFIG.randomRoomsMaxAge);
-          return rooms;
-        }
-        default:
-          throw new UserInputError("Invalid `by` parameter", ["by"]);
+      if (by === "random") {
+        const rooms = await services.Room.findRandom(20);
+        if (rooms) setCacheControl?.(CONFIG.randomRoomsMaxAge);
+        return rooms;
       }
+      throw new UserInputError("Invalid `by` parameter", ["by"]);
     },
     searchRooms(parent, { query, limit }, { services }) {
       return services.Room.search(query, limit);
     },
-    // @ts-ignore
-    roomState(parent, { id }) {
-      return { id };
+    roomState(parent, { id }, { services }) {
+      return services.Room.getRoomState(id);
     },
   },
   Mutation: {
@@ -135,7 +88,7 @@ export const resolvers: IResolvers = {
       await services.Room.updateMembershipById(
         id,
         user._id,
-        IRoomMembership.Collab,
+        RoomMembership.Collab,
         true,
         true
       );
@@ -162,17 +115,6 @@ export const resolvers: IResolvers = {
       return image || defaultAvatar("room", _id);
     },
   },
-  RoomState: {
-    async userIds({ id }, args, { services, user }) {
-      if (!(await services.Room.isViewable(id, user?._id))) return [];
-      return services.Room.getCurrentUsers(id);
-    },
-    anyoneCanAdd({ id }, args, { services }) {
-      return services.Room.findById(id).then((s) => s?.anyoneCanAdd || false);
-    },
-    collabs({ id }, args, { services, user }) {
-      if (!services.Room.isViewable(id, user?._id)) return [];
-      return services.Room.findById(id).then((s) => s?.collabs || []);
-    },
-  },
 };
+
+export default resolvers;

@@ -1,7 +1,5 @@
 import DataLoader from "dataloader";
-import { UpdateQuery } from "mongodb";
 import { nanoid } from "nanoid";
-import { BaseService, ServiceInit } from "./base";
 import {
   AuthenticationError,
   ForbiddenError,
@@ -10,15 +8,21 @@ import {
 import { deleteByPattern } from "../db/redis";
 import { PUBSUB_CHANNELS, REDIS_KEY } from "../lib/constant";
 import { deleteCloudinaryImagesByPrefix } from "../lib/cloudinary";
-import { RoomDbObject } from "../types/db";
-import { NullablePartial } from "../types/utils";
-import { IRoomMembership } from "../types/resolvers.gen";
+import { RoomMembership, RoomState } from "../types/index";
 
-export class RoomService extends BaseService {
+import type { UpdateQuery } from "mongodb";
+import type { UserService } from "./user";
+import type { ServiceContext } from "./types";
+import type { RoomDbObject, NullablePartial } from "../types/index";
+
+export class RoomService {
   private collection = this.context.db.collection<RoomDbObject>("rooms");
   private loader: DataLoader<string, RoomDbObject | null>;
-  constructor(options: ServiceInit) {
-    super(options);
+
+  constructor(
+    private context: ServiceContext,
+    private userService: UserService
+  ) {
     this.loader = new DataLoader(
       async (keys) => {
         const rooms = await this.collection
@@ -29,7 +33,7 @@ export class RoomService extends BaseService {
           (key) => rooms.find((room: RoomDbObject) => room._id === key) || null
         );
       },
-      { cache: options.cache }
+      { cache: !context.isWs }
     );
   }
 
@@ -65,12 +69,25 @@ export class RoomService extends BaseService {
 
   notifyStateUpdate(id: string) {
     this.context.pubsub.publish(PUBSUB_CHANNELS.roomStateUpdated, {
-      roomStateUpdated: { id },
+      roomStateUpdated: this.getRoomState(id),
     });
   }
 
   findById(id: string) {
     return this.loader.load(id);
+  }
+
+  async getRoomState(id: string): Promise<RoomState | null> {
+    const room = await this.findById(id);
+    const isViewable = this.isViewable(id, this.context.user?._id);
+    if (!room) return null;
+
+    return {
+      id,
+      userIds: isViewable ? await this.getCurrentUsers(id) : [],
+      anyoneCanAdd: room.anyoneCanAdd || false,
+      collabs: (isViewable && room.collabs) || [],
+    };
   }
 
   async findByCreatorId(creatorId: string) {
@@ -144,13 +161,13 @@ export class RoomService extends BaseService {
   async updateMembershipById(
     _id: string,
     username: string,
-    role?: IRoomMembership | null,
+    role?: RoomMembership | null,
     isUserId = false,
     DANGEROUSLY_BYPASS_CHECK = false
   ) {
     if (!this.context.user) throw new AuthenticationError("");
 
-    const addingUser = await this.services.User[
+    const addingUser = await this.userService[
       isUserId ? "findById" : "findByUsername"
     ](username);
 
@@ -165,7 +182,7 @@ export class RoomService extends BaseService {
 
     let update: UpdateQuery<RoomDbObject>;
 
-    if (role === IRoomMembership.Collab) {
+    if (role === RoomMembership.Collab) {
       update = {
         $addToSet: { collabs: addingUser._id },
       };

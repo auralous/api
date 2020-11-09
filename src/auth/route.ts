@@ -1,21 +1,20 @@
 import nc from "next-connect";
-import createPassport from "./passport";
 import Services from "../services";
 import { IPlatformName } from "../types/index";
 
 import type { Db } from "mongodb";
 import type IORedis from "ioredis";
+import type passport from "passport";
 import type { PubSub } from "../lib/pubsub";
 import type { ExtendedIncomingMessage } from "../types/index";
 
 export default function createAppAuth(
+  passport: passport.Authenticator,
   db: Db,
   redis: IORedis.Cluster,
   pubsub: PubSub
 ) {
   const app = nc<ExtendedIncomingMessage>();
-
-  const passport = createPassport(db, redis, pubsub);
 
   function createRoute(provider: string, authOpts = {}) {
     app.get(`/${provider}`, passport.authenticate(provider, authOpts));

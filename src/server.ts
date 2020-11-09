@@ -8,12 +8,12 @@ Sentry.init({
 });
 import nc from "next-connect";
 import { createServer } from "http";
-import passport from "passport";
 import * as WebSocket from "ws";
 import { parse as parseQS } from "querystring";
 import cors from "cors";
 // @ts-ignore
 import { graphqlUploadExpress } from "graphql-upload";
+import createPassport from "./auth/passport";
 import buildGraphQLServer from "./gql";
 import { session } from "./middleware/session";
 import { createMongoClient, createRedisClient } from "./db/index";
@@ -31,6 +31,8 @@ import type { ExtendedIncomingMessage } from "./types/index";
   const { client: mongoClient, db } = await createMongoClient();
 
   const { httpHandle, wsHandle } = buildGraphQLServer(db, redis, pubsub);
+
+  const passport = createPassport(db, redis, pubsub);
 
   // app
   const app = nc<ExtendedIncomingMessage>();
@@ -77,7 +79,7 @@ import type { ExtendedIncomingMessage } from "./types/index";
   app.use(passport.initialize()).use(passport.session());
 
   // auth subapp
-  app.use("/auth", createAppAuth(db, redis, pubsub));
+  app.use("/auth", createAppAuth(passport, db, redis, pubsub));
 
   app.post(
     "/graphql",

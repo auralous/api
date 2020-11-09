@@ -1,8 +1,8 @@
-import { createClient } from "../db/redis";
+import { createRedisClient } from "../db/index";
 
 export class PubSub {
-  pub = createClient();
-  sub = createClient();
+  pub = createRedisClient();
+  sub = createRedisClient();
   _channels = new Set<string>();
   _subscribers = new Set<(inChannel: string, message: string) => void>();
   constructor() {

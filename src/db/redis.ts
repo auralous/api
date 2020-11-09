@@ -19,8 +19,6 @@ export const createClient = () =>
     },
   });
 
-export const redis = createClient();
-
 export function deleteByPattern(r: Redis.Cluster, pattern: string) {
   return r.keys(pattern).then((keys) => {
     // const pipeline = r.pipeline();

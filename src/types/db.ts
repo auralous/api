@@ -1,7 +1,6 @@
-import type { OAuthProviderName } from "./common";
-import type { IPlatformName } from "./resolvers.gen";
+import type { IPlatformName, IOAuthProviderName } from "./resolvers.gen";
 
-export interface UserOauthProvider<T extends OAuthProviderName> {
+export interface UserOauthProvider<T extends IOAuthProviderName> {
   provider: T;
   accessToken?: string | null;
   refreshToken?: string | null;
@@ -16,10 +15,10 @@ export interface UserDbObject {
   profilePicture?: string;
   bio?: string | null;
   oauth: {
-    youtube?: UserOauthProvider<"youtube">;
-    spotify?: UserOauthProvider<"spotify">;
-    facebook?: UserOauthProvider<"facebook">;
-    twitter?: UserOauthProvider<"twitter">;
+    youtube?: UserOauthProvider<IOAuthProviderName.Youtube>;
+    spotify?: UserOauthProvider<IOAuthProviderName.Spotify>;
+    facebook?: UserOauthProvider<IOAuthProviderName.Facebook>;
+    twitter?: UserOauthProvider<IOAuthProviderName.Twitter>;
   };
 }
 

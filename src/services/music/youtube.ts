@@ -2,7 +2,7 @@ import { google } from "googleapis";
 import fetch from "node-fetch";
 import { isDefined } from "../../lib/utils";
 import { MAX_TRACK_DURATION } from "../../lib/constant";
-import { IPlatformName } from "../../types/index";
+import { IPlatformName, IOAuthProviderName } from "../../types/index";
 
 import type { ServiceContext } from "../types";
 import type { TrackService } from "../track";
@@ -108,7 +108,7 @@ export default class YoutubeService {
       refresh_token: refreshToken,
     });
     this.oauth2Client.on("tokens", async (tokens) => {
-      this.userService.updateMeOauth("youtube", {
+      this.userService.updateMeOauth(IOAuthProviderName.Youtube, {
         id,
         accessToken: tokens.access_token,
         refreshToken: tokens.refresh_token,

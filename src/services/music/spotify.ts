@@ -1,13 +1,13 @@
 import fetch from "node-fetch";
 import { isDefined } from "../../lib/utils";
+import { IPlatformName, IOAuthProviderName } from "../../types/index";
 
 import type { UserService } from "../user";
 import type { ServiceContext } from "../types";
-import {
+import type {
   UserOauthProvider,
   TrackDbObject,
   ArtistDbObject,
-  IPlatformName,
 } from "../../types/index";
 /// <reference path="spotify-api" />
 
@@ -66,7 +66,7 @@ function parseTrack(result: SpotifyApi.TrackObjectFull): TrackDbObject {
 
 export default class SpotifyService {
   private BASE_URL = "https://api.spotify.com/v1";
-  auth: UserOauthProvider<"spotify"> | null;
+  auth: UserOauthProvider<IOAuthProviderName.Spotify> | null;
   constructor(context: ServiceContext, private userService: UserService) {
     this.auth = context.user?.oauth["spotify"] || null;
   }
@@ -93,7 +93,7 @@ export default class SpotifyService {
       return null;
     const json = await refreshResponse.json();
     // Update tokens
-    await this.userService.updateMeOauth("spotify", {
+    await this.userService.updateMeOauth(IOAuthProviderName.Spotify, {
       id: this.auth.id,
       accessToken: json.access_token,
       expiredAt: new Date(Date.now() + json.expires_in * 1000),

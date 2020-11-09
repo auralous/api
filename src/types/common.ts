@@ -25,8 +25,6 @@ export type MyGQLContext = {
   setCacheControl?: SetCachControl;
 };
 
-export type OAuthProviderName = "youtube" | "twitter" | "facebook" | "spotify";
-
 export type OdesliResponse =
   | {
       entityUniqueId: string;

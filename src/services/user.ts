@@ -15,7 +15,7 @@ import type { ServiceContext } from "./types";
 import type {
   UserDbObject,
   UserOauthProvider,
-  OAuthProviderName,
+  IOAuthProviderName,
   NullablePartial,
 } from "../types/index";
 
@@ -86,7 +86,7 @@ export class UserService {
     userCreate: Pick<UserDbObject, "profilePicture" | "email" | "bio">,
     authTokens: {
       id: string;
-      provider: OAuthProviderName;
+      provider: IOAuthProviderName;
       accessToken?: string;
       refreshToken?: string;
     }
@@ -166,7 +166,7 @@ export class UserService {
   }
 
   async updateMeOauth(
-    provider: OAuthProviderName,
+    provider: IOAuthProviderName,
     {
       expiredAt,
       accessToken,
@@ -233,7 +233,7 @@ export class UserService {
     return this.context.user;
   }
 
-  async removeMeOauth(provider: OAuthProviderName) {
+  async removeMeOauth(provider: IOAuthProviderName) {
     if (!this.context.user) throw new AuthenticationError("");
     if (Object.keys(this.context.user.oauth).length <= 1)
       throw new ForbiddenError("There must be at least one linked account");

@@ -61,15 +61,12 @@ export const resolvers: IResolvers = {
       return null;
     },
     async exploreRooms(parent, { by }, { services, setCacheControl }) {
-      switch (by) {
-        case "random": {
-          const rooms = await services.Room.findRandom(20);
-          if (rooms) setCacheControl?.(CONFIG.randomRoomsMaxAge);
-          return rooms;
-        }
-        default:
-          throw new UserInputError("Invalid `by` parameter", ["by"]);
+      if (by === "random") {
+        const rooms = await services.Room.findRandom(20);
+        if (rooms) setCacheControl?.(CONFIG.randomRoomsMaxAge);
+        return rooms;
       }
+      throw new UserInputError("Invalid `by` parameter", ["by"]);
     },
     searchRooms(parent, { query, limit }, { services }) {
       return services.Room.search(query, limit);

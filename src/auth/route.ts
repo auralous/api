@@ -4,12 +4,12 @@ import { IPlatformName } from "../types/index";
 
 import type { Db } from "mongodb";
 import type IORedis from "ioredis";
-import type passport from "passport";
+import type Passport from "passport";
 import type { PubSub } from "../lib/pubsub";
 import type { ExtendedIncomingMessage } from "../types/index";
 
 export default function createAppAuth(
-  passport: passport.Authenticator,
+  passport: Passport.Authenticator,
   db: Db,
   redis: IORedis.Cluster,
   pubsub: PubSub

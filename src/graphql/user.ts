@@ -15,10 +15,10 @@ export const typeDefs = `
   type Mutation {
     me(name: String, username: String, bio: String, profilePicture: Upload): User
     deleteMe: Boolean!
-    deleteMeOauth(provider: IOAuthProviderName!): Boolean!
+    deleteMeOauth(provider: AuthProviderName!): Boolean!
   }
 
-  enum IOAuthProviderName {
+  enum AuthProviderName {
     youtube
     twitter
     facebook
@@ -40,7 +40,7 @@ export const typeDefs = `
   }
 
   type UserOauthProvider {
-    provider: IOAuthProviderName!
+    provider: AuthProviderName!
     id: ID!
   }
 `;

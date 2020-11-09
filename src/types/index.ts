@@ -2,11 +2,11 @@ export * from "./common";
 export * from "./db";
 export {
   IResolvers,
-  IPlatformName,
-  IOAuthProviderName,
-  IRoomMembership,
-  IRoomState,
-  INowPlayingReaction,
-  INowPlayingReactionType,
+  PlatformName,
+  AuthProviderName,
+  RoomMembership,
+  RoomState,
+  NowPlayingReaction,
+  NowPlayingReactionType,
 } from "./resolvers.gen";
 export * from "./utils";

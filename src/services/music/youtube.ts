@@ -2,7 +2,7 @@ import { google } from "googleapis";
 import fetch from "node-fetch";
 import { isDefined } from "../../lib/utils";
 import { MAX_TRACK_DURATION } from "../../lib/constant";
-import { IPlatformName, IOAuthProviderName } from "../../types/index";
+import { PlatformName, AuthProviderName } from "../../types/index";
 
 import type { ServiceContext } from "../types";
 import type { TrackService } from "../track";
@@ -115,7 +115,7 @@ export class YoutubeService {
       refresh_token: refreshToken,
     });
     this.oauth2Client.on("tokens", async (tokens) => {
-      this.userService.updateMeOauth(IOAuthProviderName.Youtube, {
+      this.userService.updateMeOauth(AuthProviderName.Youtube, {
         id,
         accessToken: tokens.access_token,
         refreshToken: tokens.refresh_token,
@@ -153,7 +153,7 @@ export class YoutubeService {
     return {
       id: `youtube:${externalId}`,
       externalId,
-      platform: IPlatformName.Youtube,
+      platform: PlatformName.Youtube,
       duration: msDuration,
       title: snippet.title as string,
       image: snippet.thumbnails?.high?.url as string,
@@ -270,7 +270,7 @@ export class YoutubeService {
     if (!snippet) return null;
     return {
       id: `youtube:${externalId}`,
-      platform: IPlatformName.Youtube,
+      platform: PlatformName.Youtube,
       externalId,
       name: snippet.title as string,
       image: snippet.thumbnails?.high?.url as string,

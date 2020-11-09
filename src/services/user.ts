@@ -15,9 +15,9 @@ import type { ServiceContext } from "./types";
 import {
   UserDbObject,
   UserOauthProvider,
-  IOAuthProviderName,
+  AuthProviderName,
   NullablePartial,
-  IPlatformName,
+  PlatformName,
 } from "../types/index";
 
 export class UserService {
@@ -87,7 +87,7 @@ export class UserService {
     userCreate: Pick<UserDbObject, "profilePicture" | "email" | "bio">,
     authTokens: {
       id: string;
-      provider: IOAuthProviderName;
+      provider: AuthProviderName;
       accessToken?: string;
       refreshToken?: string;
     }
@@ -95,8 +95,8 @@ export class UserService {
     // Beware of side effect
     this.context.user = await this.collection.findOne(userQuery);
     if (!this.context.user) {
-      // @ts-expect-error: We are excluding OAuthProvider that is not IPlatformName
-      if (!Object.values(IPlatformName).includes(authTokens.provider))
+      // @ts-expect-error: We are excluding OAuthProvider that is not PlatformName
+      if (!Object.values(PlatformName).includes(authTokens.provider))
         throw new ForbiddenError(
           "You must sign up with either YouTube or Spotify"
         );
@@ -164,7 +164,7 @@ export class UserService {
   }
 
   async updateMeOauth(
-    provider: IOAuthProviderName,
+    provider: AuthProviderName,
     {
       expiredAt,
       accessToken,
@@ -231,7 +231,7 @@ export class UserService {
     return this.context.user;
   }
 
-  async removeMeOauth(provider: IOAuthProviderName) {
+  async removeMeOauth(provider: AuthProviderName) {
     if (!this.context.user) throw new AuthenticationError("");
     if (Object.keys(this.context.user.oauth).length <= 1)
       throw new ForbiddenError("There must be at least one linked account");

@@ -2,7 +2,7 @@ import { AuthenticationError, UserInputError } from "../error/index";
 import { CONFIG, PUBSUB_CHANNELS } from "../lib/constant";
 import { uploadStreamToCloudinary } from "../lib/cloudinary";
 import { defaultAvatar } from "../lib/defaultAvatar";
-import { IRoomMembership } from "../types/index";
+import { RoomMembership } from "../types/index";
 
 import type { IResolvers } from "../types/index";
 
@@ -133,7 +133,7 @@ export const resolvers: IResolvers = {
       await services.Room.updateMembershipById(
         id,
         user._id,
-        IRoomMembership.Collab,
+        RoomMembership.Collab,
         true,
         true
       );

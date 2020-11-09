@@ -1,6 +1,6 @@
 import { AuthenticationError, ForbiddenError } from "../error/index";
 import { PUBSUB_CHANNELS, REDIS_KEY } from "../lib/constant";
-import { INowPlayingReaction, INowPlayingReactionType } from "../types/index";
+import { NowPlayingReaction, NowPlayingReactionType } from "../types/index";
 
 import type { QueueService } from "./queue";
 import type { RoomService } from "./room";
@@ -85,7 +85,7 @@ export class NowPlayingService {
     });
   }
 
-  async reactNowPlaying(id: string, reaction: INowPlayingReactionType) {
+  async reactNowPlaying(id: string, reaction: NowPlayingReactionType) {
     if (!this.context.user) throw new AuthenticationError("");
 
     const currItem = await this.findById(id);
@@ -108,13 +108,13 @@ export class NowPlayingService {
     id: string,
     currQueueItemId: string | undefined
   ) {
-    const reactions: INowPlayingReaction = {
+    const reactions: NowPlayingReaction = {
       id,
       mine: null,
-      [INowPlayingReactionType.Heart]: 0,
-      [INowPlayingReactionType.Cry]: 0,
-      [INowPlayingReactionType.Joy]: 0,
-      [INowPlayingReactionType.Fire]: 0,
+      [NowPlayingReactionType.Heart]: 0,
+      [NowPlayingReactionType.Cry]: 0,
+      [NowPlayingReactionType.Joy]: 0,
+      [NowPlayingReactionType.Fire]: 0,
     };
     if (currQueueItemId) {
       const allReactions = await this.getAllReactions(id, currQueueItemId);
@@ -130,13 +130,13 @@ export class NowPlayingService {
   async getAllReactions(
     id: string,
     currQueueItemId: string
-  ): Promise<{ userId: string; reaction: INowPlayingReactionType }[]> {
+  ): Promise<{ userId: string; reaction: NowPlayingReactionType }[]> {
     const o = await this.context.redis.hgetall(
       REDIS_KEY.nowPlayingReaction(id, currQueueItemId)
     );
     return Object.entries(o).map(([userId, reaction]) => ({
       userId,
-      reaction: reaction as INowPlayingReactionType,
+      reaction: reaction as NowPlayingReactionType,
     }));
   }
 }

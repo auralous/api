@@ -4,7 +4,7 @@ import fetch from "node-fetch";
 import { URL } from "url";
 import { SpotifyService, YoutubeService } from "./music";
 import { CONFIG, REDIS_KEY } from "../lib/constant";
-import { IPlatformName } from "../types/index";
+import { PlatformName } from "../types/index";
 
 import type { ServiceContext } from "./types";
 import type { UserService } from "./user";
@@ -97,7 +97,7 @@ export class TrackService {
 
   async findByUri(uri: URL): Promise<TrackDbObject | TrackDbObject[] | null> {
     let externalId: null | string = null;
-    for (const platform of Object.values(IPlatformName)) {
+    for (const platform of Object.values(PlatformName)) {
       const platformService = this[platform];
       if ((externalId = platformService.getPlaylistIdFromUri(uri.href)))
         return platformService.getTracksByPlaylistId(externalId);
@@ -117,7 +117,7 @@ export class TrackService {
     let track = await this.find(id);
     if (!track) {
       const [platform, externalId] = id.split(":");
-      track = await this[platform as IPlatformName]?.getTrack(externalId);
+      track = await this[platform as PlatformName]?.getTrack(externalId);
       if (!track) return null;
       await this.save(id, track);
     }
@@ -126,13 +126,13 @@ export class TrackService {
 
   async crossFindTracks(
     id: string
-  ): Promise<Record<IPlatformName, string | undefined>> {
+  ): Promise<Record<PlatformName, string | undefined>> {
     const [platformName, externalId] = id.split(":");
 
     const cacheKey = REDIS_KEY.crossTracks(id);
 
     const cache = (await this.context.redis.hgetall(cacheKey)) as Record<
-      IPlatformName,
+      PlatformName,
       string | undefined
     >;
 
@@ -146,7 +146,7 @@ export class TrackService {
 
     if (!("linksByPlatform" in json)) return cache; // cache = {}
 
-    for (const platform of Object.values(IPlatformName)) {
+    for (const platform of Object.values(PlatformName)) {
       cache[platform] = json.linksByPlatform[platform]?.entityUniqueId.split(
         "::"
       )[1];
@@ -159,7 +159,7 @@ export class TrackService {
     return cache;
   }
 
-  search(platform: IPlatformName, query: string): Promise<TrackDbObject[]> {
+  search(platform: PlatformName, query: string): Promise<TrackDbObject[]> {
     return this[platform].searchTracks(query);
   }
 
@@ -180,7 +180,7 @@ export class TrackService {
     let artist = await this.findArtist(id);
     if (!artist) {
       const [platform, externalId] = id.split(":");
-      artist = await this[platform as IPlatformName]?.getArtist(externalId);
+      artist = await this[platform as PlatformName]?.getArtist(externalId);
       if (!artist) return null;
       await this.saveArtist(id, artist);
     }

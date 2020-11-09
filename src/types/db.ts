@@ -1,6 +1,6 @@
-import type { IPlatformName, IOAuthProviderName } from "./resolvers.gen";
+import type { PlatformName, AuthProviderName } from "./resolvers.gen";
 
-export interface UserOauthProvider<T extends IOAuthProviderName> {
+export interface UserOauthProvider<T extends AuthProviderName> {
   provider: T;
   accessToken?: string | null;
   refreshToken?: string | null;
@@ -15,10 +15,10 @@ export interface UserDbObject {
   profilePicture?: string;
   bio?: string | null;
   oauth: {
-    youtube?: UserOauthProvider<IOAuthProviderName.Youtube>;
-    spotify?: UserOauthProvider<IOAuthProviderName.Spotify>;
-    facebook?: UserOauthProvider<IOAuthProviderName.Facebook>;
-    twitter?: UserOauthProvider<IOAuthProviderName.Twitter>;
+    youtube?: UserOauthProvider<AuthProviderName.Youtube>;
+    spotify?: UserOauthProvider<AuthProviderName.Spotify>;
+    facebook?: UserOauthProvider<AuthProviderName.Facebook>;
+    twitter?: UserOauthProvider<AuthProviderName.Twitter>;
   };
 }
 
@@ -49,7 +49,7 @@ export interface RoomDbObject {
 
 export interface TrackDbObject {
   id: string;
-  platform: IPlatformName;
+  platform: PlatformName;
   externalId: string;
   duration: number;
   title: string;
@@ -61,7 +61,7 @@ export interface TrackDbObject {
 
 export interface ArtistDbObject {
   id: string;
-  platform: IPlatformName;
+  platform: PlatformName;
   externalId: string;
   name: string;
   url: string;

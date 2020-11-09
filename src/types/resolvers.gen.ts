@@ -20,92 +20,92 @@ export type Scalars = {
 
 
 
-export type IQuery = {
-  me?: Maybe<IUser>;
-  user?: Maybe<IUser>;
-  meAuth?: Maybe<IUserAuthWrapper>;
-  room?: Maybe<IRoom>;
-  roomState?: Maybe<IRoomState>;
-  rooms?: Maybe<Array<IRoom>>;
-  exploreRooms: Array<IRoom>;
-  searchRooms: Array<IRoom>;
-  track?: Maybe<ITrack>;
-  crossTracks?: Maybe<ICrossTracks>;
-  searchTrack: Array<ITrack>;
-  queue?: Maybe<IQueue>;
-  nowPlaying?: Maybe<INowPlaying>;
-  nowPlayingReactions?: Maybe<INowPlayingReaction>;
+export type Query = {
+  me?: Maybe<User>;
+  user?: Maybe<User>;
+  meAuth?: Maybe<UserAuthWrapper>;
+  room?: Maybe<Room>;
+  roomState?: Maybe<RoomState>;
+  rooms?: Maybe<Array<Room>>;
+  exploreRooms: Array<Room>;
+  searchRooms: Array<Room>;
+  track?: Maybe<Track>;
+  crossTracks?: Maybe<CrossTracks>;
+  searchTrack: Array<Track>;
+  queue?: Maybe<Queue>;
+  nowPlaying?: Maybe<NowPlaying>;
+  nowPlayingReactions?: Maybe<NowPlayingReaction>;
 };
 
 
-export type IQueryUserArgs = {
+export type QueryUserArgs = {
   username?: Maybe<Scalars['String']>;
   id?: Maybe<Scalars['ID']>;
 };
 
 
-export type IQueryRoomArgs = {
+export type QueryRoomArgs = {
   id: Scalars['ID'];
 };
 
 
-export type IQueryRoomStateArgs = {
+export type QueryRoomStateArgs = {
   id: Scalars['ID'];
 };
 
 
-export type IQueryRoomsArgs = {
+export type QueryRoomsArgs = {
   creatorId?: Maybe<Scalars['String']>;
 };
 
 
-export type IQueryExploreRoomsArgs = {
+export type QueryExploreRoomsArgs = {
   by: Scalars['String'];
 };
 
 
-export type IQuerySearchRoomsArgs = {
+export type QuerySearchRoomsArgs = {
   query: Scalars['String'];
   limit?: Maybe<Scalars['Int']>;
 };
 
 
-export type IQueryTrackArgs = {
+export type QueryTrackArgs = {
   id: Scalars['ID'];
 };
 
 
-export type IQueryCrossTracksArgs = {
+export type QueryCrossTracksArgs = {
   id: Scalars['ID'];
 };
 
 
-export type IQuerySearchTrackArgs = {
-  platform: IPlatformName;
+export type QuerySearchTrackArgs = {
+  platform: PlatformName;
   query: Scalars['String'];
 };
 
 
-export type IQueryQueueArgs = {
+export type QueryQueueArgs = {
   id: Scalars['ID'];
 };
 
 
-export type IQueryNowPlayingArgs = {
+export type QueryNowPlayingArgs = {
   id: Scalars['ID'];
 };
 
 
-export type IQueryNowPlayingReactionsArgs = {
+export type QueryNowPlayingReactionsArgs = {
   id: Scalars['ID'];
 };
 
-export type IMutation = {
-  me?: Maybe<IUser>;
+export type Mutation = {
+  me?: Maybe<User>;
   deleteMe: Scalars['Boolean'];
   deleteMeOauth: Scalars['Boolean'];
-  createRoom: IRoom;
-  updateRoom: IRoom;
+  createRoom: Room;
+  updateRoom: Room;
   joinPrivateRoom: Scalars['Boolean'];
   updateRoomMembership: Scalars['Boolean'];
   deleteRoom: Scalars['ID'];
@@ -116,7 +116,7 @@ export type IMutation = {
 };
 
 
-export type IMutationMeArgs = {
+export type MutationMeArgs = {
   name?: Maybe<Scalars['String']>;
   username?: Maybe<Scalars['String']>;
   bio?: Maybe<Scalars['String']>;
@@ -124,12 +124,12 @@ export type IMutationMeArgs = {
 };
 
 
-export type IMutationDeleteMeOauthArgs = {
-  provider: IOAuthProviderName;
+export type MutationDeleteMeOauthArgs = {
+  provider: AuthProviderName;
 };
 
 
-export type IMutationCreateRoomArgs = {
+export type MutationCreateRoomArgs = {
   title: Scalars['String'];
   description?: Maybe<Scalars['String']>;
   isPublic: Scalars['Boolean'];
@@ -138,7 +138,7 @@ export type IMutationCreateRoomArgs = {
 };
 
 
-export type IMutationUpdateRoomArgs = {
+export type MutationUpdateRoomArgs = {
   id: Scalars['ID'];
   title?: Maybe<Scalars['String']>;
   description?: Maybe<Scalars['String']>;
@@ -148,115 +148,115 @@ export type IMutationUpdateRoomArgs = {
 };
 
 
-export type IMutationJoinPrivateRoomArgs = {
+export type MutationJoinPrivateRoomArgs = {
   id: Scalars['ID'];
   password: Scalars['String'];
 };
 
 
-export type IMutationUpdateRoomMembershipArgs = {
+export type MutationUpdateRoomMembershipArgs = {
   id: Scalars['ID'];
   username?: Maybe<Scalars['String']>;
   userId?: Maybe<Scalars['String']>;
-  role?: Maybe<IRoomMembership>;
+  role?: Maybe<RoomMembership>;
 };
 
 
-export type IMutationDeleteRoomArgs = {
+export type MutationDeleteRoomArgs = {
   id: Scalars['ID'];
 };
 
 
-export type IMutationAddMessageArgs = {
+export type MutationAddMessageArgs = {
   roomId: Scalars['ID'];
   message: Scalars['String'];
 };
 
 
-export type IMutationUpdateQueueArgs = {
+export type MutationUpdateQueueArgs = {
   id: Scalars['ID'];
-  action: IQueueAction;
+  action: QueueAction;
   tracks?: Maybe<Array<Scalars['ID']>>;
   position?: Maybe<Scalars['Int']>;
   insertPosition?: Maybe<Scalars['Int']>;
 };
 
 
-export type IMutationReactNowPlayingArgs = {
+export type MutationReactNowPlayingArgs = {
   id: Scalars['ID'];
-  reaction: INowPlayingReactionType;
+  reaction: NowPlayingReactionType;
 };
 
 
-export type IMutationSkipNowPlayingArgs = {
+export type MutationSkipNowPlayingArgs = {
   id: Scalars['ID'];
 };
 
-export enum IOAuthProviderName {
+export enum AuthProviderName {
   Youtube = 'youtube',
   Twitter = 'twitter',
   Facebook = 'facebook',
   Spotify = 'spotify'
 }
 
-export type IUser = {
+export type User = {
   id: Scalars['ID'];
   username: Scalars['String'];
   bio?: Maybe<Scalars['String']>;
   profilePicture: Scalars['String'];
 };
 
-export type IUserAuthWrapper = {
-  youtube?: Maybe<IUserOauthProvider>;
-  twitter?: Maybe<IUserOauthProvider>;
-  facebook?: Maybe<IUserOauthProvider>;
-  spotify?: Maybe<IUserOauthProvider>;
+export type UserAuthWrapper = {
+  youtube?: Maybe<UserOauthProvider>;
+  twitter?: Maybe<UserOauthProvider>;
+  facebook?: Maybe<UserOauthProvider>;
+  spotify?: Maybe<UserOauthProvider>;
 };
 
-export type IUserOauthProvider = {
-  provider: IOAuthProviderName;
+export type UserOauthProvider = {
+  provider: AuthProviderName;
   id: Scalars['ID'];
 };
 
-export enum IRoomMembership {
+export enum RoomMembership {
   Host = 'host',
   Collab = 'collab'
 }
 
-export type ISubscription = {
-  roomStateUpdated?: Maybe<IRoomState>;
-  messageAdded: IMessage;
-  queueUpdated: IQueue;
-  nowPlayingUpdated?: Maybe<INowPlaying>;
-  nowPlayingReactionsUpdated?: Maybe<INowPlayingReaction>;
+export type Subscription = {
+  roomStateUpdated?: Maybe<RoomState>;
+  messageAdded: Message;
+  queueUpdated: Queue;
+  nowPlayingUpdated?: Maybe<NowPlaying>;
+  nowPlayingReactionsUpdated?: Maybe<NowPlayingReaction>;
 };
 
 
-export type ISubscriptionRoomStateUpdatedArgs = {
+export type SubscriptionRoomStateUpdatedArgs = {
   id: Scalars['ID'];
 };
 
 
-export type ISubscriptionMessageAddedArgs = {
+export type SubscriptionMessageAddedArgs = {
   roomId: Scalars['ID'];
 };
 
 
-export type ISubscriptionQueueUpdatedArgs = {
+export type SubscriptionQueueUpdatedArgs = {
   id: Scalars['ID'];
 };
 
 
-export type ISubscriptionNowPlayingUpdatedArgs = {
+export type SubscriptionNowPlayingUpdatedArgs = {
   id: Scalars['ID'];
 };
 
 
-export type ISubscriptionNowPlayingReactionsUpdatedArgs = {
+export type SubscriptionNowPlayingReactionsUpdatedArgs = {
   id: Scalars['ID'];
 };
 
-export type IRoom = {
+export type Room = {
   id: Scalars['ID'];
   title: Scalars['String'];
   isPublic: Scalars['Boolean'];
@@ -266,7 +266,7 @@ export type IRoom = {
   createdAt: Scalars['DateTime'];
 };
 
-export type IRoomState = {
+export type RoomState = {
   id: Scalars['ID'];
   userIds: Array<Scalars['String']>;
   /** Settings */
@@ -274,45 +274,45 @@ export type IRoomState = {
   collabs: Array<Scalars['String']>;
 };
 
-export enum IPlatformName {
+export enum PlatformName {
   Youtube = 'youtube',
   Spotify = 'spotify'
 }
 
-export type ITrack = {
+export type Track = {
   id: Scalars['ID'];
-  platform: IPlatformName;
+  platform: PlatformName;
   externalId: Scalars['ID'];
-  artists: Array<IArtist>;
+  artists: Array<Artist>;
   duration: Scalars['Int'];
   title: Scalars['String'];
   image: Scalars['String'];
   url: Scalars['String'];
 };
 
-export type ICrossTracks = {
+export type CrossTracks = {
   id: Scalars['ID'];
   youtube?: Maybe<Scalars['ID']>;
   spotify?: Maybe<Scalars['ID']>;
 };
 
-export type IArtist = {
+export type Artist = {
   id: Scalars['ID'];
-  platform: IPlatformName;
+  platform: PlatformName;
   externalId: Scalars['ID'];
   name: Scalars['String'];
   image: Scalars['String'];
   url: Scalars['String'];
 };
 
-export type IMessage = {
+export type Message = {
   id: Scalars['ID'];
   createdAt: Scalars['DateTime'];
   message: Scalars['String'];
-  from: IMessageParticipant;
+  from: MessageParticipant;
 };
 
-export type IMessageParticipant = {
+export type MessageParticipant = {
   type: Scalars['String'];
   id: Scalars['ID'];
   name: Scalars['String'];
@@ -320,32 +320,32 @@ export type IMessageParticipant = {
   uri: Scalars['String'];
 };
 
-export enum IQueueAction {
+export enum QueueAction {
   Remove = 'remove',
   Reorder = 'reorder',
   Add = 'add',
   Clear = 'clear'
 }
 
-export type IQueueItem = {
+export type QueueItem = {
   id: Scalars['ID'];
   trackId: Scalars['String'];
   creatorId: Scalars['String'];
 };
 
-export type IQueue = {
+export type Queue = {
   id: Scalars['ID'];
-  items: Array<IQueueItem>;
+  items: Array<QueueItem>;
 };
 
-export enum INowPlayingReactionType {
+export enum NowPlayingReactionType {
   Heart = 'heart',
   Joy = 'joy',
   Fire = 'fire',
   Cry = 'cry'
 }
 
-export type INowPlayingQueueItem = {
+export type NowPlayingQueueItem = {
   id: Scalars['ID'];
   trackId: Scalars['ID'];
   playedAt: Scalars['DateTime'];
@@ -353,14 +353,14 @@ export type INowPlayingQueueItem = {
   creatorId: Scalars['ID'];
 };
 
-export type INowPlaying = {
+export type NowPlaying = {
   id: Scalars['ID'];
-  currentTrack?: Maybe<INowPlayingQueueItem>;
+  currentTrack?: Maybe<NowPlayingQueueItem>;
 };
 
-export type INowPlayingReaction = {
+export type NowPlayingReaction = {
   id: Scalars['ID'];
-  mine?: Maybe<INowPlayingReactionType>;
+  mine?: Maybe<NowPlayingReactionType>;
   heart: Scalars['Int'];
   cry: Scalars['Int'];
   joy: Scalars['Int'];
@@ -431,7 +431,7 @@ export type DirectiveResolverFn<TResult = {}, TParent = {}, TContext = {}, TArgs
 ) => TResult | Promise<TResult>;
 
 /** Mapping between all available schema types and the resolvers types */
-export type IResolversTypes = {
+export type ResolversTypes = {
   DateTime: ResolverTypeWrapper<Scalars['DateTime']>;
   Upload: ResolverTypeWrapper<Scalars['Upload']>;
   Query: ResolverTypeWrapper<{}>;
@@ -440,31 +440,31 @@ export type IResolversTypes = {
   Int: ResolverTypeWrapper<Scalars['Int']>;
   Mutation: ResolverTypeWrapper<{}>;
   Boolean: ResolverTypeWrapper<Scalars['Boolean']>;
-  OAuthProviderName: IOAuthProviderName;
+  AuthProviderName: AuthProviderName;
   User: ResolverTypeWrapper<UserDbObject>;
-  UserAuthWrapper: ResolverTypeWrapper<IUserAuthWrapper>;
-  UserOauthProvider: ResolverTypeWrapper<IUserOauthProvider>;
-  RoomMembership: IRoomMembership;
+  UserAuthWrapper: ResolverTypeWrapper<UserAuthWrapper>;
+  UserOauthProvider: ResolverTypeWrapper<UserOauthProvider>;
+  RoomMembership: RoomMembership;
   Subscription: ResolverTypeWrapper<{}>;
   Room: ResolverTypeWrapper<RoomDbObject>;
-  RoomState: ResolverTypeWrapper<IRoomState>;
-  PlatformName: IPlatformName;
+  RoomState: ResolverTypeWrapper<RoomState>;
+  PlatformName: PlatformName;
   Track: ResolverTypeWrapper<TrackDbObject>;
-  CrossTracks: ResolverTypeWrapper<ICrossTracks>;
+  CrossTracks: ResolverTypeWrapper<CrossTracks>;
   Artist: ResolverTypeWrapper<ArtistDbObject>;
-  Message: ResolverTypeWrapper<IMessage>;
-  MessageParticipant: ResolverTypeWrapper<IMessageParticipant>;
-  QueueAction: IQueueAction;
+  Message: ResolverTypeWrapper<Message>;
+  MessageParticipant: ResolverTypeWrapper<MessageParticipant>;
+  QueueAction: QueueAction;
   QueueItem: ResolverTypeWrapper<QueueItemDbObject>;
-  Queue: ResolverTypeWrapper<Omit<IQueue, 'items'> & { items: Array<IResolversTypes['QueueItem']> }>;
-  NowPlayingReactionType: INowPlayingReactionType;
-  NowPlayingQueueItem: ResolverTypeWrapper<INowPlayingQueueItem>;
-  NowPlaying: ResolverTypeWrapper<INowPlaying>;
-  NowPlayingReaction: ResolverTypeWrapper<INowPlayingReaction>;
+  Queue: ResolverTypeWrapper<Omit<Queue, 'items'> & { items: Array<ResolversTypes['QueueItem']> }>;
+  NowPlayingReactionType: NowPlayingReactionType;
+  NowPlayingQueueItem: ResolverTypeWrapper<NowPlayingQueueItem>;
+  NowPlaying: ResolverTypeWrapper<NowPlaying>;
+  NowPlayingReaction: ResolverTypeWrapper<NowPlayingReaction>;
 };
 
 /** Mapping between all available schema types and the resolvers parents */
-export type IResolversParentTypes = {
+export type ResolversParentTypes = {
   DateTime: Scalars['DateTime'];
   Upload: Scalars['Upload'];
   Query: {};
@@ -474,217 +474,222 @@ export type IResolversParentTypes = {
   Mutation: {};
   Boolean: Scalars['Boolean'];
   User: UserDbObject;
-  UserAuthWrapper: IUserAuthWrapper;
-  UserOauthProvider: IUserOauthProvider;
+  UserAuthWrapper: UserAuthWrapper;
+  UserOauthProvider: UserOauthProvider;
   Subscription: {};
   Room: RoomDbObject;
-  RoomState: IRoomState;
+  RoomState: RoomState;
   Track: TrackDbObject;
-  CrossTracks: ICrossTracks;
+  CrossTracks: CrossTracks;
   Artist: ArtistDbObject;
-  Message: IMessage;
-  MessageParticipant: IMessageParticipant;
+  Message: Message;
+  MessageParticipant: MessageParticipant;
   QueueItem: QueueItemDbObject;
-  Queue: Omit<IQueue, 'items'> & { items: Array<IResolversParentTypes['QueueItem']> };
-  NowPlayingQueueItem: INowPlayingQueueItem;
-  NowPlaying: INowPlaying;
-  NowPlayingReaction: INowPlayingReaction;
+  Queue: Omit<Queue, 'items'> & { items: Array<ResolversParentTypes['QueueItem']> };
+  NowPlayingQueueItem: NowPlayingQueueItem;
+  NowPlaying: NowPlaying;
+  NowPlayingReaction: NowPlayingReaction;
 };
 
-export interface IDateTimeScalarConfig extends GraphQLScalarTypeConfig<IResolversTypes['DateTime'], any> {
+export interface DateTimeScalarConfig extends GraphQLScalarTypeConfig<ResolversTypes['DateTime'], any> {
   name: 'DateTime';
 }
 
-export interface IUploadScalarConfig extends GraphQLScalarTypeConfig<IResolversTypes['Upload'], any> {
+export interface UploadScalarConfig extends GraphQLScalarTypeConfig<ResolversTypes['Upload'], any> {
   name: 'Upload';
 }
 
-export type IQueryResolvers<ContextType = MyGQLContext, ParentType extends IResolversParentTypes['Query'] = IResolversParentTypes['Query']> = {
-  me?: Resolver<Maybe<IResolversTypes['User']>, ParentType, ContextType>;
-  user?: Resolver<Maybe<IResolversTypes['User']>, ParentType, ContextType, RequireFields<IQueryUserArgs, never>>;
-  meAuth?: Resolver<Maybe<IResolversTypes['UserAuthWrapper']>, ParentType, ContextType>;
-  room?: Resolver<Maybe<IResolversTypes['Room']>, ParentType, ContextType, RequireFields<IQueryRoomArgs, 'id'>>;
-  roomState?: Resolver<Maybe<IResolversTypes['RoomState']>, ParentType, ContextType, RequireFields<IQueryRoomStateArgs, 'id'>>;
-  rooms?: Resolver<Maybe<Array<IResolversTypes['Room']>>, ParentType, ContextType, RequireFields<IQueryRoomsArgs, never>>;
-  exploreRooms?: Resolver<Array<IResolversTypes['Room']>, ParentType, ContextType, RequireFields<IQueryExploreRoomsArgs, 'by'>>;
-  searchRooms?: Resolver<Array<IResolversTypes['Room']>, ParentType, ContextType, RequireFields<IQuerySearchRoomsArgs, 'query'>>;
-  track?: Resolver<Maybe<IResolversTypes['Track']>, ParentType, ContextType, RequireFields<IQueryTrackArgs, 'id'>>;
-  crossTracks?: Resolver<Maybe<IResolversTypes['CrossTracks']>, ParentType, ContextType, RequireFields<IQueryCrossTracksArgs, 'id'>>;
-  searchTrack?: Resolver<Array<IResolversTypes['Track']>, ParentType, ContextType, RequireFields<IQuerySearchTrackArgs, 'platform' | 'query'>>;
-  queue?: Resolver<Maybe<IResolversTypes['Queue']>, ParentType, ContextType, RequireFields<IQueryQueueArgs, 'id'>>;
-  nowPlaying?: Resolver<Maybe<IResolversTypes['NowPlaying']>, ParentType, ContextType, RequireFields<IQueryNowPlayingArgs, 'id'>>;
-  nowPlayingReactions?: Resolver<Maybe<IResolversTypes['NowPlayingReaction']>, ParentType, ContextType, RequireFields<IQueryNowPlayingReactionsArgs, 'id'>>;
+export type QueryResolvers<ContextType = MyGQLContext, ParentType extends ResolversParentTypes['Query'] = ResolversParentTypes['Query']> = {
+  me?: Resolver<Maybe<ResolversTypes['User']>, ParentType, ContextType>;
+  user?: Resolver<Maybe<ResolversTypes['User']>, ParentType, ContextType, RequireFields<QueryUserArgs, never>>;
+  meAuth?: Resolver<Maybe<ResolversTypes['UserAuthWrapper']>, ParentType, ContextType>;
+  room?: Resolver<Maybe<ResolversTypes['Room']>, ParentType, ContextType, RequireFields<QueryRoomArgs, 'id'>>;
+  roomState?: Resolver<Maybe<ResolversTypes['RoomState']>, ParentType, ContextType, RequireFields<QueryRoomStateArgs, 'id'>>;
+  rooms?: Resolver<Maybe<Array<ResolversTypes['Room']>>, ParentType, ContextType, RequireFields<QueryRoomsArgs, never>>;
+  exploreRooms?: Resolver<Array<ResolversTypes['Room']>, ParentType, ContextType, RequireFields<QueryExploreRoomsArgs, 'by'>>;
+  searchRooms?: Resolver<Array<ResolversTypes['Room']>, ParentType, ContextType, RequireFields<QuerySearchRoomsArgs, 'query'>>;
+  track?: Resolver<Maybe<ResolversTypes['Track']>, ParentType, ContextType, RequireFields<QueryTrackArgs, 'id'>>;
+  crossTracks?: Resolver<Maybe<ResolversTypes['CrossTracks']>, ParentType, ContextType, RequireFields<QueryCrossTracksArgs, 'id'>>;
+  searchTrack?: Resolver<Array<ResolversTypes['Track']>, ParentType, ContextType, RequireFields<QuerySearchTrackArgs, 'platform' | 'query'>>;
+  queue?: Resolver<Maybe<ResolversTypes['Queue']>, ParentType, ContextType, RequireFields<QueryQueueArgs, 'id'>>;
+  nowPlaying?: Resolver<Maybe<ResolversTypes['NowPlaying']>, ParentType, ContextType, RequireFields<QueryNowPlayingArgs, 'id'>>;
+  nowPlayingReactions?: Resolver<Maybe<ResolversTypes['NowPlayingReaction']>, ParentType, ContextType, RequireFields<QueryNowPlayingReactionsArgs, 'id'>>;
 };
 
-export type IMutationResolvers<ContextType = MyGQLContext, ParentType extends IResolversParentTypes['Mutation'] = IResolversParentTypes['Mutation']> = {
-  me?: Resolver<Maybe<IResolversTypes['User']>, ParentType, ContextType, RequireFields<IMutationMeArgs, never>>;
-  deleteMe?: Resolver<IResolversTypes['Boolean'], ParentType, ContextType>;
-  deleteMeOauth?: Resolver<IResolversTypes['Boolean'], ParentType, ContextType, RequireFields<IMutationDeleteMeOauthArgs, 'provider'>>;
-  createRoom?: Resolver<IResolversTypes['Room'], ParentType, ContextType, RequireFields<IMutationCreateRoomArgs, 'title' | 'isPublic'>>;
-  updateRoom?: Resolver<IResolversTypes['Room'], ParentType, ContextType, RequireFields<IMutationUpdateRoomArgs, 'id'>>;
-  joinPrivateRoom?: Resolver<IResolversTypes['Boolean'], ParentType, ContextType, RequireFields<IMutationJoinPrivateRoomArgs, 'id' | 'password'>>;
-  updateRoomMembership?: Resolver<IResolversTypes['Boolean'], ParentType, ContextType, RequireFields<IMutationUpdateRoomMembershipArgs, 'id'>>;
-  deleteRoom?: Resolver<IResolversTypes['ID'], ParentType, ContextType, RequireFields<IMutationDeleteRoomArgs, 'id'>>;
-  addMessage?: Resolver<IResolversTypes['Boolean'], ParentType, ContextType, RequireFields<IMutationAddMessageArgs, 'roomId' | 'message'>>;
-  updateQueue?: Resolver<IResolversTypes['Boolean'], ParentType, ContextType, RequireFields<IMutationUpdateQueueArgs, 'id' | 'action'>>;
-  reactNowPlaying?: Resolver<Maybe<IResolversTypes['Boolean']>, ParentType, ContextType, RequireFields<IMutationReactNowPlayingArgs, 'id' | 'reaction'>>;
-  skipNowPlaying?: Resolver<Maybe<IResolversTypes['Boolean']>, ParentType, ContextType, RequireFields<IMutationSkipNowPlayingArgs, 'id'>>;
+export type MutationResolvers<ContextType = MyGQLContext, ParentType extends ResolversParentTypes['Mutation'] = ResolversParentTypes['Mutation']> = {
+  me?: Resolver<Maybe<ResolversTypes['User']>, ParentType, ContextType, RequireFields<MutationMeArgs, never>>;
+  deleteMe?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  deleteMeOauth?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType, RequireFields<MutationDeleteMeOauthArgs, 'provider'>>;
+  createRoom?: Resolver<ResolversTypes['Room'], ParentType, ContextType, RequireFields<MutationCreateRoomArgs, 'title' | 'isPublic'>>;
+  updateRoom?: Resolver<ResolversTypes['Room'], ParentType, ContextType, RequireFields<MutationUpdateRoomArgs, 'id'>>;
+  joinPrivateRoom?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType, RequireFields<MutationJoinPrivateRoomArgs, 'id' | 'password'>>;
+  updateRoomMembership?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType, RequireFields<MutationUpdateRoomMembershipArgs, 'id'>>;
+  deleteRoom?: Resolver<ResolversTypes['ID'], ParentType, ContextType, RequireFields<MutationDeleteRoomArgs, 'id'>>;
+  addMessage?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType, RequireFields<MutationAddMessageArgs, 'roomId' | 'message'>>;
+  updateQueue?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType, RequireFields<MutationUpdateQueueArgs, 'id' | 'action'>>;
+  reactNowPlaying?: Resolver<Maybe<ResolversTypes['Boolean']>, ParentType, ContextType, RequireFields<MutationReactNowPlayingArgs, 'id' | 'reaction'>>;
+  skipNowPlaying?: Resolver<Maybe<ResolversTypes['Boolean']>, ParentType, ContextType, RequireFields<MutationSkipNowPlayingArgs, 'id'>>;
 };
 
-export type IUserResolvers<ContextType = MyGQLContext, ParentType extends IResolversParentTypes['User'] = IResolversParentTypes['User']> = {
-  id?: Resolver<IResolversTypes['ID'], ParentType, ContextType>;
-  username?: Resolver<IResolversTypes['String'], ParentType, ContextType>;
-  bio?: Resolver<Maybe<IResolversTypes['String']>, ParentType, ContextType>;
-  profilePicture?: Resolver<IResolversTypes['String'], ParentType, ContextType>;
+export type UserResolvers<ContextType = MyGQLContext, ParentType extends ResolversParentTypes['User'] = ResolversParentTypes['User']> = {
+  id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
+  username?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  bio?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  profilePicture?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
-export type IUserAuthWrapperResolvers<ContextType = MyGQLContext, ParentType extends IResolversParentTypes['UserAuthWrapper'] = IResolversParentTypes['UserAuthWrapper']> = {
-  youtube?: Resolver<Maybe<IResolversTypes['UserOauthProvider']>, ParentType, ContextType>;
-  twitter?: Resolver<Maybe<IResolversTypes['UserOauthProvider']>, ParentType, ContextType>;
-  facebook?: Resolver<Maybe<IResolversTypes['UserOauthProvider']>, ParentType, ContextType>;
-  spotify?: Resolver<Maybe<IResolversTypes['UserOauthProvider']>, ParentType, ContextType>;
+export type UserAuthWrapperResolvers<ContextType = MyGQLContext, ParentType extends ResolversParentTypes['UserAuthWrapper'] = ResolversParentTypes['UserAuthWrapper']> = {
+  youtube?: Resolver<Maybe<ResolversTypes['UserOauthProvider']>, ParentType, ContextType>;
+  twitter?: Resolver<Maybe<ResolversTypes['UserOauthProvider']>, ParentType, ContextType>;
+  facebook?: Resolver<Maybe<ResolversTypes['UserOauthProvider']>, ParentType, ContextType>;
+  spotify?: Resolver<Maybe<ResolversTypes['UserOauthProvider']>, ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
-export type IUserOauthProviderResolvers<ContextType = MyGQLContext, ParentType extends IResolversParentTypes['UserOauthProvider'] = IResolversParentTypes['UserOauthProvider']> = {
-  provider?: Resolver<IResolversTypes['OAuthProviderName'], ParentType, ContextType>;
-  id?: Resolver<IResolversTypes['ID'], ParentType, ContextType>;
+export type UserOauthProviderResolvers<ContextType = MyGQLContext, ParentType extends ResolversParentTypes['UserOauthProvider'] = ResolversParentTypes['UserOauthProvider']> = {
+  provider?: Resolver<ResolversTypes['AuthProviderName'], ParentType, ContextType>;
+  id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
-export type ISubscriptionResolvers<ContextType = MyGQLContext, ParentType extends IResolversParentTypes['Subscription'] = IResolversParentTypes['Subscription']> = {
-  roomStateUpdated?: SubscriptionResolver<Maybe<IResolversTypes['RoomState']>, "roomStateUpdated", ParentType, ContextType, RequireFields<ISubscriptionRoomStateUpdatedArgs, 'id'>>;
-  messageAdded?: SubscriptionResolver<IResolversTypes['Message'], "messageAdded", ParentType, ContextType, RequireFields<ISubscriptionMessageAddedArgs, 'roomId'>>;
-  queueUpdated?: SubscriptionResolver<IResolversTypes['Queue'], "queueUpdated", ParentType, ContextType, RequireFields<ISubscriptionQueueUpdatedArgs, 'id'>>;
-  nowPlayingUpdated?: SubscriptionResolver<Maybe<IResolversTypes['NowPlaying']>, "nowPlayingUpdated", ParentType, ContextType, RequireFields<ISubscriptionNowPlayingUpdatedArgs, 'id'>>;
-  nowPlayingReactionsUpdated?: SubscriptionResolver<Maybe<IResolversTypes['NowPlayingReaction']>, "nowPlayingReactionsUpdated", ParentType, ContextType, RequireFields<ISubscriptionNowPlayingReactionsUpdatedArgs, 'id'>>;
+export type SubscriptionResolvers<ContextType = MyGQLContext, ParentType extends ResolversParentTypes['Subscription'] = ResolversParentTypes['Subscription']> = {
+  roomStateUpdated?: SubscriptionResolver<Maybe<ResolversTypes['RoomState']>, "roomStateUpdated", ParentType, ContextType, RequireFields<SubscriptionRoomStateUpdatedArgs, 'id'>>;
+  messageAdded?: SubscriptionResolver<ResolversTypes['Message'], "messageAdded", ParentType, ContextType, RequireFields<SubscriptionMessageAddedArgs, 'roomId'>>;
+  queueUpdated?: SubscriptionResolver<ResolversTypes['Queue'], "queueUpdated", ParentType, ContextType, RequireFields<SubscriptionQueueUpdatedArgs, 'id'>>;
+  nowPlayingUpdated?: SubscriptionResolver<Maybe<ResolversTypes['NowPlaying']>, "nowPlayingUpdated", ParentType, ContextType, RequireFields<SubscriptionNowPlayingUpdatedArgs, 'id'>>;
+  nowPlayingReactionsUpdated?: SubscriptionResolver<Maybe<ResolversTypes['NowPlayingReaction']>, "nowPlayingReactionsUpdated", ParentType, ContextType, RequireFields<SubscriptionNowPlayingReactionsUpdatedArgs, 'id'>>;
 };
 
-export type IRoomResolvers<ContextType = MyGQLContext, ParentType extends IResolversParentTypes['Room'] = IResolversParentTypes['Room']> = {
-  id?: Resolver<IResolversTypes['ID'], ParentType, ContextType>;
-  title?: Resolver<IResolversTypes['String'], ParentType, ContextType>;
-  isPublic?: Resolver<IResolversTypes['Boolean'], ParentType, ContextType>;
-  description?: Resolver<Maybe<IResolversTypes['String']>, ParentType, ContextType>;
-  image?: Resolver<IResolversTypes['String'], ParentType, ContextType>;
-  creatorId?: Resolver<IResolversTypes['ID'], ParentType, ContextType>;
-  createdAt?: Resolver<IResolversTypes['DateTime'], ParentType, ContextType>;
+export type RoomResolvers<ContextType = MyGQLContext, ParentType extends ResolversParentTypes['Room'] = ResolversParentTypes['Room']> = {
+  id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
+  title?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  isPublic?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  description?: Resolver<Maybe<ResolversTypes['String']>, ParentType, ContextType>;
+  image?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  creatorId?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
+  createdAt?: Resolver<ResolversTypes['DateTime'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
-export type IRoomStateResolvers<ContextType = MyGQLContext, ParentType extends IResolversParentTypes['RoomState'] = IResolversParentTypes['RoomState']> = {
-  id?: Resolver<IResolversTypes['ID'], ParentType, ContextType>;
-  userIds?: Resolver<Array<IResolversTypes['String']>, ParentType, ContextType>;
-  anyoneCanAdd?: Resolver<IResolversTypes['Boolean'], ParentType, ContextType>;
-  collabs?: Resolver<Array<IResolversTypes['String']>, ParentType, ContextType>;
+export type RoomStateResolvers<ContextType = MyGQLContext, ParentType extends ResolversParentTypes['RoomState'] = ResolversParentTypes['RoomState']> = {
+  id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
+  userIds?: Resolver<Array<ResolversTypes['String']>, ParentType, ContextType>;
+  anyoneCanAdd?: Resolver<ResolversTypes['Boolean'], ParentType, ContextType>;
+  collabs?: Resolver<Array<ResolversTypes['String']>, ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
-export type ITrackResolvers<ContextType = MyGQLContext, ParentType extends IResolversParentTypes['Track'] = IResolversParentTypes['Track']> = {
-  id?: Resolver<IResolversTypes['ID'], ParentType, ContextType>;
-  platform?: Resolver<IResolversTypes['PlatformName'], ParentType, ContextType>;
-  externalId?: Resolver<IResolversTypes['ID'], ParentType, ContextType>;
-  artists?: Resolver<Array<IResolversTypes['Artist']>, ParentType, ContextType>;
-  duration?: Resolver<IResolversTypes['Int'], ParentType, ContextType>;
-  title?: Resolver<IResolversTypes['String'], ParentType, ContextType>;
-  image?: Resolver<IResolversTypes['String'], ParentType, ContextType>;
-  url?: Resolver<IResolversTypes['String'], ParentType, ContextType>;
+export type TrackResolvers<ContextType = MyGQLContext, ParentType extends ResolversParentTypes['Track'] = ResolversParentTypes['Track']> = {
+  id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
+  platform?: Resolver<ResolversTypes['PlatformName'], ParentType, ContextType>;
+  externalId?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
+  artists?: Resolver<Array<ResolversTypes['Artist']>, ParentType, ContextType>;
+  duration?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  title?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  image?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  url?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
-export type ICrossTracksResolvers<ContextType = MyGQLContext, ParentType extends IResolversParentTypes['CrossTracks'] = IResolversParentTypes['CrossTracks']> = {
-  id?: Resolver<IResolversTypes['ID'], ParentType, ContextType>;
-  youtube?: Resolver<Maybe<IResolversTypes['ID']>, ParentType, ContextType>;
-  spotify?: Resolver<Maybe<IResolversTypes['ID']>, ParentType, ContextType>;
+export type CrossTracksResolvers<ContextType = MyGQLContext, ParentType extends ResolversParentTypes['CrossTracks'] = ResolversParentTypes['CrossTracks']> = {
+  id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
+  youtube?: Resolver<Maybe<ResolversTypes['ID']>, ParentType, ContextType>;
+  spotify?: Resolver<Maybe<ResolversTypes['ID']>, ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
-export type IArtistResolvers<ContextType = MyGQLContext, ParentType extends IResolversParentTypes['Artist'] = IResolversParentTypes['Artist']> = {
-  id?: Resolver<IResolversTypes['ID'], ParentType, ContextType>;
-  platform?: Resolver<IResolversTypes['PlatformName'], ParentType, ContextType>;
-  externalId?: Resolver<IResolversTypes['ID'], ParentType, ContextType>;
-  name?: Resolver<IResolversTypes['String'], ParentType, ContextType>;
-  image?: Resolver<IResolversTypes['String'], ParentType, ContextType>;
-  url?: Resolver<IResolversTypes['String'], ParentType, ContextType>;
+export type ArtistResolvers<ContextType = MyGQLContext, ParentType extends ResolversParentTypes['Artist'] = ResolversParentTypes['Artist']> = {
+  id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
+  platform?: Resolver<ResolversTypes['PlatformName'], ParentType, ContextType>;
+  externalId?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
+  name?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  image?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  url?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
-export type IMessageResolvers<ContextType = MyGQLContext, ParentType extends IResolversParentTypes['Message'] = IResolversParentTypes['Message']> = {
-  id?: Resolver<IResolversTypes['ID'], ParentType, ContextType>;
-  createdAt?: Resolver<IResolversTypes['DateTime'], ParentType, ContextType>;
-  message?: Resolver<IResolversTypes['String'], ParentType, ContextType>;
-  from?: Resolver<IResolversTypes['MessageParticipant'], ParentType, ContextType>;
+export type MessageResolvers<ContextType = MyGQLContext, ParentType extends ResolversParentTypes['Message'] = ResolversParentTypes['Message']> = {
+  id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
+  createdAt?: Resolver<ResolversTypes['DateTime'], ParentType, ContextType>;
+  message?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  from?: Resolver<ResolversTypes['MessageParticipant'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
-export type IMessageParticipantResolvers<ContextType = MyGQLContext, ParentType extends IResolversParentTypes['MessageParticipant'] = IResolversParentTypes['MessageParticipant']> = {
-  type?: Resolver<IResolversTypes['String'], ParentType, ContextType>;
-  id?: Resolver<IResolversTypes['ID'], ParentType, ContextType>;
-  name?: Resolver<IResolversTypes['String'], ParentType, ContextType>;
-  photo?: Resolver<IResolversTypes['String'], ParentType, ContextType>;
-  uri?: Resolver<IResolversTypes['String'], ParentType, ContextType>;
+export type MessageParticipantResolvers<ContextType = MyGQLContext, ParentType extends ResolversParentTypes['MessageParticipant'] = ResolversParentTypes['MessageParticipant']> = {
+  type?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
+  name?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  photo?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  uri?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
-export type IQueueItemResolvers<ContextType = MyGQLContext, ParentType extends IResolversParentTypes['QueueItem'] = IResolversParentTypes['QueueItem']> = {
-  id?: Resolver<IResolversTypes['ID'], ParentType, ContextType>;
-  trackId?: Resolver<IResolversTypes['String'], ParentType, ContextType>;
-  creatorId?: Resolver<IResolversTypes['String'], ParentType, ContextType>;
+export type QueueItemResolvers<ContextType = MyGQLContext, ParentType extends ResolversParentTypes['QueueItem'] = ResolversParentTypes['QueueItem']> = {
+  id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
+  trackId?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
+  creatorId?: Resolver<ResolversTypes['String'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
-export type IQueueResolvers<ContextType = MyGQLContext, ParentType extends IResolversParentTypes['Queue'] = IResolversParentTypes['Queue']> = {
-  id?: Resolver<IResolversTypes['ID'], ParentType, ContextType>;
-  items?: Resolver<Array<IResolversTypes['QueueItem']>, ParentType, ContextType>;
+export type QueueResolvers<ContextType = MyGQLContext, ParentType extends ResolversParentTypes['Queue'] = ResolversParentTypes['Queue']> = {
+  id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
+  items?: Resolver<Array<ResolversTypes['QueueItem']>, ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
-export type INowPlayingQueueItemResolvers<ContextType = MyGQLContext, ParentType extends IResolversParentTypes['NowPlayingQueueItem'] = IResolversParentTypes['NowPlayingQueueItem']> = {
-  id?: Resolver<IResolversTypes['ID'], ParentType, ContextType>;
-  trackId?: Resolver<IResolversTypes['ID'], ParentType, ContextType>;
-  playedAt?: Resolver<IResolversTypes['DateTime'], ParentType, ContextType>;
-  endedAt?: Resolver<IResolversTypes['DateTime'], ParentType, ContextType>;
-  creatorId?: Resolver<IResolversTypes['ID'], ParentType, ContextType>;
+export type NowPlayingQueueItemResolvers<ContextType = MyGQLContext, ParentType extends ResolversParentTypes['NowPlayingQueueItem'] = ResolversParentTypes['NowPlayingQueueItem']> = {
+  id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
+  trackId?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
+  playedAt?: Resolver<ResolversTypes['DateTime'], ParentType, ContextType>;
+  endedAt?: Resolver<ResolversTypes['DateTime'], ParentType, ContextType>;
+  creatorId?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
-export type INowPlayingResolvers<ContextType = MyGQLContext, ParentType extends IResolversParentTypes['NowPlaying'] = IResolversParentTypes['NowPlaying']> = {
-  id?: Resolver<IResolversTypes['ID'], ParentType, ContextType>;
-  currentTrack?: Resolver<Maybe<IResolversTypes['NowPlayingQueueItem']>, ParentType, ContextType>;
+export type NowPlayingResolvers<ContextType = MyGQLContext, ParentType extends ResolversParentTypes['NowPlaying'] = ResolversParentTypes['NowPlaying']> = {
+  id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
+  currentTrack?: Resolver<Maybe<ResolversTypes['NowPlayingQueueItem']>, ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
-export type INowPlayingReactionResolvers<ContextType = MyGQLContext, ParentType extends IResolversParentTypes['NowPlayingReaction'] = IResolversParentTypes['NowPlayingReaction']> = {
-  id?: Resolver<IResolversTypes['ID'], ParentType, ContextType>;
-  mine?: Resolver<Maybe<IResolversTypes['NowPlayingReactionType']>, ParentType, ContextType>;
-  heart?: Resolver<IResolversTypes['Int'], ParentType, ContextType>;
-  cry?: Resolver<IResolversTypes['Int'], ParentType, ContextType>;
-  joy?: Resolver<IResolversTypes['Int'], ParentType, ContextType>;
-  fire?: Resolver<IResolversTypes['Int'], ParentType, ContextType>;
+export type NowPlayingReactionResolvers<ContextType = MyGQLContext, ParentType extends ResolversParentTypes['NowPlayingReaction'] = ResolversParentTypes['NowPlayingReaction']> = {
+  id?: Resolver<ResolversTypes['ID'], ParentType, ContextType>;
+  mine?: Resolver<Maybe<ResolversTypes['NowPlayingReactionType']>, ParentType, ContextType>;
+  heart?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  cry?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  joy?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
+  fire?: Resolver<ResolversTypes['Int'], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 };
 
-export type IResolvers<ContextType = MyGQLContext> = {
+export type Resolvers<ContextType = MyGQLContext> = {
   DateTime?: GraphQLScalarType;
   Upload?: GraphQLScalarType;
-  Query?: IQueryResolvers<ContextType>;
-  Mutation?: IMutationResolvers<ContextType>;
-  User?: IUserResolvers<ContextType>;
-  UserAuthWrapper?: IUserAuthWrapperResolvers<ContextType>;
-  UserOauthProvider?: IUserOauthProviderResolvers<ContextType>;
-  Subscription?: ISubscriptionResolvers<ContextType>;
-  Room?: IRoomResolvers<ContextType>;
-  RoomState?: IRoomStateResolvers<ContextType>;
-  Track?: ITrackResolvers<ContextType>;
-  CrossTracks?: ICrossTracksResolvers<ContextType>;
-  Artist?: IArtistResolvers<ContextType>;
-  Message?: IMessageResolvers<ContextType>;
-  MessageParticipant?: IMessageParticipantResolvers<ContextType>;
-  QueueItem?: IQueueItemResolvers<ContextType>;
-  Queue?: IQueueResolvers<ContextType>;
-  NowPlayingQueueItem?: INowPlayingQueueItemResolvers<ContextType>;
-  NowPlaying?: INowPlayingResolvers<ContextType>;
-  NowPlayingReaction?: INowPlayingReactionResolvers<ContextType>;
+  Query?: QueryResolvers<ContextType>;
+  Mutation?: MutationResolvers<ContextType>;
+  User?: UserResolvers<ContextType>;
+  UserAuthWrapper?: UserAuthWrapperResolvers<ContextType>;
+  UserOauthProvider?: UserOauthProviderResolvers<ContextType>;
+  Subscription?: SubscriptionResolvers<ContextType>;
+  Room?: RoomResolvers<ContextType>;
+  RoomState?: RoomStateResolvers<ContextType>;
+  Track?: TrackResolvers<ContextType>;
+  CrossTracks?: CrossTracksResolvers<ContextType>;
+  Artist?: ArtistResolvers<ContextType>;
+  Message?: MessageResolvers<ContextType>;
+  MessageParticipant?: MessageParticipantResolvers<ContextType>;
+  QueueItem?: QueueItemResolvers<ContextType>;
+  Queue?: QueueResolvers<ContextType>;
+  NowPlayingQueueItem?: NowPlayingQueueItemResolvers<ContextType>;
+  NowPlaying?: NowPlayingResolvers<ContextType>;
+  NowPlayingReaction?: NowPlayingReactionResolvers<ContextType>;
 };
 
 
+/**
+ * @deprecated
+ * Use "Resolvers" root object instead. If you wish to get "IResolvers", add "typesPrefix: I" to your config.
+ */
+export type IResolvers<ContextType = MyGQLContext> = Resolvers<ContextType>;

@@ -8,7 +8,7 @@ import { Strategy as TwitterStrategy } from "passport-twitter";
 // @ts-ignore
 import { Strategy as SpotifyStrategy } from "passport-spotify";
 import Services from "../services";
-import { IOAuthProviderName } from "../types/index";
+import { AuthProviderName } from "../types/index";
 
 import type { Db } from "mongodb";
 import type IORedis from "ioredis";
@@ -26,10 +26,10 @@ export function createPassport(db: Db, redis: IORedis.Cluster, pubsub: PubSub) {
     const { id, displayName: name, emails } = profile;
     let profilePicture = profile.photos?.[0]?.value || null;
 
-    const provider: IOAuthProviderName =
+    const provider: AuthProviderName =
       profile.provider === "google"
-        ? IOAuthProviderName.Youtube
-        : (profile.provider as IOAuthProviderName);
+        ? AuthProviderName.Youtube
+        : (profile.provider as AuthProviderName);
 
     // twitter photo fix
     if (provider === "twitter" && profilePicture)

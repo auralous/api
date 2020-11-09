@@ -1,6 +1,6 @@
 import fetch from "node-fetch";
 import { isDefined } from "../../lib/utils";
-import { IPlatformName, IOAuthProviderName } from "../../types/index";
+import { PlatformName, AuthProviderName } from "../../types/index";
 
 import type { UserService } from "../user";
 import type { ServiceContext } from "../types";
@@ -52,7 +52,7 @@ function getATusingClientCredential(): string | Promise<string> {
 function parseTrack(result: SpotifyApi.TrackObjectFull): TrackDbObject {
   return {
     id: `spotify:${result.id}`,
-    platform: IPlatformName.Spotify,
+    platform: PlatformName.Spotify,
     externalId: result.id,
     duration: result.duration_ms,
     title: result.name,
@@ -66,9 +66,9 @@ function parseTrack(result: SpotifyApi.TrackObjectFull): TrackDbObject {
 
 export class SpotifyService {
   private BASE_URL = "https://api.spotify.com/v1";
-  private auth: UserOauthProvider<IOAuthProviderName.Spotify> | null;
+  private auth: UserOauthProvider<AuthProviderName.Spotify> | null;
   constructor(context: ServiceContext, private userService: UserService) {
-    this.auth = context.user?.oauth[IOAuthProviderName.Spotify] || null;
+    this.auth = context.user?.oauth[AuthProviderName.Spotify] || null;
   }
 
   private async refreshAccessToken(): Promise<string | null> {
@@ -93,7 +93,7 @@ export class SpotifyService {
       return null;
     const json = await refreshResponse.json();
     // Update tokens
-    await this.userService.updateMeOauth(IOAuthProviderName.Spotify, {
+    await this.userService.updateMeOauth(AuthProviderName.Spotify, {
       id: this.auth.id,
       accessToken: json.access_token,
       expiredAt: new Date(Date.now() + json.expires_in * 1000),
@@ -223,7 +223,7 @@ export class SpotifyService {
     if (!json) return null;
     return {
       id: `spotify:${externalId}`,
-      platform: IPlatformName.Spotify,
+      platform: PlatformName.Spotify,
       externalId,
       name: json.name,
       image: json.images?.[0]?.url || "",

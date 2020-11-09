@@ -1,5 +1,5 @@
 import { PUBSUB_CHANNELS } from "../lib/constant";
-import { INowPlayingReactionType } from "../types/index";
+import { NowPlayingReactionType } from "../types/index";
 
 import type { IResolvers } from "../types/index";
 
@@ -62,10 +62,10 @@ export const resolvers: IResolvers = {
         : {
             id,
             mine: null,
-            [INowPlayingReactionType.Heart]: 0,
-            [INowPlayingReactionType.Cry]: 0,
-            [INowPlayingReactionType.Joy]: 0,
-            [INowPlayingReactionType.Fire]: 0,
+            [NowPlayingReactionType.Heart]: 0,
+            [NowPlayingReactionType.Cry]: 0,
+            [NowPlayingReactionType.Joy]: 0,
+            [NowPlayingReactionType.Fire]: 0,
           };
     },
   },

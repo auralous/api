@@ -1,6 +1,6 @@
 import nc from "next-connect";
 import Services from "../services";
-import { IOAuthProviderName, UserOauthProvider } from "../types/index";
+import { AuthProviderName, UserOauthProvider } from "../types/index";
 
 import type { Db } from "mongodb";
 import type IORedis from "ioredis";
@@ -54,8 +54,8 @@ export function createApp(
       });
       if (req.user) {
         const oProv:
-          | UserOauthProvider<IOAuthProviderName.Youtube>
-          | UserOauthProvider<IOAuthProviderName.Spotify>
+          | UserOauthProvider<AuthProviderName.Youtube>
+          | UserOauthProvider<AuthProviderName.Spotify>
           | null = req.user.oauth.youtube || req.user.oauth.spotify || null;
         if (oProv) {
           const accessToken = await services.Track[

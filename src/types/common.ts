@@ -5,7 +5,7 @@ import type { SessionData } from "next-session";
 import type { UserDbObject } from "./db";
 import type { PubSub } from "../lib/pubsub";
 import type Services from "../services";
-import type { IPlatformName } from "./resolvers.gen";
+import type { PlatformName } from "./resolvers.gen";
 
 type SetCachControl = (maxAge: number, scope?: "PRIVATE" | "PUBLIC") => void;
 
@@ -31,7 +31,7 @@ export type OdesliResponse =
       userCountry: string;
       pageUrl: string;
       linksByPlatform: {
-        [platform in IPlatformName]?: {
+        [platform in PlatformName]?: {
           entityUniqueId: string;
         };
       };

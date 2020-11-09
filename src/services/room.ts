@@ -8,7 +8,7 @@ import {
 import { deleteByPattern } from "../db/redis";
 import { PUBSUB_CHANNELS, REDIS_KEY } from "../lib/constant";
 import { deleteCloudinaryImagesByPrefix } from "../lib/cloudinary";
-import { IRoomMembership, IRoomState } from "../types/index";
+import { RoomMembership, RoomState } from "../types/index";
 
 import type { UpdateQuery } from "mongodb";
 import type { UserService } from "./user";
@@ -77,7 +77,7 @@ export class RoomService {
     return this.loader.load(id);
   }
 
-  async getRoomState(id: string): Promise<IRoomState | null> {
+  async getRoomState(id: string): Promise<RoomState | null> {
     const room = await this.findById(id);
     const isViewable = this.isViewable(id, this.context.user?._id);
     if (!room) return null;
@@ -161,7 +161,7 @@ export class RoomService {
   async updateMembershipById(
     _id: string,
     username: string,
-    role?: IRoomMembership | null,
+    role?: RoomMembership | null,
     isUserId = false,
     DANGEROUSLY_BYPASS_CHECK = false
   ) {
@@ -182,7 +182,7 @@ export class RoomService {
 
     let update: UpdateQuery<RoomDbObject>;
 
-    if (role === IRoomMembership.Collab) {
+    if (role === RoomMembership.Collab) {
       update = {
         $addToSet: { collabs: addingUser._id },
       };

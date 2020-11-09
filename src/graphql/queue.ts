@@ -5,7 +5,7 @@ import {
 } from "../error/index";
 import { PUBSUB_CHANNELS } from "../lib/constant";
 
-import type { IResolvers } from "../types/resolvers.gen";
+import type { IResolvers } from "../types/index";
 
 export const typeDefs = `
   enum QueueAction {

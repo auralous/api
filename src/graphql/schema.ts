@@ -11,7 +11,7 @@ import {
   resolvers as nowPlayingResolvers,
 } from "./nowPlaying";
 
-import type { IResolvers } from "../types/resolvers.gen";
+import type { IResolvers } from "../types/index";
 
 const typeDefs = mergeTypeDefs([
   Base,

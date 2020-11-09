@@ -12,11 +12,11 @@ import Services from "../services";
 import type { Db } from "mongodb";
 import type IORedis from "ioredis";
 import type { PubSub } from "../lib/pubsub";
-import type { UserDbObject } from "../types/db";
 import type {
+  UserDbObject,
   OAuthProviderName,
   ExtendedIncomingMessage,
-} from "../types/common";
+} from "../types/index";
 
 export default function createPassport(
   db: Db,

@@ -1,12 +1,12 @@
 import nc from "next-connect";
 import createPassport from "./passport";
 import Services from "../services";
-import { IPlatformName } from "../types/resolvers.gen";
+import { IPlatformName } from "../types/index";
 
 import type { Db } from "mongodb";
 import type IORedis from "ioredis";
 import type { PubSub } from "../lib/pubsub";
-import type { ExtendedIncomingMessage } from "../types/common";
+import type { ExtendedIncomingMessage } from "../types/index";
 
 export default function createAppAuth(
   db: Db,

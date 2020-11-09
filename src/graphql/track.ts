@@ -2,7 +2,7 @@ import { URL } from "url";
 import { CONFIG } from "../lib/constant";
 import { isDefined } from "../lib/utils";
 
-import type { IResolvers } from "../types/resolvers.gen";
+import type { IResolvers } from "../types/index";
 
 export const typeDefs = `
   enum PlatformName {

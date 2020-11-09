@@ -3,11 +3,12 @@ import { isDefined } from "../../lib/utils";
 
 import type { UserService } from "../user";
 import type { ServiceContext } from "../types";
-import type {
+import {
   UserOauthProvider,
   TrackDbObject,
   ArtistDbObject,
-} from "../../types/db";
+  IPlatformName,
+} from "../../types/index";
 /// <reference path="spotify-api" />
 
 const BASE_URL = "https://api.spotify.com/v1";
@@ -51,7 +52,7 @@ function getATusingClientCredential(): string | Promise<string> {
 function parseTrack(result: SpotifyApi.TrackObjectFull): TrackDbObject {
   return {
     id: `spotify:${result.id}`,
-    platform: "spotify",
+    platform: IPlatformName.Spotify,
     externalId: result.id,
     duration: result.duration_ms,
     title: result.name,

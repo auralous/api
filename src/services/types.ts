@@ -1,6 +1,6 @@
 import type { Db } from "mongodb";
 import type IORedis from "ioredis";
-import type { UserDbObject } from "../types/db";
+import type { UserDbObject } from "../types/index";
 import type { PubSub } from "../lib/pubsub";
 
 export interface ServiceContext {

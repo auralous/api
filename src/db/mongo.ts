@@ -1,6 +1,6 @@
 import { MongoClient, Db } from "mongodb";
 
-import type { UserDbObject, RoomDbObject } from "../types/db";
+import type { UserDbObject, RoomDbObject } from "../types/index";
 
 function applyIndex(db: Db) {
   // user

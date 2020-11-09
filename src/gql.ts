@@ -13,8 +13,11 @@ import type { Db } from "mongodb";
 import type IORedis from "ioredis";
 import type { SubscriptionConnection } from "@benzene/ws";
 import type { PubSub } from "./lib/pubsub";
-import type { UserDbObject } from "./types/db";
-import type { ExtendedIncomingMessage, MyGQLContext } from "./types/common";
+import type {
+  UserDbObject,
+  ExtendedIncomingMessage,
+  MyGQLContext,
+} from "./types/index";
 
 const EXPECTED_ERR_CODES = ["PERSISTED_QUERY_NOT_FOUND"];
 

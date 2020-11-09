@@ -23,7 +23,7 @@ import { pubsub } from "./lib/pubsub";
 import createAppAuth from "./auth/route";
 
 import type { RequestListener } from "http";
-import type { ExtendedIncomingMessage } from "./types/common";
+import type { ExtendedIncomingMessage } from "./types/index";
 
 (async () => {
   const redis = createRedisClient();

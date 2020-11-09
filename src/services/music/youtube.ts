@@ -2,11 +2,12 @@ import { google } from "googleapis";
 import fetch from "node-fetch";
 import { isDefined } from "../../lib/utils";
 import { MAX_TRACK_DURATION } from "../../lib/constant";
+import { IPlatformName } from "../../types/index";
 
 import type { ServiceContext } from "../types";
 import type { TrackService } from "../track";
 import type { UserService } from "../user";
-import type { ArtistDbObject, TrackDbObject } from "../../types/db";
+import type { ArtistDbObject, TrackDbObject } from "../../types/index";
 
 function parseDurationToMs(str: string) {
   let miliseconds = 0;
@@ -145,7 +146,7 @@ export default class YoutubeService {
     return {
       id: `youtube:${externalId}`,
       externalId,
-      platform: "youtube",
+      platform: IPlatformName.Youtube,
       duration: msDuration,
       title: snippet.title as string,
       image: snippet.thumbnails?.high?.url as string,

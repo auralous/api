@@ -7,9 +7,12 @@ import { CONFIG, REDIS_KEY } from "../lib/constant";
 
 import type { ServiceContext } from "./types";
 import type { UserService } from "./user";
-import type { TrackDbObject, ArtistDbObject } from "../types/db";
-import type { OdesliResponse } from "../types/common";
-import { IPlatformName } from "../types/resolvers.gen";
+import type {
+  TrackDbObject,
+  ArtistDbObject,
+  IPlatformName,
+  OdesliResponse,
+} from "../types/index";
 
 const stringifyTrack = fastJson({
   title: "Track",

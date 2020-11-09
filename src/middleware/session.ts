@@ -5,7 +5,7 @@ import connectRedis from "connect-redis";
 import { URL } from "url";
 import { createRedisClient } from "../db/index";
 import type { ServerResponse } from "http";
-import type { ExtendedIncomingMessage } from "../types/common";
+import type { ExtendedIncomingMessage } from "../types/index";
 
 const RedisStore = connectRedis(expressSession);
 

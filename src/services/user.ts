@@ -12,9 +12,12 @@ import { deleteCloudinaryImagesByPrefix } from "../lib/cloudinary";
 
 import type { FilterQuery } from "mongodb";
 import type { ServiceContext } from "./types";
-import type { UserDbObject, UserOauthProvider } from "../types/db";
-import type { OAuthProviderName } from "../types/common";
-import type { NullablePartial } from "../types/utils";
+import type {
+  UserDbObject,
+  UserOauthProvider,
+  OAuthProviderName,
+  NullablePartial,
+} from "../types/index";
 
 export class UserService {
   private collection = this.context.db.collection<UserDbObject>("users");

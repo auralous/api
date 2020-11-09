@@ -3,8 +3,7 @@ import { uploadStreamToCloudinary } from "../lib/cloudinary";
 import { defaultAvatar } from "../lib/defaultAvatar";
 import { CONFIG } from "../lib/constant";
 
-import type { IResolvers } from "../types/resolvers.gen";
-import type { UserDbObject } from "../types/db";
+import type { IResolvers, UserDbObject } from "../types/index";
 
 export const typeDefs = `
   type Query {

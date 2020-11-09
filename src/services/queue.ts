@@ -4,7 +4,7 @@ import { reorder } from "../lib/utils";
 import { REDIS_KEY, PUBSUB_CHANNELS } from "../lib/constant";
 
 import type { ServiceContext } from "./types";
-import type { NowPlayingItemDbObject, QueueItemDbObject } from "../types/db";
+import type { NowPlayingItemDbObject, QueueItemDbObject } from "../types/index";
 
 const queueItemStringify = fastJson({
   title: "Queue Item",

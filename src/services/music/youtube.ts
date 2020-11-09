@@ -10,14 +10,21 @@ import type { UserService } from "../user";
 import type { ArtistDbObject, TrackDbObject } from "../../types/index";
 
 function parseDurationToMs(str: string) {
-  let miliseconds = 0;
-  const hours = str.match(/(\d+)(?=\s*H)/);
-  const minutes = str.match(/(\d+)(?=\s*M)/);
-  const seconds = str.match(/(\d+)(?=\s*S)/);
-  if (hours) miliseconds += parseInt(hours[1], 10) * 60 * 60 * 1000;
-  if (minutes) miliseconds += parseInt(minutes[1], 10) * 60 * 1000;
-  if (seconds) miliseconds += parseInt(seconds[1], 10) * 1000;
-  return miliseconds;
+  // https://developers.google.com/youtube/v3/docs/videos#contentDetails.duration
+  const a = str.match(/\d+/g);
+  if (!a) return 0;
+  let duration = 0;
+  if (a.length == 3) {
+    duration += parseInt(a[0]) * 3600;
+    duration += parseInt(a[1]) * 60;
+    duration += parseInt(a[2]);
+  } else if (a.length == 2) {
+    duration += parseInt(a[0]) * 60;
+    duration += parseInt(a[1]);
+  } else if (a.length == 1) {
+    duration += parseInt(a[0]);
+  }
+  return duration * 1000;
 }
 
 const INTERNAL_YTAPI = {
@@ -182,7 +189,7 @@ export default class YoutubeService {
         await Promise.all(
           (trackData.data.items || []).map((trackItemData) =>
             this.trackService.findOrCreate(
-              `youtube:${trackItemData.contentDetails!.videoId}`
+              `youtube:${trackItemData.contentDetails?.videoId}`
             )
           )
         )

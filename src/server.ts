@@ -14,7 +14,7 @@ import cors from "cors";
 // @ts-ignore
 import { graphqlUploadExpress } from "graphql-upload";
 import { createPassport, createAppAuth } from "./auth/index";
-import buildGraphQLServer from "./gql";
+import { buildGraphQLServer } from "./gql";
 import { session } from "./middleware/session";
 import { createMongoClient, createRedisClient } from "./db/index";
 import { NowPlayingWorker } from "./services/nowPlayingWorker";

@@ -8,7 +8,7 @@ import type Passport from "passport";
 import type { PubSub } from "../lib/pubsub";
 import type { ExtendedIncomingMessage } from "../types/index";
 
-export default function createAppAuth(
+export function createApp(
   passport: Passport.Authenticator,
   db: Db,
   redis: IORedis.Cluster,

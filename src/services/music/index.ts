@@ -1,2 +1,2 @@
-export { default as YoutubeService } from "./youtube";
-export { default as SpotifyService } from "./spotify";
+export { YoutubeService } from "./youtube";
+export { SpotifyService } from "./spotify";

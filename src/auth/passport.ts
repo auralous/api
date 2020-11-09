@@ -15,11 +15,7 @@ import type IORedis from "ioredis";
 import type { PubSub } from "../lib/pubsub";
 import type { UserDbObject, ExtendedIncomingMessage } from "../types/index";
 
-export default function createPassport(
-  db: Db,
-  redis: IORedis.Cluster,
-  pubsub: PubSub
-) {
+export function createPassport(db: Db, redis: IORedis.Cluster, pubsub: PubSub) {
   function authCallback(
     req: ExtendedIncomingMessage,
     token1: string,

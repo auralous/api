@@ -21,7 +21,7 @@ import type {
 
 const EXPECTED_ERR_CODES = ["PERSISTED_QUERY_NOT_FOUND"];
 
-export default function buildGraphQLServer(
+export function buildGraphQLServer(
   db: Db,
   redis: IORedis.Cluster,
   pubsub: PubSub

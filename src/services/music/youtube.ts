@@ -82,7 +82,7 @@ const INTERNAL_YTAPI = {
   baseUrl: "https://music.youtube.com/youtubei/v1",
 };
 
-export default class YoutubeService {
+export class YoutubeService {
   private oauth2Client = new google.auth.OAuth2(
     process.env.GOOGLE_CLIENT_KEY,
     process.env.GOOGLE_CLIENT_SECRET,

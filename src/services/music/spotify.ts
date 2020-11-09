@@ -64,7 +64,7 @@ function parseTrack(result: SpotifyApi.TrackObjectFull): TrackDbObject {
   };
 }
 
-export default class SpotifyService {
+export class SpotifyService {
   private BASE_URL = "https://api.spotify.com/v1";
   auth: UserOauthProvider<IOAuthProviderName.Spotify> | null;
   constructor(context: ServiceContext, private userService: UserService) {

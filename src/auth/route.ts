@@ -1,6 +1,6 @@
 import nc from "next-connect";
 import Services from "../services";
-import { IPlatformName } from "../types/index";
+import { IOAuthProviderName, UserOauthProvider } from "../types/index";
 
 import type { Db } from "mongodb";
 import type IORedis from "ioredis";
@@ -53,20 +53,23 @@ export function createApp(
         pubsub,
       });
       if (req.user) {
-        let prov: IPlatformName | undefined;
-        if (req.user.oauth.youtube) prov = IPlatformName.Youtube;
-        else if (req.user.oauth.spotify) prov = IPlatformName.Spotify;
-        if (prov) {
-          const accessToken = await services.Track[prov].getAccessToken();
+        const oProv:
+          | UserOauthProvider<IOAuthProviderName.Youtube>
+          | UserOauthProvider<IOAuthProviderName.Spotify>
+          | null = req.user.oauth.youtube || req.user.oauth.spotify || null;
+        if (oProv) {
+          const accessToken = await services.Track[
+            oProv.provider
+          ].getAccessToken();
           if (accessToken)
             return res
               .writeHead(200, undefined, { "content-type": "application/json" })
               .end(
                 JSON.stringify({
-                  platform: prov,
-                  id: req.user.oauth[prov]?.id,
+                  platform: oProv.provider,
+                  id: oProv.id,
                   accessToken,
-                  expiredAt: req.user.oauth[prov]?.expiredAt,
+                  expiredAt: oProv.expiredAt,
                 })
               );
         }

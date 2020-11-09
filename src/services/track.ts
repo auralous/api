@@ -4,13 +4,13 @@ import fetch from "node-fetch";
 import { URL } from "url";
 import { SpotifyService, YoutubeService } from "./music";
 import { CONFIG, REDIS_KEY } from "../lib/constant";
+import { IPlatformName } from "../types/index";
 
 import type { ServiceContext } from "./types";
 import type { UserService } from "./user";
 import type {
   TrackDbObject,
   ArtistDbObject,
-  IPlatformName,
   OdesliResponse,
 } from "../types/index";
 
@@ -97,7 +97,7 @@ export class TrackService {
 
   async findByUri(uri: URL): Promise<TrackDbObject | TrackDbObject[] | null> {
     let externalId: null | string = null;
-    for (const platform of ["youtube", "spotify"] as const) {
+    for (const platform of Object.values(IPlatformName)) {
       const platformService = this[platform];
       if ((externalId = platformService.getPlaylistIdFromUri(uri.href)))
         return platformService.getTracksByPlaylistId(externalId);
@@ -117,11 +117,7 @@ export class TrackService {
     let track = await this.find(id);
     if (!track) {
       const [platform, externalId] = id.split(":");
-      if (platform === "youtube") {
-        track = await this.youtube.getTrack(externalId);
-      } else if (platform === "spotify") {
-        track = await this.spotify.getTrack(externalId);
-      }
+      track = await this[platform as IPlatformName]?.getTrack(externalId);
       if (!track) return null;
       await this.save(id, track);
     }
@@ -150,14 +146,14 @@ export class TrackService {
 
     if (!("linksByPlatform" in json)) return cache; // cache = {}
 
-    cache.youtube = json.linksByPlatform.youtube?.entityUniqueId.split("::")[1];
-    cache.spotify = json.linksByPlatform.spotify?.entityUniqueId.split("::")[1];
-
-    // Save to cache with expiry
-    cache.youtube &&
-      this.context.redis.hset(cacheKey, "youtube", cache.youtube);
-    cache.spotify &&
-      this.context.redis.hset(cacheKey, "spotify", cache.spotify);
+    for (const platform of Object.values(IPlatformName)) {
+      cache[platform] = json.linksByPlatform[platform]?.entityUniqueId.split(
+        "::"
+      )[1];
+      if (cache[platform]) {
+        this.context.redis.hset(cacheKey, platform, cache[platform] as string);
+      }
+    }
     this.context.redis.expire(cacheKey, CONFIG.crossTrackMaxAge);
 
     return cache;
@@ -184,11 +180,9 @@ export class TrackService {
     let artist = await this.findArtist(id);
     if (!artist) {
       const [platform, externalId] = id.split(":");
-      if (platform === "youtube")
-        artist = await this.youtube.getArtist(externalId);
-      else if (platform === "spotify")
-        artist = await this.spotify.getArtist(externalId);
-      if (artist) await this.saveArtist(id, artist);
+      artist = await this[platform as IPlatformName]?.getArtist(externalId);
+      if (!artist) return null;
+      await this.saveArtist(id, artist);
     }
     return artist;
   }

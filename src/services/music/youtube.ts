@@ -270,7 +270,7 @@ export class YoutubeService {
     if (!snippet) return null;
     return {
       id: `youtube:${externalId}`,
-      platform: "youtube",
+      platform: IPlatformName.Youtube,
       externalId,
       name: snippet.title as string,
       image: snippet.thumbnails?.high?.url as string,

@@ -12,11 +12,12 @@ import { deleteCloudinaryImagesByPrefix } from "../lib/cloudinary";
 
 import type { FilterQuery } from "mongodb";
 import type { ServiceContext } from "./types";
-import type {
+import {
   UserDbObject,
   UserOauthProvider,
   IOAuthProviderName,
   NullablePartial,
+  IPlatformName,
 } from "../types/index";
 
 export class UserService {
@@ -94,11 +95,8 @@ export class UserService {
     // Beware of side effect
     this.context.user = await this.collection.findOne(userQuery);
     if (!this.context.user) {
-      // We are accepting only YouTube/Google and Spotify signup currently
-      if (
-        authTokens.provider !== "youtube" &&
-        authTokens.provider !== "spotify"
-      )
+      // @ts-expect-error: We are excluding OAuthProvider that is not IPlatformName
+      if (!Object.values(IPlatformName).includes(authTokens.provider))
         throw new ForbiddenError(
           "You must sign up with either YouTube or Spotify"
         );

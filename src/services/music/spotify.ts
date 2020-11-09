@@ -66,9 +66,9 @@ function parseTrack(result: SpotifyApi.TrackObjectFull): TrackDbObject {
 
 export class SpotifyService {
   private BASE_URL = "https://api.spotify.com/v1";
-  auth: UserOauthProvider<IOAuthProviderName.Spotify> | null;
+  private auth: UserOauthProvider<IOAuthProviderName.Spotify> | null;
   constructor(context: ServiceContext, private userService: UserService) {
-    this.auth = context.user?.oauth["spotify"] || null;
+    this.auth = context.user?.oauth[IOAuthProviderName.Spotify] || null;
   }
 
   private async refreshAccessToken(): Promise<string | null> {
@@ -223,7 +223,7 @@ export class SpotifyService {
     if (!json) return null;
     return {
       id: `spotify:${externalId}`,
-      platform: "spotify",
+      platform: IPlatformName.Spotify,
       externalId,
       name: json.name,
       image: json.images?.[0]?.url || "",

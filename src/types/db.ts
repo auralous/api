@@ -61,7 +61,7 @@ export interface TrackDbObject {
 
 export interface ArtistDbObject {
   id: string;
-  platform: string;
+  platform: IPlatformName;
   externalId: string;
   name: string;
   url: string;

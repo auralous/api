@@ -5,7 +5,7 @@ import type { SessionData } from "next-session";
 import type { UserDbObject } from "./db";
 import type { PubSub } from "../lib/pubsub";
 import type Services from "../services";
-import type { PlatformName } from "./resolvers.gen";
+import type { PlatformName } from "./graphql.gen";
 
 type SetCachControl = (maxAge: number, scope?: "PRIVATE" | "PUBLIC") => void;
 

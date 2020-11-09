@@ -2,44 +2,12 @@ import {
   AuthenticationError,
   ForbiddenError,
   UserInputError,
-} from "../error/index";
-import { PUBSUB_CHANNELS } from "../lib/constant";
+} from "../../error/index";
+import { PUBSUB_CHANNELS } from "../../lib/constant";
 
-import type { IResolvers } from "../types/index";
+import type { Resolvers } from "../../types/index";
 
-export const typeDefs = `
-  enum QueueAction {
-    remove
-    reorder
-    add
-    clear
-  }
-
-  type QueueItem {
-    id: ID!
-    trackId: String!
-    creatorId: String!
-  }
-
-  type Queue {
-    id: ID!
-    items: [QueueItem!]!
-  }
-
-  type Query {
-    queue(id:ID!): Queue
-  }
-
-  type Mutation {
-    updateQueue(id:ID!, action: QueueAction!, tracks: [ID!], position: Int, insertPosition: Int): Boolean!
-  }
-
-  type Subscription {
-    queueUpdated(id: ID!): Queue!
-  }
-`;
-
-export const resolvers: IResolvers = {
+const resolvers: Resolvers = {
   Query: {
     async queue(parent, { id }, { services, user }) {
       const [, roomId] = id.split(":");
@@ -147,3 +115,5 @@ export const resolvers: IResolvers = {
     },
   },
 };
+
+export default resolvers;

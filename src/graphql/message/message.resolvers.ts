@@ -1,35 +1,10 @@
 import { nanoid } from "nanoid/non-secure";
-import { AuthenticationError } from "../error/index";
-import { PUBSUB_CHANNELS } from "../lib/constant";
+import { AuthenticationError } from "../../error/index";
+import { PUBSUB_CHANNELS } from "../../lib/constant";
 
-import type { IResolvers } from "../types/index";
+import type { Resolvers } from "../../types";
 
-export const typeDefs = `
-  type Mutation {
-    addMessage(roomId: ID!, message: String!): Boolean!
-  }
-
-  type Subscription {
-    messageAdded(roomId: ID!): Message!
-  }
-
-  type Message {
-    id: ID!
-    createdAt: DateTime!
-    message: String!
-    from: MessageParticipant!
-  }
-
-  type MessageParticipant {
-    type: String!
-    id: ID!
-    name: String!
-    photo: String!
-    uri: String!
-  }
-`;
-
-export const resolvers: IResolvers = {
+const resolvers: Resolvers = {
   Subscription: {
     messageAdded: {
       subscribe(parent, { roomId }, { pubsub }) {
@@ -80,3 +55,5 @@ export const resolvers: IResolvers = {
     },
   },
 };
+
+export default resolvers;

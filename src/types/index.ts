@@ -1,12 +1,12 @@
 export * from "./common";
 export * from "./db";
 export {
-  IResolvers,
+  Resolvers,
   PlatformName,
   AuthProviderName,
   RoomMembership,
   RoomState,
   NowPlayingReaction,
   NowPlayingReactionType,
-} from "./resolvers.gen";
+} from "./graphql.gen";
 export * from "./utils";

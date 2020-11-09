@@ -1,6 +1,6 @@
-schema: http://localhost:4000/graphql
+schema: 'src/graphql/*/*.graphql'
 generates:
-  ./src/types/resolvers.gen.ts:
+  ./src/types/graphql.gen.ts:
     config:
       skipTypename: true
       contextType: ./common#MyGQLContext

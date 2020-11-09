@@ -1,49 +1,9 @@
-import { PUBSUB_CHANNELS } from "../lib/constant";
-import { NowPlayingReactionType } from "../types/index";
+import { PUBSUB_CHANNELS } from "../../lib/constant";
+import { NowPlayingReactionType } from "../../types/index";
 
-import type { IResolvers } from "../types/index";
+import type { Resolvers } from "../../types/index";
 
-export const typeDefs = `
-  enum NowPlayingReactionType {
-    heart
-    joy
-    fire
-    cry
-  }
-  type Query {
-    nowPlaying(id: ID!): NowPlaying
-    nowPlayingReactions(id: ID!): NowPlayingReaction
-  }
-  type Mutation {
-    reactNowPlaying(id: ID!, reaction: NowPlayingReactionType!): Boolean
-    skipNowPlaying(id: ID!): Boolean
-  }
-  type Subscription {
-    nowPlayingUpdated(id: ID!): NowPlaying
-    nowPlayingReactionsUpdated(id: ID!): NowPlayingReaction
-  }
-  type NowPlayingQueueItem {
-    id: ID!
-    trackId: ID!
-    playedAt: DateTime!
-    endedAt: DateTime!
-    creatorId: ID!
-  }
-  type NowPlaying {
-    id: ID!
-    currentTrack: NowPlayingQueueItem
-  }
-  type NowPlayingReaction {
-    id: ID!
-    mine: NowPlayingReactionType
-    heart: Int!
-    cry: Int!
-    joy: Int!
-    fire: Int!
-  }
-`;
-
-export const resolvers: IResolvers = {
+const resolvers: Resolvers = {
   Query: {
     async nowPlaying(parent, { id }, { services }) {
       const currentTrack = await services.NowPlaying.findById(id);
@@ -97,3 +57,5 @@ export const resolvers: IResolvers = {
     },
   },
 };
+
+export default resolvers;

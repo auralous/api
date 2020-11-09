@@ -1,4 +1,4 @@
-import type { PlatformName, AuthProviderName } from "./resolvers.gen";
+import type { PlatformName, AuthProviderName } from "./graphql.gen";
 
 export interface UserOauthProvider<T extends AuthProviderName> {
   provider: T;

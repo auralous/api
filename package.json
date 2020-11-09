@@ -7,7 +7,7 @@
   "license": "AGPL-3.0",
   "scripts": {
     "start": "node dist/server",
-    "build": "tsc",
+    "build": "npm run codegen && tsc",
     "dev": "tsnd -r dotenv/config --respawn --transpile-only src/server",
     "codegen": "graphql-codegen",
     "lint": "eslint ./ --ext js,ts,tsx --ignore-path .gitignore"
@@ -15,6 +15,7 @@
   "dependencies": {
     "@benzene/server": "^0.2.0",
     "@benzene/ws": "^0.3.0",
+    "@graphql-tools/load-files": "^6.2.4",
     "@graphql-tools/merge": "^6.2.5",
     "@graphql-tools/schema": "^7.0.0",
     "@sentry/node": "^5.27.3",

@@ -2,15 +2,11 @@ import { DateTimeResolver } from "graphql-scalars";
 // @ts-ignore
 import { GraphQLUpload } from "graphql-upload";
 
-import type { IResolvers } from "../types/index";
+import type { Resolvers } from "../../types";
 
-export const typeDefs = `
-  # Custom
-  scalar DateTime
-  scalar Upload
-`;
-
-export const resolvers: IResolvers = {
+export const resolvers: Resolvers = {
   DateTime: DateTimeResolver,
   Upload: GraphQLUpload,
 };
+
+export default resolvers;

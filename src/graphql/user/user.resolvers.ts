@@ -1,51 +1,11 @@
-import { AuthenticationError } from "../error";
-import { uploadStreamToCloudinary } from "../lib/cloudinary";
-import { defaultAvatar } from "../lib/defaultAvatar";
-import { CONFIG } from "../lib/constant";
+import { AuthenticationError } from "../../error";
+import { uploadStreamToCloudinary } from "../../lib/cloudinary";
+import { defaultAvatar } from "../../lib/defaultAvatar";
+import { CONFIG } from "../../lib/constant";
 
-import type { IResolvers, UserDbObject } from "../types/index";
+import type { Resolvers, UserDbObject } from "../../types/index";
 
-export const typeDefs = `
-  type Query {
-    me: User
-    user(username: String, id: ID): User
-    meAuth: UserAuthWrapper
-  }
-
-  type Mutation {
-    me(name: String, username: String, bio: String, profilePicture: Upload): User
-    deleteMe: Boolean!
-    deleteMeOauth(provider: AuthProviderName!): Boolean!
-  }
-
-  enum AuthProviderName {
-    youtube
-    twitter
-    facebook
-    spotify
-  }
-
-  type User {
-    id: ID!
-    username: String!
-    bio: String
-    profilePicture: String!
-  }
-
-  type UserAuthWrapper {
-    youtube: UserOauthProvider
-    twitter: UserOauthProvider
-    facebook: UserOauthProvider
-    spotify: UserOauthProvider
-  }
-
-  type UserOauthProvider {
-    provider: AuthProviderName!
-    id: ID!
-  }
-`;
-
-export const resolvers: IResolvers = {
+const resolvers: Resolvers = {
   Query: {
     me(parent, args, { user, setCacheControl }) {
       setCacheControl?.(0, "PRIVATE");
@@ -94,3 +54,5 @@ export const resolvers: IResolvers = {
     },
   },
 };
+
+export default resolvers;

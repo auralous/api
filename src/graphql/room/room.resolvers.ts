@@ -1,57 +1,12 @@
-import { AuthenticationError, UserInputError } from "../error/index";
-import { CONFIG, PUBSUB_CHANNELS } from "../lib/constant";
-import { uploadStreamToCloudinary } from "../lib/cloudinary";
-import { defaultAvatar } from "../lib/defaultAvatar";
-import { RoomMembership } from "../types/index";
+import { AuthenticationError, UserInputError } from "../../error/index";
+import { CONFIG, PUBSUB_CHANNELS } from "../../lib/constant";
+import { uploadStreamToCloudinary } from "../../lib/cloudinary";
+import { defaultAvatar } from "../../lib/defaultAvatar";
+import { RoomMembership } from "../../types/index";
 
-import type { IResolvers } from "../types/index";
+import type { Resolvers } from "../../types/index";
 
-export const typeDefs = `
-  type Query {
-    room(id: ID!): Room
-    roomState(id: ID!): RoomState
-    rooms(creatorId: String): [Room!]
-    exploreRooms(by: String!): [Room!]!
-    searchRooms(query: String!, limit: Int): [Room!]!
-  }
-
-  enum RoomMembership {
-    host
-    collab
-  }
-
-  type Mutation {
-    createRoom(title: String!, description: String, isPublic: Boolean! anyoneCanAdd: Boolean, password: String): Room!
-    updateRoom(id: ID!, title: String, description: String, image: Upload, anyoneCanAdd: Boolean, password: String): Room!
-    joinPrivateRoom(id: ID!, password: String!): Boolean!
-    updateRoomMembership(id: ID!, username: String, userId: String, role: RoomMembership): Boolean!
-    deleteRoom(id: ID!): ID!
-  }
-
-  type Subscription {
-    roomStateUpdated(id: ID!): RoomState
-  }
-
-  type Room {
-    id: ID!
-    title: String!
-    isPublic: Boolean!
-    description: String
-    image: String!
-    creatorId: ID!
-    createdAt: DateTime!
-  }
-
-  type RoomState {
-    id: ID!
-    userIds: [String!]!
-    # Settings
-    anyoneCanAdd: Boolean!
-    collabs: [String!]!
-  }
-`;
-
-export const resolvers: IResolvers = {
+const resolvers: Resolvers = {
   Query: {
     room(parent, { id }, { services }) {
       return services.Room.findById(id);
@@ -161,3 +116,5 @@ export const resolvers: IResolvers = {
     },
   },
 };
+
+export default resolvers;

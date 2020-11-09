@@ -13,26 +13,23 @@ import { parse as parseQS } from "querystring";
 import cors from "cors";
 // @ts-ignore
 import { graphqlUploadExpress } from "graphql-upload";
-import createPassport from "./auth/passport";
+import { createPassport, createAppAuth } from "./auth/index";
 import buildGraphQLServer from "./gql";
 import { session } from "./middleware/session";
 import { createMongoClient, createRedisClient } from "./db/index";
 import { NowPlayingWorker } from "./services/nowPlayingWorker";
-import { pubsub } from "./lib/pubsub";
-// app
-import createAppAuth from "./auth/route";
+import { PubSub } from "./lib/pubsub";
 
 import type { RequestListener } from "http";
 import type { ExtendedIncomingMessage } from "./types/index";
 
 (async () => {
   const redis = createRedisClient();
-
+  const pubsub = new PubSub();
   const { client: mongoClient, db } = await createMongoClient();
+  const passport = createPassport(db, redis, pubsub);
 
   const { httpHandle, wsHandle } = buildGraphQLServer(db, redis, pubsub);
-
-  const passport = createPassport(db, redis, pubsub);
 
   // app
   const app = nc<ExtendedIncomingMessage>();

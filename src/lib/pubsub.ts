@@ -77,5 +77,3 @@ export class PubSub {
     };
   }
 }
-
-export const pubsub = new PubSub();

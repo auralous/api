@@ -6,9 +6,7 @@ import { loadFilesSync } from "@graphql-tools/load-files";
 const typesArray = loadFilesSync(path.join(__dirname, "./*/*.graphql"));
 const typeDefs = mergeTypeDefs(typesArray);
 
-const resolversArray = loadFilesSync(
-  path.join(__dirname, "./*/*.resolvers.ts")
-);
+const resolversArray = loadFilesSync(path.join(__dirname, "./*/*.resolvers.*"));
 const resolvers = mergeResolvers(resolversArray);
 
 export default makeExecutableSchema({ typeDefs, resolvers });

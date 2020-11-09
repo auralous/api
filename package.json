@@ -7,7 +7,10 @@
   "license": "AGPL-3.0",
   "scripts": {
     "start": "node dist/server",
-    "build": "npm run codegen && tsc",
+    "clean": "npx rimraf dist",
+    "build:ts": "tsc",
+    "build:copy": "npx cpy-cli ./*/*.graphql --parents --cwd=src/graphql ../../dist/graphql",
+    "build": "npm run codegen && npm run build:ts && npm run build:copy",
     "dev": "tsnd -r dotenv/config --respawn --transpile-only src/server",
     "codegen": "graphql-codegen",
     "lint": "eslint ./ --ext js,ts,tsx --ignore-path .gitignore"

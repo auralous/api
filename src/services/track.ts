@@ -8,7 +8,8 @@ import { CONFIG, REDIS_KEY } from "../lib/constant";
 import type { ServiceContext } from "./types";
 import type { UserService } from "./user";
 import type { TrackDbObject, ArtistDbObject } from "../types/db";
-import type { OdesliResponse, PlatformName } from "../types/common";
+import type { OdesliResponse } from "../types/common";
+import { IPlatformName } from "../types/resolvers.gen";
 
 const stringifyTrack = fastJson({
   title: "Track",
@@ -126,13 +127,13 @@ export class TrackService {
 
   async crossFindTracks(
     id: string
-  ): Promise<Record<PlatformName, string | undefined>> {
+  ): Promise<Record<IPlatformName, string | undefined>> {
     const [platformName, externalId] = id.split(":");
 
     const cacheKey = REDIS_KEY.crossTracks(id);
 
     const cache = (await this.context.redis.hgetall(cacheKey)) as Record<
-      PlatformName,
+      IPlatformName,
       string | undefined
     >;
 
@@ -159,7 +160,7 @@ export class TrackService {
     return cache;
   }
 
-  search(platform: PlatformName, query: string): Promise<TrackDbObject[]> {
+  search(platform: IPlatformName, query: string): Promise<TrackDbObject[]> {
     return this[platform].searchTracks(query);
   }
 

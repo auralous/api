@@ -1,4 +1,5 @@
-import type { PlatformName, OAuthProviderName } from "./common";
+import type { OAuthProviderName } from "./common";
+import type { IPlatformName } from "./resolvers.gen";
 
 export interface UserOauthProvider<T extends OAuthProviderName> {
   provider: T;
@@ -49,7 +50,7 @@ export interface RoomDbObject {
 
 export interface TrackDbObject {
   id: string;
-  platform: PlatformName;
+  platform: IPlatformName;
   externalId: string;
   duration: number;
   title: string;

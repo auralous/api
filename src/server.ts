@@ -135,8 +135,6 @@ import type { ExtendedIncomingMessage } from "./types/index";
 
   wss.on("close", () => clearInterval(wssPingPong));
 
-  const nowPlayingWorker = new NowPlayingWorker(pubsub);
-
   try {
     console.log("Starting API server...");
 
@@ -146,8 +144,7 @@ import type { ExtendedIncomingMessage } from "./types/index";
 
     console.log(`Redis status is ${redis.status}`);
 
-    console.log("Executing NowPlaying jobs...");
-    await nowPlayingWorker.init(db, redis);
+    NowPlayingWorker.start(db, redis, pubsub);
 
     server.listen(port, () => {
       console.log(`Server Ready at ${process.env.API_URI}`);

@@ -83,28 +83,6 @@ spec:
                 secretKeyRef:
                   key: spotify-client-secret
                   name: {{ .Release.Name }}-secret
-            # facebook
-            - name: FACEBOOK_APP_ID
-              valueFrom:
-                configMapKeyRef:
-                  key: facebook-app-id
-                  name: {{ .Release.Name }}-configmap
-            - name: FACEBOOK_APP_SECRET
-              valueFrom:
-                secretKeyRef:
-                  key: facebook-app-secret
-                  name: {{ .Release.Name }}-secret
-            # twitter
-            - name: TWITTER_CONSUMER_KEY
-              valueFrom:
-                configMapKeyRef:
-                  key: twitter-consumer-key
-                  name: {{ .Release.Name }}-configmap
-            - name: TWITTER_CONSUMER_SECRET
-              valueFrom:
-                secretKeyRef:
-                  key: twitter-consumer-secret
-                  name: {{ .Release.Name }}-secret
             # songlink for song links across platforms
             - name: SONGLINK_KEY
               valueFrom:

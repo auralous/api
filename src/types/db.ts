@@ -1,7 +1,7 @@
-import type { PlatformName, AuthProviderName } from "./graphql.gen";
+import type { PlatformName } from "./graphql.gen";
 
-export interface UserOauthProvider<T extends AuthProviderName> {
-  provider: T;
+export interface UserOauthProvider {
+  provider: PlatformName;
   accessToken?: string | null;
   refreshToken?: string | null;
   expiredAt?: Date | null;
@@ -14,12 +14,8 @@ export interface UserDbObject {
   username: string;
   profilePicture?: string;
   bio?: string | null;
-  oauth: {
-    youtube?: UserOauthProvider<AuthProviderName.Youtube>;
-    spotify?: UserOauthProvider<AuthProviderName.Spotify>;
-    facebook?: UserOauthProvider<AuthProviderName.Facebook>;
-    twitter?: UserOauthProvider<AuthProviderName.Twitter>;
-  };
+  createdAt: Date;
+  oauth: UserOauthProvider;
 }
 
 export interface QueueItemDbObject {

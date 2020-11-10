@@ -11,11 +11,6 @@ const resolvers: Resolvers = {
       setCacheControl?.(0, "PRIVATE");
       return user;
     },
-    // @ts-expect-error: Invalid TS error
-    async meAuth(parent, args, { user, setCacheControl }) {
-      setCacheControl?.(0, "PRIVATE");
-      return user?.oauth;
-    },
     async user(parent, { username, id }, { services, setCacheControl }) {
       let user: UserDbObject | null = null;
       if (username) user = await services.User.findByUsername(username);
@@ -41,10 +36,6 @@ const resolvers: Resolvers = {
     },
     async deleteMe(parent, args, { services }) {
       return services.User.deleteMe();
-    },
-    async deleteMeOauth(parent, { provider }, { services }) {
-      await services.User.removeMeOauth(provider);
-      return true;
     },
   },
   User: {

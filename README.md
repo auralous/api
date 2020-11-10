@@ -11,9 +11,7 @@
 - `GOOGLE_API_KEY`: The API Key used for YouTube data ([
 YouTube Data API (v3)](https://developers.google.com/youtube/v3) must be enabled).
 - `GOOGLE_CLIENT_KEY`, `GOOGLE_CLIENT_SECRET`: Google Client key and secret for OAuth.
-- `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET`: Spotify Client ID  and Secret for OAuth and Spotify data.
-- `FACEBOOK_APP_ID`, `FACEBOOK_APP_SECRET`: (optional) FaceBook App ID and secret for OAuth.
-- `TWITTER_CONSUMER_KEY`, `TWITTER_CONSUMER_SECRET`: (optional) Twitter Consumer key and secret for OAuth.
+- `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET`: Spotify Client ID  and Secret for OAuth and Spotify data.Consumer key and secret for OAuth.
 - `SONGLINK_KEY`: [Songlink/Odesli](https://odesli.co/) API Key.
 - `SENTRY_DSN`: (optional) Sentry DSN for error reporting.
 - `CLOUDINARY_URL`: [Cloudinary](https://cloudinary.com/) URL for image upload. We hope to migrate away from this service in the future.
@@ -136,8 +134,6 @@ data:
   google-api-key: "YOUR_GOOGLE_API_KEY"
   google-client-secret: "YOUR_GOOGLE_CLIENT_SECRET"
   spotify-client-secret: "YOUR_SPOTIFY_CLIENT_SECRET"
-  facebook-app-secret: "YOUR_FACEBOOK_APP_SECRET"
-  twitter-consumer-secret: "YOUR_TWITTER_CONSUMER_SECRET"
   mongodb-uri: "YOUR_MONGODB_CONNECTION_STRING"
   redis-url: "YOUR_REDIS_CONNECTION_STRING"
   songlink-key: "YOUR_SONGLINK_API_KEY"

@@ -14,6 +14,7 @@ export interface UserDbObject {
   username: string;
   profilePicture?: string;
   bio?: string | null;
+  createdAt: Date;
   oauth: UserOauthProvider;
 }
 

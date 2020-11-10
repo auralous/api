@@ -66,6 +66,7 @@ export class UserService {
       email,
       oauth,
       bio,
+      createdAt: new Date(),
     });
     this.loader.prime(user._id, user);
     // send onboarding email

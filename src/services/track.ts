@@ -7,7 +7,6 @@ import { CONFIG, REDIS_KEY } from "../lib/constant";
 import { PlatformName } from "../types/index";
 
 import type { ServiceContext } from "./types";
-import type { UserService } from "./user";
 import type {
   TrackDbObject,
   ArtistDbObject,
@@ -62,10 +61,7 @@ export class TrackService {
   private _youtube?: YoutubeService;
   private _spotify?: SpotifyService;
 
-  constructor(
-    private context: ServiceContext,
-    private userService: UserService
-  ) {
+  constructor(private context: ServiceContext) {
     this.loader = this.artistLoader = new DataLoader(
       (keys) => {
         // REDIS_CLUSTER: mget not work without hash tags
@@ -79,16 +75,15 @@ export class TrackService {
 
   get youtube() {
     if (this._youtube) return this._youtube;
-    return (this._youtube = new YoutubeService(
-      this.context,
-      this.userService,
-      this
-    ));
+    // We should avoid passing this i possible
+    return (this._youtube = new YoutubeService((id) => this.findOrCreate(id)));
   }
 
   get spotify() {
     if (this._spotify) return this._spotify;
-    return (this._spotify = new SpotifyService(this.context, this.userService));
+    return (this._spotify = new SpotifyService(
+      this.context.user?.oauth || null
+    ));
   }
 
   private find(id: string) {

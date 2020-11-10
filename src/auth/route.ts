@@ -1,6 +1,10 @@
 import nc from "next-connect";
-import Services from "../services";
-import { AuthProviderName, UserOauthProvider } from "../types/index";
+import {
+  UserService,
+  SpotifyAuthService,
+  YoutubeAuthService,
+} from "../services/index";
+import { PlatformName } from "../types/index";
 
 import type { Db } from "mongodb";
 import type IORedis from "ioredis";
@@ -46,33 +50,31 @@ export function createApp(
 
   app.get("/mAuth", async (req, res) => {
     if (req.user) {
-      const services = new Services({
+      const serviceContext = {
         user: req.user || null,
         db,
         redis,
         pubsub,
-      });
+      };
+
       if (req.user) {
-        const oProv:
-          | UserOauthProvider<AuthProviderName.Youtube>
-          | UserOauthProvider<AuthProviderName.Spotify>
-          | null = req.user.oauth.youtube || req.user.oauth.spotify || null;
-        if (oProv) {
-          const accessToken = await services.Track[
-            oProv.provider
-          ].getAccessToken();
-          if (accessToken)
-            return res
-              .writeHead(200, undefined, { "content-type": "application/json" })
-              .end(
-                JSON.stringify({
-                  platform: oProv.provider,
-                  id: oProv.id,
-                  accessToken,
-                  expiredAt: oProv.expiredAt,
-                })
-              );
-        }
+        const oauth = req.user.oauth;
+        const userService = new UserService(serviceContext);
+        const authService =
+          oauth.provider === PlatformName.Youtube
+            ? new YoutubeAuthService(serviceContext, userService)
+            : new SpotifyAuthService(serviceContext, userService);
+
+        return res
+          .writeHead(200, undefined, { "content-type": "application/json" })
+          .end(
+            JSON.stringify({
+              platform: oauth.provider,
+              id: oauth.id,
+              accessToken: await authService.getAccessToken(),
+              expiredAt: oauth.expiredAt,
+            })
+          );
       }
       return res.writeHead(204).end();
     }
@@ -99,8 +101,6 @@ export function createApp(
       "streaming",
     ],
   });
-  // createRoute("facebook", { scope: ["email"] });
-  // createRoute("twitter");
 
   return app;
 }

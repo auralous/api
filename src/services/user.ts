@@ -86,6 +86,9 @@ export class UserService {
     });
     if (!this.context.user) {
       // Create new user
+      // Passport does not provide expiredAt value so we are assuming 30 min
+      data.oauth.expiredAt =
+        data.oauth.expiredAt || new Date(Date.now() + 30 * 60 * 1000);
       this.context.user = await this.create(data);
       // @ts-expect-error: isNew is a special field to check if user is newly registered
       this.context.user.isNew = true;

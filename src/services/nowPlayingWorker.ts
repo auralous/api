@@ -1,4 +1,4 @@
-import Services from "../services";
+import { Services } from "../services/index";
 import { PUBSUB_CHANNELS } from "../lib/constant";
 
 import type { Db } from "mongodb";

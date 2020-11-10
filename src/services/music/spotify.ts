@@ -1,6 +1,6 @@
 import fetch from "node-fetch";
 import { isDefined } from "../../lib/utils";
-import { PlatformName, AuthProviderName } from "../../types/index";
+import { PlatformName } from "../../types/index";
 
 import type { UserService } from "../user";
 import type { ServiceContext } from "../types";
@@ -10,8 +10,6 @@ import type {
   ArtistDbObject,
 } from "../../types/index";
 /// <reference path="spotify-api" />
-
-const BASE_URL = "https://api.spotify.com/v1";
 
 // For implicit auth
 const cache: {
@@ -25,7 +23,7 @@ const AuthorizationHeader =
     `${process.env.SPOTIFY_CLIENT_ID}:${process.env.SPOTIFY_CLIENT_SECRET}`
   ).toString("base64");
 
-function getATusingClientCredential(): string | Promise<string> {
+function getTokenViaClientCredential(): string | Promise<string> {
   if (cache?.accessToken && cache?.expireAt && cache?.expireAt > new Date()) {
     return cache.accessToken;
   }
@@ -66,55 +64,30 @@ function parseTrack(result: SpotifyApi.TrackObjectFull): TrackDbObject {
 
 export class SpotifyService {
   private BASE_URL = "https://api.spotify.com/v1";
-  private auth: UserOauthProvider<AuthProviderName.Spotify> | null;
-  constructor(context: ServiceContext, private userService: UserService) {
-    this.auth = context.user?.oauth[AuthProviderName.Spotify] || null;
-  }
+  private userTokenPromise: Promise<string | null> | null;
 
-  private async refreshAccessToken(): Promise<string | null> {
-    if (!this.auth) return null;
-    // token is not good, try refresh
-    const refreshToken = this.auth?.refreshToken;
-    // no refresh token, we're done for
-    if (!refreshToken) return null;
-    const refreshResponse = await fetch(
-      "https://accounts.spotify.com/api/token",
-      {
-        method: "POST",
-        headers: {
-          "content-type": "application/x-www-form-urlencoded",
-          Authorization: AuthorizationHeader,
-        },
-        body: `grant_type=refresh_token&refresh_token=${refreshToken}`,
-      }
+  static async checkToken(
+    authInfo: Pick<UserOauthProvider, "accessToken" | "expiredAt">
+  ): Promise<boolean> {
+    if (!authInfo.accessToken) return false;
+    if (authInfo.expiredAt && authInfo.expiredAt.getTime() < Date.now())
+      return false;
+    // Use a private API (but it's quick) to fetch token validity
+    return fetch(
+      `https://api.spotify.com/v1/melody/v1/check_scope?scope=web-playback`,
+      { headers: { Authorization: `Bearer ${authInfo.accessToken}` } }
+    ).then(
+      (res) => res.status === 200,
+      () => false
     );
-    if (refreshResponse.status !== 200)
-      // Refresh token might have been expired
-      return null;
-    const json = await refreshResponse.json();
-    // Update tokens
-    await this.userService.updateMeOauth(AuthProviderName.Spotify, {
-      id: this.auth.id,
-      accessToken: json.access_token,
-      expiredAt: new Date(Date.now() + json.expires_in * 1000),
-    });
-    return json.access_token;
   }
 
-  async getAccessToken(): Promise<string | null> {
-    if (!this.auth?.accessToken) return this.refreshAccessToken();
-    if (this.auth.expiredAt) {
-      if (this.auth.expiredAt > new Date()) return this.auth.accessToken;
-      return this.refreshAccessToken();
-    } else {
-      // Use a private API to quick fetch token validity
-      const tokenCheckRes = await fetch(
-        // This seems like a private API but it allows quick fetch so we use it
-        `${this.BASE_URL}/melody/v1/check_scope?scope=web-playback`,
-        { headers: { Authorization: `Bearer ${this.auth.accessToken}` } }
+  constructor(auth?: UserOauthProvider | null) {
+    if (auth?.provider !== PlatformName.Spotify) this.userTokenPromise = null;
+    else {
+      this.userTokenPromise = SpotifyService.checkToken(auth).then((isValid) =>
+        isValid ? (auth.accessToken as string) : null
       );
-      if (tokenCheckRes.status === 200) return this.auth.accessToken;
-      else return this.refreshAccessToken();
     }
   }
 
@@ -122,9 +95,9 @@ export class SpotifyService {
   async getTrack(externalId: string): Promise<TrackDbObject | null> {
     // We may offload some of the work using user's token
     const accessToken =
-      (await this.getAccessToken()) || (await getATusingClientCredential());
+      (await this.userTokenPromise) || (await getTokenViaClientCredential());
     const json: SpotifyApi.TrackObjectFull | null = await fetch(
-      `${BASE_URL}/tracks/${externalId}`,
+      `${this.BASE_URL}/tracks/${externalId}`,
       {
         headers: {
           Authorization: `Authorization: Bearer ${accessToken}`,
@@ -154,10 +127,10 @@ export class SpotifyService {
 
   async getTracksByPlaylistId(playlistId: string): Promise<TrackDbObject[]> {
     const accessToken =
-      (await this.getAccessToken()) || (await getATusingClientCredential());
+      (await this.userTokenPromise) || (await getTokenViaClientCredential());
     const tracks: TrackDbObject[] = [];
     let trackData: SpotifyApi.PlaylistTrackResponse | null = await fetch(
-      `${BASE_URL}/playlists/${playlistId}/tracks`,
+      `${this.BASE_URL}/playlists/${playlistId}/tracks`,
       {
         headers: {
           Authorization: `Authorization: Bearer ${accessToken}`,
@@ -190,10 +163,10 @@ export class SpotifyService {
   async searchTracks(searchQuery: string): Promise<TrackDbObject[]> {
     // We may offload some of the work using user's token
     const accessToken =
-      (await this.getAccessToken()) || (await getATusingClientCredential());
+      (await this.userTokenPromise) || (await getTokenViaClientCredential());
     const SEARCH_MAX_RESULTS = 30;
     const json: SpotifyApi.SearchResponse | null = await fetch(
-      `${BASE_URL}/search?query=${encodeURIComponent(searchQuery)}` +
+      `${this.BASE_URL}/search?query=${encodeURIComponent(searchQuery)}` +
         `&type=track&offset=0&limit=${SEARCH_MAX_RESULTS}`,
       {
         headers: {
@@ -208,9 +181,9 @@ export class SpotifyService {
   async getArtist(externalId: string): Promise<ArtistDbObject | null> {
     // We may offload some of the work using user's token
     const accessToken =
-      (await this.getAccessToken()) || (await getATusingClientCredential());
+      (await this.userTokenPromise) || (await getTokenViaClientCredential());
     const json: SpotifyApi.ArtistObjectFull | null = await fetch(
-      `${BASE_URL}/artists/${externalId}`,
+      `${this.BASE_URL}/artists/${externalId}`,
       {
         headers: {
           Authorization: `Authorization: Bearer ${accessToken}`,
@@ -229,5 +202,45 @@ export class SpotifyService {
       image: json.images?.[0]?.url || "",
       url: json.external_urls.spotify,
     };
+  }
+}
+
+export class SpotifyAuthService {
+  private auth: UserOauthProvider | null;
+  constructor(context: ServiceContext, private userService: UserService) {
+    if (context.user?.oauth.provider !== PlatformName.Spotify) this.auth = null;
+    else this.auth = context.user.oauth;
+  }
+  async getAccessToken(): Promise<string | null> {
+    if (!this.auth) return null;
+    if (await SpotifyService.checkToken(this.auth))
+      return this.auth.accessToken as string;
+    return this.refreshAccessToken();
+  }
+  private async refreshAccessToken(): Promise<string | null> {
+    // no refresh token, we're done for
+    if (!this.auth?.refreshToken) return null;
+    const refreshResponse = await fetch(
+      "https://accounts.spotify.com/api/token",
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/x-www-form-urlencoded",
+          Authorization: AuthorizationHeader,
+        },
+        body: `grant_type=refresh_token&refresh_token=${this.auth.refreshToken}`,
+      }
+    );
+    if (refreshResponse.status !== 200)
+      // Refresh token might have been expired
+      return null;
+    const json = await refreshResponse.json();
+    // Update tokens
+    await this.userService.updateMeOauth({
+      refreshToken: json.refresh_token,
+      accessToken: json.access_token,
+      expiredAt: new Date(Date.now() + json.expires_in * 1000),
+    });
+    return json.access_token;
   }
 }

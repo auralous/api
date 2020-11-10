@@ -1,13 +1,17 @@
-import { google } from "googleapis";
+import { google, Auth } from "googleapis";
 import fetch from "node-fetch";
 import { isDefined } from "../../lib/utils";
 import { MAX_TRACK_DURATION } from "../../lib/constant";
-import { PlatformName, AuthProviderName } from "../../types/index";
+import { PlatformName } from "../../types/index";
 
 import type { ServiceContext } from "../types";
 import type { TrackService } from "../track";
 import type { UserService } from "../user";
-import type { ArtistDbObject, TrackDbObject } from "../../types/index";
+import type {
+  ArtistDbObject,
+  TrackDbObject,
+  UserOauthProvider,
+} from "../../types/index";
 
 function parseDurationToMs(str: string) {
   // https://developers.google.com/youtube/v3/docs/videos#contentDetails.duration
@@ -83,55 +87,11 @@ const INTERNAL_YTAPI = {
 };
 
 export class YoutubeService {
-  private oauth2Client = new google.auth.OAuth2(
-    process.env.GOOGLE_CLIENT_KEY,
-    process.env.GOOGLE_CLIENT_SECRET,
-    `${process.env.API_URI}/auth/google/callback`
-  );
   private youtube = google.youtube({
     version: "v3",
-    auth: this.oauth2Client,
+    auth: process.env.GOOGLE_API_KEY,
   });
-  constructor(
-    context: ServiceContext,
-    private userService: UserService,
-    private trackService: TrackService
-  ) {
-    if (context.user) {
-      const gp = context.user.oauth.youtube;
-      if (gp?.accessToken && gp.refreshToken) {
-        this.register(gp.id, gp.accessToken, gp.refreshToken);
-      }
-    }
-    if (!this.oauth2Client.credentials.access_token) {
-      // Fallback to using API Key
-      this.oauth2Client.apiKey = process.env.GOOGLE_API_KEY;
-    }
-  }
-
-  private register(id: string, accessToken: string, refreshToken: string) {
-    this.oauth2Client.setCredentials({
-      access_token: accessToken,
-      refresh_token: refreshToken,
-    });
-    this.oauth2Client.on("tokens", async (tokens) => {
-      this.userService.updateMeOauth(AuthProviderName.Youtube, {
-        id,
-        accessToken: tokens.access_token,
-        refreshToken: tokens.refresh_token,
-        ...(tokens.expiry_date && {
-          expiredAt: new Date(tokens.expiry_date),
-        }),
-      });
-    });
-  }
-
-  async getAccessToken(): Promise<string | null> {
-    return this.oauth2Client
-      .getAccessToken()
-      .then((resp) => resp.token || null)
-      .catch(() => null);
-  }
+  constructor(private findOrCreate: TrackService["findOrCreate"]) {}
 
   // Lib
   async getTrack(externalId: string): Promise<TrackDbObject | null> {
@@ -188,7 +148,7 @@ export class YoutubeService {
       const trackItems = (
         await Promise.all(
           (trackData.data.items || []).map((trackItemData) =>
-            this.trackService.findOrCreate(
+            this.findOrCreate(
               `youtube:${trackItemData.contentDetails?.videoId}`
             )
           )
@@ -249,9 +209,7 @@ export class YoutubeService {
         musicResponsiveListItemRenderer.doubleTapCommand.watchEndpoint.videoId
     );
 
-    const promises = videoIds.map((i) =>
-      this.trackService.findOrCreate(`youtube:${i}`)
-    );
+    const promises = videoIds.map((i) => this.findOrCreate(`youtube:${i}`));
 
     return Promise.all<TrackDbObject | null>(promises).then((tracks) =>
       // A track should only be less than 7 minutes... maybe. You know, 777
@@ -276,5 +234,51 @@ export class YoutubeService {
       image: snippet.thumbnails?.high?.url as string,
       url: `https://www.youtube.com/channel/${externalId}`,
     };
+  }
+}
+
+export class YoutubeAuthService {
+  private auth: UserOauthProvider | null;
+
+  private oauth2Client = new google.auth.OAuth2(
+    process.env.GOOGLE_CLIENT_KEY,
+    process.env.GOOGLE_CLIENT_SECRET,
+    `${process.env.API_URI}/auth/google/callback`
+  );
+
+  constructor(context: ServiceContext, private userService: UserService) {
+    if (context.user?.oauth.provider !== PlatformName.Youtube) this.auth = null;
+    else {
+      this.auth = context.user.oauth;
+      this.oauth2Client.setCredentials({
+        access_token: this.auth.accessToken,
+        refresh_token: this.auth.refreshToken,
+      });
+    }
+  }
+
+  async getAccessToken(): Promise<string | null> {
+    if (!this.auth) return null;
+
+    const refreshHandler = (tokens: Auth.Credentials) => {
+      this.userService.updateMeOauth({
+        accessToken: tokens.access_token,
+        refreshToken: tokens.refresh_token,
+        ...(tokens.expiry_date && {
+          expiredAt: new Date(tokens.expiry_date),
+        }),
+      });
+    };
+
+    // We register refresh token handler in case it happens
+    this.oauth2Client.on("tokens", refreshHandler);
+    return this.oauth2Client
+      .getAccessToken()
+      .then((resp) => resp.token || null)
+      .catch(() => null)
+      .finally(() => {
+        // We no longer need this, remove to avoid memory leak
+        this.oauth2Client.off("tokens", refreshHandler);
+      });
   }
 }

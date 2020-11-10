@@ -10,15 +10,8 @@ import {
 } from "../error/index";
 import { deleteCloudinaryImagesByPrefix } from "../lib/cloudinary";
 
-import type { FilterQuery } from "mongodb";
 import type { ServiceContext } from "./types";
-import {
-  UserDbObject,
-  UserOauthProvider,
-  AuthProviderName,
-  NullablePartial,
-  PlatformName,
-} from "../types/index";
+import { UserDbObject, NullablePartial } from "../types/index";
 
 export class UserService {
   private collection = this.context.db.collection<UserDbObject>("users");
@@ -83,34 +76,22 @@ export class UserService {
   }
 
   async findOrCreate(
-    userQuery: FilterQuery<UserDbObject>,
-    userCreate: Pick<UserDbObject, "profilePicture" | "email" | "bio">,
-    authTokens: {
-      id: string;
-      provider: AuthProviderName;
-      accessToken?: string;
-      refreshToken?: string;
-    }
+    oauthQuery: Pick<UserDbObject["oauth"], "provider" | "id">,
+    data: Pick<UserDbObject, "profilePicture" | "email" | "bio" | "oauth">
   ) {
     // Beware of side effect
-    this.context.user = await this.collection.findOne(userQuery);
+    this.context.user = await this.collection.findOne({
+      "oauth.provider": oauthQuery.provider,
+      "oauth.id": oauthQuery.id,
+    });
     if (!this.context.user) {
-      // @ts-expect-error: We are excluding OAuthProvider that is not PlatformName
-      if (!Object.values(PlatformName).includes(authTokens.provider))
-        throw new ForbiddenError(
-          "You must sign up with either YouTube or Spotify"
-        );
-      this.context.user = await this.create({
-        ...userCreate,
-        oauth: {
-          [authTokens.provider]: authTokens,
-        },
-      });
+      // Create new user
+      this.context.user = await this.create(data);
       // @ts-expect-error: isNew is a special field to check if user is newly registered
       this.context.user.isNew = true;
     } else {
-      // If user exists, update OAuth information
-      await this.updateMeOauth(authTokens.provider, authTokens);
+      // If user exists, update OAuth tokens
+      await this.updateMeOauth(data.oauth);
     }
     return this.context.user;
   }
@@ -163,58 +144,19 @@ export class UserService {
     return true;
   }
 
-  async updateMeOauth(
-    provider: AuthProviderName,
-    {
-      expiredAt,
-      accessToken,
-      refreshToken,
-      id,
-    }: {
-      expiredAt?: Date;
-      accessToken?: string | null;
-      refreshToken?: string | null;
-      id: string;
-    }
-  ) {
+  async updateMeOauth({
+    expiredAt,
+    accessToken,
+    refreshToken,
+  }: {
+    expiredAt?: Date | null;
+    accessToken?: string | null;
+    refreshToken?: string | null;
+  }) {
     if (!this.context.user) return null;
 
-    // Make sure this provider is not linked with another account
-    const isUsedElsewhere = !!(await this.collection.countDocuments({
-      _id: { $ne: this.context.user._id },
-      [`oauth.${provider}.id`]: id,
-    }));
-    if (isUsedElsewhere) {
-      throw new ForbiddenError(
-        `This '${provider}' account is linked to a different Stereo account.`
-      );
-    }
-
-    const thisOauth = this.context.user.oauth[provider];
-
-    if (thisOauth) {
-      // Reconnect to an account
-
-      // Check that this is not another account from the same provider
-      if (id !== thisOauth.id)
-        throw new ForbiddenError(
-          `This Stereo account is linked to a different '${provider}' account.`
-        );
-    } else {
-      // Only allow 1 music account
-      if (
-        (provider === "spotify" && this.context.user.oauth.youtube) ||
-        (provider === "youtube" && this.context.user.oauth.spotify)
-      ) {
-        throw new ForbiddenError("You can only connect to one Music provider");
-      }
-    }
-
-    (this.context.user.oauth[provider] as UserOauthProvider<
-      typeof provider
-    >) = {
-      id,
-      provider,
+    this.context.user.oauth = {
+      ...this.context.user.oauth,
       ...(accessToken !== undefined && { accessToken }),
       ...(refreshToken !== undefined && { refreshToken }),
       ...(expiredAt !== undefined && { expiredAt }),
@@ -229,19 +171,5 @@ export class UserService {
       .clear(this.context.user._id)
       .prime(this.context.user._id, this.context.user);
     return this.context.user;
-  }
-
-  async removeMeOauth(provider: AuthProviderName) {
-    if (!this.context.user) throw new AuthenticationError("");
-    if (Object.keys(this.context.user.oauth).length <= 1)
-      throw new ForbiddenError("There must be at least one linked account");
-    const oauthProvider = this.context.user.oauth[provider];
-    if (!oauthProvider) throw new ForbiddenError("Account is not linked");
-    await this.collection.updateOne(
-      { _id: this.context.user._id },
-      { $unset: { [`oauth.${provider}`]: "" } }
-    );
-
-    delete this.context.user.oauth[provider];
   }
 }

@@ -7,7 +7,7 @@ import * as Sentry from "@sentry/node";
 import schema from "./graphql/schema";
 import { applySession } from "./middleware/session";
 import { StereoGraphQLError } from "./error/index";
-import Services from "./services";
+import { Services } from "./services/index";
 
 import type { Db } from "mongodb";
 import type IORedis from "ioredis";

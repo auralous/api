@@ -1,8 +1,6 @@
 import DataLoader from "dataloader";
 import { nanoid } from "nanoid";
 import slug from "slug";
-// @ts-ignore
-import { hri } from "human-readable-ids";
 import {
   AuthenticationError,
   ForbiddenError,
@@ -56,12 +54,12 @@ export class UserService {
     oauth,
     bio,
   }: Pick<UserDbObject, "profilePicture" | "email" | "oauth" | "bio">) {
-    const username = hri.random() as string;
+    const _id = nanoid(12);
     const {
       ops: [user],
     } = await this.collection.insertOne({
-      _id: nanoid(12),
-      username,
+      _id,
+      username: _id,
       profilePicture,
       email,
       oauth,

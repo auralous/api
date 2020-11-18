@@ -16,7 +16,6 @@ export class StereoGraphQLError extends GraphQLError {
       undefined,
       extensions
     );
-    this.name = "StereoGraphQLError";
   }
 }
 

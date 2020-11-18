@@ -34,8 +34,17 @@ const resolvers: Resolvers = {
         : undefined;
       return services.User.updateMe({ username, bio, profilePicture });
     },
-    async deleteMe(parent, args, { services }) {
-      return services.User.deleteMe();
+    async deleteMe(parent, args, { services, user }) {
+      if (!user) throw new AuthenticationError("");
+      const deleted = await services.User.deleteMe();
+      if (deleted) {
+        // delete every room
+        const allRooms = await services.Room.findByCreatorId(user._id);
+        for (const room of allRooms) {
+          await services.Room.deleteById(room._id);
+        }
+      }
+      return deleted;
     },
   },
   User: {

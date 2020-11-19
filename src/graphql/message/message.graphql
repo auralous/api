@@ -1,22 +1,24 @@
+enum MessageType {
+  message
+  join
+}
+
+type Query {
+  messages(id: ID!, offset: Int, limit: Int): [Message!]
+}
+
 type Mutation {
-  addMessage(roomId: ID!, message: String!): Boolean!
+  addMessage(id: ID!, text: String!): Boolean!
 }
 
 type Subscription {
-  messageAdded(roomId: ID!): Message!
+  messageAdded(id: ID!): Message!
 }
 
 type Message {
   id: ID!
+  creatorId: String!
   createdAt: DateTime!
-  message: String!
-  from: MessageParticipant!
-}
-
-type MessageParticipant {
-  type: String!
-  id: ID!
-  name: String!
-  photo: String!
-  uri: String!
+  text: String
+  type: MessageType!
 }

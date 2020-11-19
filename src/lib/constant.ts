@@ -13,12 +13,17 @@ export const REDIS_KEY = {
   },
   queue(typeAndId: string) {
     const [type, id] = typeAndId.split(":");
-    if (type !== "room") throw new Error("Invalid type in queueId");
+    if (type !== "room") throw new Error("Invalid resourceType");
     if (typeAndId.includes(":played")) {
       // Played queue ends with :played instead of :queue
       return `${this[type](id)}:played`;
     }
     return `${this[type](id)}:queue`;
+  },
+  message(typeAndId: string) {
+    const [type, id] = typeAndId.split(":");
+    if (type !== "room") throw new Error("Invalid resourceType");
+    return { type, id, key: `${this[type](id)}:messages` };
   },
   track: (platformAndId: string) => `track:${platformAndId}`,
   artist: (platformAndId: string) => `artist:${platformAndId}`,

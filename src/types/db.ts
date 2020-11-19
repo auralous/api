@@ -1,4 +1,4 @@
-import type { PlatformName } from "./graphql.gen";
+import type { PlatformName, MessageType } from "./graphql.gen";
 
 export interface UserOauthProvider {
   provider: PlatformName;
@@ -62,4 +62,13 @@ export interface ArtistDbObject {
   name: string;
   url: string;
   image: string;
+}
+
+export interface MessageDbObject {
+  id: string;
+  creatorId: string;
+  createdAt: Date;
+  attachment?: undefined; // TODO: Implement
+  text?: string;
+  type: MessageType;
 }

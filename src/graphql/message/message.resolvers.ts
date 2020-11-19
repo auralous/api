@@ -23,7 +23,7 @@ const resolvers: Resolvers = {
       if (!user) return null;
       const stop = -offset - 1;
       const start = stop - limit + 1;
-      return services.Message.findById(id, start, stop);
+      return services.Message.findById(id, start, stop, user._id);
     },
   },
   Mutation: {
@@ -32,6 +32,7 @@ const resolvers: Resolvers = {
       return !!(await services.Message.add(id, {
         text,
         type: MessageType.Message,
+        creatorId: user._id,
       }));
     },
   },

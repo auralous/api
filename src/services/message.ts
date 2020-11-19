@@ -1,6 +1,6 @@
 import fastJson from "fast-json-stringify";
 import { nanoid } from "nanoid/non-secure";
-import { AuthenticationError, ForbiddenError } from "../error";
+import { ForbiddenError } from "../error";
 
 import { REDIS_KEY, PUBSUB_CHANNELS } from "../lib/constant";
 import type { RoomService } from "./room";
@@ -50,11 +50,12 @@ export class MessageService {
   async findById(
     id: string,
     start = 0,
-    stop = -1
+    stop = -1,
+    viewedAs?: string
   ): Promise<MessageDbObject[] | null> {
     const { id: roomId, key } = REDIS_KEY.message(id);
     // id is roomId
-    if (!(await this.roomService.isViewable(roomId, this.context.user?._id)))
+    if (viewedAs && !(await this.roomService.isViewable(roomId, viewedAs)))
       return null;
     return this.context.redis
       .lrange(key, start, stop)
@@ -64,12 +65,11 @@ export class MessageService {
   // add a new message
   async add(
     id: string,
-    message: Pick<MessageDbObject, "text" | "type">
+    message: Pick<MessageDbObject, "text" | "type" | "creatorId">
   ): Promise<number> {
-    if (!this.context.user?._id) throw new AuthenticationError("");
     const { id: roomId, key } = REDIS_KEY.message(id);
     // id is roomId
-    if (!(await this.roomService.isViewable(roomId, this.context.user._id)))
+    if (!(await this.roomService.isViewable(roomId, message.creatorId)))
       throw new ForbiddenError(
         "You are not allowed to send message to this channel"
       );
@@ -78,7 +78,7 @@ export class MessageService {
       ...message,
       id: this.randomItemId(),
       createdAt: new Date(),
-      creatorId: this.context.user._id,
+      creatorId: message.creatorId,
     };
 
     const count = await this.context.redis.rpush(

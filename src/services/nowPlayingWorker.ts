@@ -4,15 +4,17 @@ import { PUBSUB_CHANNELS } from "../lib/constant";
 import type { Db } from "mongodb";
 import type Redis from "ioredis";
 import type { PubSub } from "../lib/pubsub";
-import type { RoomDbObject, NowPlayingItemDbObject } from "../types/index";
+import {
+  RoomDbObject,
+  NowPlayingItemDbObject,
+  MessageType,
+} from "../types/index";
 
 export class NowPlayingWorker {
   timers: {
     [id: string]: NodeJS.Timeout;
   } = {};
-  nowPlayingService: Services["NowPlaying"];
-  queueService: Services["Queue"];
-  trackService: Services["Track"];
+  private services: Services;
 
   constructor(db: Db, redis: Redis.Cluster, private pubsub: PubSub) {
     pubsub.sub.subscribe(PUBSUB_CHANNELS.nowPlayingResolve);
@@ -21,7 +23,7 @@ export class NowPlayingWorker {
       (channel, id) =>
         channel === PUBSUB_CHANNELS.nowPlayingResolve && this.addJob(id, 0)
     );
-    const { NowPlaying, Queue, Track } = new Services({
+    this.services = new Services({
       user: null,
       db,
       redis,
@@ -29,9 +31,6 @@ export class NowPlayingWorker {
       // isWs means no cache
       isWs: true,
     });
-    this.nowPlayingService = NowPlaying;
-    this.queueService = Queue;
-    this.trackService = Track;
     this.init(db);
   }
 
@@ -65,7 +64,7 @@ export class NowPlayingWorker {
   ): Promise<NowPlayingItemDbObject | null> {
     const now = new Date();
 
-    const prevCurrentTrack = await this.nowPlayingService.findById(
+    const prevCurrentTrack = await this.services.NowPlaying.findById(
       roomId,
       true
     );
@@ -87,10 +86,10 @@ export class NowPlayingWorker {
 
     let currentTrack: NowPlayingItemDbObject | null = null;
 
-    const firstTrackInQueue = await this.queueService.shiftItem(queueId);
+    const firstTrackInQueue = await this.services.Queue.shiftItem(queueId);
 
     if (firstTrackInQueue) {
-      const detailNextTrack = await this.trackService.findOrCreate(
+      const detailNextTrack = await this.services.Track.findOrCreate(
         firstTrackInQueue.trackId
       );
 
@@ -110,9 +109,15 @@ export class NowPlayingWorker {
     if (currentTrack) {
       // Push previous nowPlaying to played queue
       if (prevCurrentTrack)
-        await this.queueService.pushItems(playedQueueId, prevCurrentTrack);
-
-      await this.nowPlayingService.setById(roomId, currentTrack);
+        await this.services.Queue.pushItems(playedQueueId, prevCurrentTrack);
+      // Save currentTrack
+      await this.services.NowPlaying.setById(roomId, currentTrack);
+      // Send message
+      await this.services.Message.add(`room:${roomId}`, {
+        creatorId: currentTrack.creatorId,
+        type: MessageType.Play,
+        text: currentTrack.trackId,
+      });
       // Setup future job
       this.addJob(roomId, currentTrack.endedAt.getTime() - now.getTime());
     } else {
@@ -120,8 +125,8 @@ export class NowPlayingWorker {
     }
 
     // Publish to subscription
-    this.nowPlayingService.notifyUpdate(roomId, currentTrack);
-    this.nowPlayingService.notifyReactionUpdate(roomId, undefined);
+    this.services.NowPlaying.notifyUpdate(roomId, currentTrack);
+    this.services.NowPlaying.notifyReactionUpdate(roomId, undefined);
 
     return currentTrack;
   }

@@ -7,5 +7,6 @@ export {
   RoomState,
   NowPlayingReaction,
   NowPlayingReactionType,
+  MessageType,
 } from "./graphql.gen";
 export * from "./utils";

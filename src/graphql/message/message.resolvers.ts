@@ -1,57 +1,38 @@
-import { nanoid } from "nanoid/non-secure";
-import { AuthenticationError } from "../../error/index";
+import { AuthenticationError, ForbiddenError } from "../../error/index";
 import { PUBSUB_CHANNELS } from "../../lib/constant";
+import { MessageType } from "../../types";
 
 import type { Resolvers } from "../../types";
 
 const resolvers: Resolvers = {
   Subscription: {
     messageAdded: {
-      subscribe(parent, { roomId }, { pubsub }) {
+      subscribe(parent, { id }, { pubsub }) {
         return pubsub.on(
           PUBSUB_CHANNELS.messageAdded,
-          (payload) => payload.messageAdded.roomId === roomId
+          (payload) => payload.id === id
         );
       },
     },
   },
-  Message: {
-    async from(parent, args, { services }) {
-      const from = {
-        name: "Unknown",
-        id: parent.from.id,
-        type: parent.from.type,
-        photo: `https://avatar.tobi.sh/${parent.from.id}`,
-        uri: process.env.APP_URI as string,
-      };
-      if (from.type === "user") {
-        const user = await services.User.findById(from.id);
-        // FIXME; user?.username is not consistent
-        from.name = user?.username || from.name;
-        from.photo = user?.profilePicture || from.photo;
-        if (user) from.uri = `${process.env.APP_URI}/@${user.username}`;
-      }
-      return from;
+  Query: {
+    messages(parent, { id, offset, limit }, { user, services }) {
+      limit = limit || 20; // limit = 0 is invalid
+      offset = offset || 0;
+      if (limit > 20) throw new ForbiddenError("Too large limit");
+      if (!user) return null;
+      const stop = -offset - 1;
+      const start = stop - limit + 1;
+      return services.Message.findById(id, start, stop);
     },
   },
   Mutation: {
-    async addMessage(parents, { roomId, message }, { user, pubsub }) {
+    async addMessage(parents, { id, text }, { user, services }) {
       if (!user) throw new AuthenticationError("");
-
-      const messageAdded = {
-        id: nanoid(12),
-        roomId,
-        createdAt: new Date(),
-        message,
-        from: {
-          type: "user",
-          id: user._id,
-        },
-      };
-      pubsub.publish(PUBSUB_CHANNELS.messageAdded, {
-        messageAdded,
-      });
-      return true;
+      return !!(await services.Message.add(id, {
+        text,
+        type: MessageType.Message,
+      }));
     },
   },
 };

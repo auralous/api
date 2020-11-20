@@ -6,7 +6,7 @@ import {
   UserInputError,
 } from "../error/index";
 import { deleteByPattern } from "../db/redis";
-import { PUBSUB_CHANNELS, REDIS_KEY } from "../lib/constant";
+import { PUBSUB_CHANNELS, REDIS_KEY, CONFIG } from "../lib/constant";
 import { deleteCloudinaryImagesByPrefix } from "../lib/cloudinary";
 import {
   MessageType,
@@ -72,7 +72,7 @@ export class RoomService {
     return room;
   }
 
-  notifyStateUpdate(id: string) {
+  private notifyStateUpdate(id: string) {
     this.context.pubsub.publish(PUBSUB_CHANNELS.roomStateUpdated, {
       roomStateUpdated: this.getRoomState(id),
     });
@@ -89,7 +89,7 @@ export class RoomService {
 
     return {
       id,
-      userIds: isViewable ? await this.getCurrentUsers(id) : [],
+      userIds: isViewable ? await this.getPresences(id) : [],
       anyoneCanAdd: room.anyoneCanAdd || false,
       collabs: (isViewable && room.collabs) || [],
     };
@@ -244,21 +244,34 @@ export class RoomService {
     );
   }
 
-  async setUserPresence(_id: string, userId: string, joining: boolean) {
-    const result = await this.context.redis[joining ? "sadd" : "srem"](
-      REDIS_KEY.roomUsers(_id),
-      userId
+  async pingPresence(roomId: string, userId: string): Promise<void> {
+    if (!this.isViewable(roomId, userId)) return;
+    const now = Date.now();
+    // when was user last in room or possibly NaN if never in
+    const lastTimestamp: number = parseInt(
+      await this.context.redis.zscore(REDIS_KEY.roomUsers(roomId), userId),
+      10
     );
-    if (joining && result)
-      this.messageService.add(`room:${_id}`, {
-        text: _id,
+
+    if (!lastTimestamp || now - lastTimestamp > CONFIG.activityTimeout) {
+      // notify that user just joined
+      this.messageService.add(`room:${roomId}`, {
+        text: roomId,
         type: MessageType.Join,
         creatorId: userId,
       });
-    this.notifyStateUpdate(_id);
+    }
+
+    // Ping that user is still here
+    this.context.redis.zadd(REDIS_KEY.roomUsers(roomId), now, userId);
   }
 
-  async getCurrentUsers(_id: string): Promise<string[]> {
-    return this.context.redis.smembers(REDIS_KEY.roomUsers(_id));
+  async getPresences(_id: string): Promise<string[]> {
+    const minRange = Date.now() - CONFIG.activityTimeout;
+    return this.context.redis.zrevrangebyscore(
+      REDIS_KEY.roomUsers(_id),
+      Infinity,
+      minRange
+    );
   }
 }

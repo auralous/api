@@ -1,7 +1,7 @@
 import crypto from "crypto";
 import { Benzene, httpHandler, persistedQueryPresets } from "@benzene/server";
 import { wsHandler } from "@benzene/ws";
-import { formatError, getOperationAST } from "graphql";
+import { formatError } from "graphql";
 import * as Sentry from "@sentry/node";
 
 import schema from "./graphql/schema";
@@ -11,7 +11,6 @@ import { Services } from "./services/index";
 
 import type { Db } from "mongodb";
 import type IORedis from "ioredis";
-import type { SubscriptionConnection } from "@benzene/ws";
 import type { PubSub } from "./lib/pubsub";
 import type {
   UserDbObject,
@@ -79,14 +78,6 @@ export function buildGraphQLServer(
 
   // ws
 
-  const $onSubComplete = Symbol("conn#onSubComplete");
-
-  const getOnSubCompleteObject = (
-    t: SubscriptionConnection & {
-      [$onSubComplete]?: { [key: string]: () => void };
-    }
-  ) => (t[$onSubComplete] = t[$onSubComplete] || {});
-
   const wsHandle = wsHandler(GQL, {
     context: async (
       socket,
@@ -102,30 +93,6 @@ export function buildGraphQLServer(
       // setCacheControl is irrelavant in ws
       ctx.setCacheControl = () => undefined;
       return ctx;
-    },
-    onStart(id, { document, contextValue, variableValues }) {
-      // Register user appearance in room
-      if (getOperationAST(document)?.name?.value === "onNowPlayingUpdated") {
-        const onSubComplete = getOnSubCompleteObject(this);
-        const context = contextValue as MyGQLContext;
-        if (!context.user) return;
-        context.services.Room.setUserPresence(
-          variableValues?.id,
-          context.user._id,
-          true
-        );
-        onSubComplete[id] = () =>
-          context.user &&
-          context.services.Room.setUserPresence(
-            variableValues?.id,
-            context.user._id,
-            false
-          );
-      }
-    },
-    onComplete(id) {
-      const onSubComplete = getOnSubCompleteObject(this);
-      onSubComplete[id]?.();
     },
   });
 

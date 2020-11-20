@@ -37,6 +37,7 @@ export const CONFIG = {
   searchMaxAge: 2 * 60 * 60,
   searchPlaylistMaxAge: 10 * 60,
   randomRoomsMaxAge: 10 * 60,
+  activityTimeout: 120 * 1000, // room precense: if user does not ping in 2min, they are considered left
 } as const;
 
 export const PUBSUB_CHANNELS = {

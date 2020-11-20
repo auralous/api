@@ -104,6 +104,11 @@ const resolvers: Resolvers = {
       await services.Room.deleteById(id);
       return id;
     },
+    pingRoom(parent, { id }, { services, user }) {
+      if (!user) return false;
+      services.Room.pingPresence(id, user._id);
+      return true;
+    },
   },
   Subscription: {
     roomStateUpdated: {

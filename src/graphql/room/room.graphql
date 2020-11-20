@@ -17,6 +17,7 @@ type Mutation {
   joinPrivateRoom(id: ID!, password: String!): Boolean!
   updateRoomMembership(id: ID!, username: String, userId: String, role: RoomMembership): Boolean!
   deleteRoom(id: ID!): ID!
+  pingRoom(id: ID!): Boolean!
 }
 
 type Subscription {

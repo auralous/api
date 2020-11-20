@@ -249,27 +249,34 @@ export class RoomService {
     const now = Date.now();
     // when was user last in room or possibly NaN if never in
     const lastTimestamp: number = parseInt(
-      await this.context.redis.zscore(REDIS_KEY.roomUsers(roomId), userId),
+      await this.context.redis.zscore(REDIS_KEY.roomUserStatus(roomId), userId),
       10
     );
 
-    if (!lastTimestamp || now - lastTimestamp > CONFIG.activityTimeout) {
+    const justJoined =
+      !lastTimestamp || now - lastTimestamp > CONFIG.activityTimeout;
+
+    // Ping that user is still here
+    await this.context.redis.zadd(
+      REDIS_KEY.roomUserStatus(roomId),
+      now,
+      userId
+    );
+    if (justJoined) {
       // notify that user just joined
       this.messageService.add(`room:${roomId}`, {
         text: roomId,
         type: MessageType.Join,
         creatorId: userId,
       });
+      this.notifyStateUpdate(roomId);
     }
-
-    // Ping that user is still here
-    this.context.redis.zadd(REDIS_KEY.roomUsers(roomId), now, userId);
   }
 
   async getPresences(_id: string): Promise<string[]> {
     const minRange = Date.now() - CONFIG.activityTimeout;
     return this.context.redis.zrevrangebyscore(
-      REDIS_KEY.roomUsers(_id),
+      REDIS_KEY.roomUserStatus(_id),
       Infinity,
       minRange
     );

@@ -1,5 +1,4 @@
 import { PUBSUB_CHANNELS } from "../../lib/constant";
-import { NowPlayingReactionType } from "../../types/index";
 
 import type { Resolvers } from "../../types/index";
 
@@ -14,19 +13,10 @@ const resolvers: Resolvers = {
     },
     async nowPlayingReactions(parent, { id }, { services }) {
       const currentTrack = await services.NowPlaying.findById(id);
-      return currentTrack
-        ? await services.NowPlaying._getReactionsCountAndMine(
-            id,
-            currentTrack.id
-          )
-        : {
-            id,
-            mine: null,
-            [NowPlayingReactionType.Heart]: 0,
-            [NowPlayingReactionType.Cry]: 0,
-            [NowPlayingReactionType.Joy]: 0,
-            [NowPlayingReactionType.Fire]: 0,
-          };
+      return services.NowPlaying._getReactionsCountAndMine(
+        id,
+        currentTrack?.id
+      );
     },
   },
   Mutation: {

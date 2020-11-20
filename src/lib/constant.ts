@@ -2,8 +2,8 @@ export const MAX_TRACK_DURATION = 7 * 60 * 1000;
 
 export const REDIS_KEY = {
   room: (roomId: string) => `room:${roomId}`,
-  roomUsers(roomId: string) {
-    return `${this.room(roomId)}:users`;
+  roomUserStatus(roomId: string) {
+    return `${this.room(roomId)}:userStatus`;
   },
   nowPlaying(roomId: string) {
     return `room:${roomId}:playing`;
@@ -37,10 +37,11 @@ export const CONFIG = {
   searchMaxAge: 2 * 60 * 60,
   searchPlaylistMaxAge: 10 * 60,
   randomRoomsMaxAge: 10 * 60,
+  activityTimeout: 60 * 1000, // room precense: if user does not ping in 1 min, they are considered left
 } as const;
 
 export const PUBSUB_CHANNELS = {
-  nowPlayingResolve: "NOW_PLAYING_RESOLVE",
+  nowPlayingWorker: "NOW_PLAYING_WORKER",
   nowPlayingUpdated: "NOW_PLAYING_UPDATED",
   nowPlayingReactionsUpdated: "NOW_PLAYING_REACTIONS_UPDATED",
   roomStateUpdated: "ROOM_STATE_UPDATED",

@@ -33,7 +33,7 @@ const resolvers: Resolvers = {
   Mutation: {
     createRoom(
       parent,
-      { title, description, isPublic, anyoneCanAdd },
+      { title, description, isPublic, anyoneCanAdd, password },
       { services }
     ) {
       return services.Room.create({
@@ -41,6 +41,7 @@ const resolvers: Resolvers = {
         description,
         isPublic,
         anyoneCanAdd,
+        password,
       });
     },
     async updateRoom(
@@ -103,6 +104,11 @@ const resolvers: Resolvers = {
     async deleteRoom(parent, { id }, { services }) {
       await services.Room.deleteById(id);
       return id;
+    },
+    pingRoom(parent, { id }, { services, user }) {
+      if (!user) return false;
+      services.Room.pingPresence(id, user._id);
+      return true;
     },
   },
   Subscription: {

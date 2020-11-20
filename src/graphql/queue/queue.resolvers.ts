@@ -1,3 +1,4 @@
+import { NowPlayingWorker } from "../../services/nowPlayingWorker";
 import {
   AuthenticationError,
   ForbiddenError,
@@ -11,7 +12,9 @@ const resolvers: Resolvers = {
   Query: {
     async queue(parent, { id }, { services, user }) {
       const [, roomId] = id.split(":");
-      if (!(await services.Room.isViewable(roomId, user?._id))) return null;
+      const room = await services.Room.findById(roomId);
+      if (!room || !services.Room.getPermission(room, user?._id).viewable)
+        return null;
       return { id, items: [] };
     },
   },
@@ -19,28 +22,21 @@ const resolvers: Resolvers = {
     async updateQueue(
       parent,
       { id, action, tracks, position, insertPosition },
-      { user, services }
+      { user, services, pubsub }
     ) {
       if (!user) throw new AuthenticationError("");
       const room = await services.Room.findById(id.substring(5));
       if (!room) throw new ForbiddenError("Room does not exist");
 
       // Check permission
-      const canEditOthers = user._id === room.creatorId;
-      const canAdd =
-        !!user &&
-        Boolean(
-          room.creatorId === user._id ||
-            (room.isPublic && room.anyoneCanAdd) ||
-            services.Room.isMember(room._id, user._id)
-        );
+      const roomPermission = services.Room.getPermission(room, user._id);
 
       const queue = await services.Queue.findById(id);
 
       switch (action) {
         case "add": {
           if (!tracks) throw new UserInputError("Missing tracks", ["tracks"]);
-          if (!canAdd)
+          if (!roomPermission.queueCanAdd)
             throw new ForbiddenError(
               "You are not allowed to add to this queue"
             );
@@ -58,7 +54,10 @@ const resolvers: Resolvers = {
           if (typeof position !== "number")
             throw new UserInputError("Missing position", ["position"]);
 
-          if (!canEditOthers && queue[position].creatorId !== user._id)
+          if (
+            !roomPermission.queueCanManage &&
+            queue[position].creatorId !== user._id
+          )
             throw new ForbiddenError(`You cannot remove other people's tracks`);
 
           await services.Queue.removeItem(id, position);
@@ -73,7 +72,7 @@ const resolvers: Resolvers = {
               "position",
             ]);
 
-          if (!canEditOthers)
+          if (!roomPermission.queueCanManage)
             throw new ForbiddenError(
               `You cannot reorder other people's tracks`
             );
@@ -81,7 +80,7 @@ const resolvers: Resolvers = {
           await services.Queue.reorderItems(id, position, insertPosition);
           break;
         case "clear":
-          if (!canEditOthers)
+          if (!roomPermission.queueCanManage)
             throw new ForbiddenError(`You cannot remove other people's tracks`);
 
           await services.Queue.deleteById(id);
@@ -91,7 +90,7 @@ const resolvers: Resolvers = {
       }
 
       // Async check if nowPlaying should be reResolved
-      services.NowPlaying.requestResolve(room._id);
+      NowPlayingWorker.requestResolve(pubsub, room._id);
 
       return true;
     },
@@ -99,7 +98,7 @@ const resolvers: Resolvers = {
   Subscription: {
     queueUpdated: {
       subscribe(parent, { id }, { pubsub }) {
-        // TODO: Block guest from subscribe to private room
+        // FIXME: This allows nonmember to subscribe
         return pubsub.on(
           PUBSUB_CHANNELS.queueUpdated,
           (payload) => payload.queueUpdated.id === id
@@ -109,8 +108,6 @@ const resolvers: Resolvers = {
   },
   Queue: {
     async items({ id }, args, { services }) {
-      // if (!(await services.Room.isViewable(id, user?._id)))
-      //   return [];
       return services.Queue.findById(id);
     },
   },

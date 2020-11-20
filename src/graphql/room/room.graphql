@@ -17,6 +17,7 @@ type Mutation {
   joinPrivateRoom(id: ID!, password: String!): Boolean!
   updateRoomMembership(id: ID!, username: String, userId: String, role: RoomMembership): Boolean!
   deleteRoom(id: ID!): ID!
+  pingRoom(id: ID!): Boolean!
 }
 
 type Subscription {
@@ -33,10 +34,17 @@ type Room {
   createdAt: DateTime!
 }
 
+type RoomPermission {
+  viewable: Boolean!
+  queueCanAdd: Boolean!
+  queueCanManage: Boolean!
+}
+
 type RoomState {
   id: ID!
   userIds: [String!]!
   # Settings
   anyoneCanAdd: Boolean!
   collabs: [String!]!
+  permission: RoomPermission!
 }

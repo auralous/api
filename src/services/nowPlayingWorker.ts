@@ -1,5 +1,5 @@
 import { Services } from "../services/index";
-import { PUBSUB_CHANNELS } from "../lib/constant";
+import { PUBSUB_CHANNELS, REDIS_KEY } from "../lib/constant";
 
 import type { Db } from "mongodb";
 import type Redis from "ioredis";
@@ -11,18 +11,33 @@ import {
 } from "../types/index";
 
 export class NowPlayingWorker {
-  timers: {
-    [id: string]: NodeJS.Timeout;
-  } = {};
+  private timers = new Map<string, NodeJS.Timeout>();
   private services: Services;
 
-  constructor(db: Db, redis: Redis.Cluster, private pubsub: PubSub) {
-    pubsub.sub.subscribe(PUBSUB_CHANNELS.nowPlayingResolve);
-    pubsub.sub.on(
-      "message",
-      (channel, id) =>
-        channel === PUBSUB_CHANNELS.nowPlayingResolve && this.addJob(id, 0)
+  static requestResolve(pubsub: PubSub, id: string) {
+    return pubsub.pub.publish(
+      PUBSUB_CHANNELS.nowPlayingWorker,
+      `resolve|${id}`
     );
+  }
+
+  static requestSkip(pubsub: PubSub, id: string) {
+    const a = pubsub.pub.publish(
+      PUBSUB_CHANNELS.nowPlayingWorker,
+      `skip|${id}`
+    );
+    return a;
+  }
+
+  constructor(db: Db, private redis: Redis.Cluster, private pubsub: PubSub) {
+    //this.resolve = this.resolve.bind(this);
+    pubsub.sub.subscribe(PUBSUB_CHANNELS.nowPlayingWorker);
+    pubsub.sub.on("message", (channel, message: string) => {
+      // message has a format of action|roomId where action can either be 'skip' or 'resolve'
+      const [action, roomId] = message.split("|");
+      if (action === "resolve") this.resolve(roomId);
+      else if (action === "skip") this.skip(roomId);
+    });
     this.services = new Services({
       user: null,
       db,
@@ -44,24 +59,45 @@ export class NowPlayingWorker {
       .toArray();
 
     for (const room of roomArray) {
-      this.addJob(room._id, 0);
+      this.resolve(room._id);
     }
+  }
+
+  private setNowPlayingById(id: string, queueItem: NowPlayingItemDbObject) {
+    return this.redis
+      .set(
+        REDIS_KEY.nowPlaying(id),
+        this.services.Queue.stringifyItem(queueItem)
+      )
+      .then(Boolean);
   }
 
   static start(db: Db, redis: Redis.Cluster, pubsub: PubSub) {
     return new NowPlayingWorker(db, redis, pubsub);
   }
 
-  addJob(id: string, delay: number) {
-    // Cancel previous job
-    clearTimeout(this.timers[id]);
-    // Schedule new job
-    this.timers[id] = setTimeout(() => this.resolveRoom(id), delay);
+  schedule(roomId: string, ms: number) {
+    this.timers.set(roomId, setTimeout(this.resolve, ms, roomId));
   }
 
-  private async resolveRoom(
+  private async skip(roomId: string): Promise<boolean> {
+    const lastPlaying = await this.services.NowPlaying.findById(roomId);
+    if (!lastPlaying) return false;
+    // Make it end right now
+    lastPlaying.endedAt = new Date();
+    return this.setNowPlayingById(roomId, lastPlaying).then(() =>
+      this.resolve(roomId).then(Boolean)
+    );
+  }
+
+  private async resolve(
     roomId: string
   ): Promise<NowPlayingItemDbObject | null> {
+    // Cancel previous job
+    const prevTimer = this.timers.get(roomId);
+    prevTimer && clearTimeout(prevTimer);
+
+    // Now timestamp
     const now = new Date();
 
     const prevCurrentTrack = await this.services.NowPlaying.findById(
@@ -69,15 +105,13 @@ export class NowPlayingWorker {
       true
     );
 
-    const prevPlayed = prevCurrentTrack && prevCurrentTrack.endedAt < now;
-
-    if (prevCurrentTrack && !prevPlayed) {
+    if (prevCurrentTrack && prevCurrentTrack.endedAt < now) {
       // No need to execute, there is still a nowPlaying track
       const retryIn = Math.max(
         0,
         prevCurrentTrack.endedAt.getTime() - now.getTime()
       );
-      this.addJob(roomId, retryIn);
+      this.schedule(roomId, retryIn);
       return prevCurrentTrack;
     }
 
@@ -111,7 +145,7 @@ export class NowPlayingWorker {
       if (prevCurrentTrack)
         await this.services.Queue.pushItems(playedQueueId, prevCurrentTrack);
       // Save currentTrack
-      await this.services.NowPlaying.setById(roomId, currentTrack);
+      await this.setNowPlayingById(roomId, currentTrack);
       // Send message
       await this.services.Message.add(`room:${roomId}`, {
         creatorId: currentTrack.creatorId,
@@ -119,7 +153,7 @@ export class NowPlayingWorker {
         text: currentTrack.trackId,
       });
       // Setup future job
-      this.addJob(roomId, currentTrack.endedAt.getTime() - now.getTime());
+      this.schedule(roomId, currentTrack.endedAt.getTime() - now.getTime());
     } else {
       // Cannot figure out a current track
     }

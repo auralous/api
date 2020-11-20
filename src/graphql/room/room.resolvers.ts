@@ -33,7 +33,7 @@ const resolvers: Resolvers = {
   Mutation: {
     createRoom(
       parent,
-      { title, description, isPublic, anyoneCanAdd },
+      { title, description, isPublic, anyoneCanAdd, password },
       { services }
     ) {
       return services.Room.create({
@@ -41,6 +41,7 @@ const resolvers: Resolvers = {
         description,
         isPublic,
         anyoneCanAdd,
+        password,
       });
     },
     async updateRoom(

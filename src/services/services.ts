@@ -8,12 +8,12 @@ import { MessageService } from "./message";
 import type { ServiceContext } from "./types";
 
 export default class Services {
-  // These three or deps-free and safe to use
+  // These are deps-free and safe to use
   User = new UserService(this.context);
   Queue = new QueueService(this.context);
   Track = new TrackService(this.context);
+  Room = new RoomService(this.context);
   // These three depends on others and can be unsafe
-  Room = new RoomService(this.context, this.User);
   Message = new MessageService(this.context, this.Room);
   NowPlaying = new NowPlayingService(this.context, this.Queue, this.Room);
 

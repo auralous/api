@@ -8,10 +8,9 @@ import {
 import { deleteByPattern } from "../db/redis";
 import { PUBSUB_CHANNELS, REDIS_KEY } from "../lib/constant";
 import { deleteCloudinaryImagesByPrefix } from "../lib/cloudinary";
-import { RoomMembership, RoomState } from "../types/index";
+import { RoomMembership, RoomState, UserDbObject } from "../types/index";
 
 import type { UpdateQuery } from "mongodb";
-import type { UserService } from "./user";
 import type { ServiceContext } from "./types";
 import type { RoomDbObject, NullablePartial } from "../types/index";
 
@@ -19,10 +18,7 @@ export class RoomService {
   private collection = this.context.db.collection<RoomDbObject>("rooms");
   private loader: DataLoader<string, RoomDbObject | null>;
 
-  constructor(
-    private context: ServiceContext,
-    private userService: UserService
-  ) {
+  constructor(private context: ServiceContext) {
     this.loader = new DataLoader(
       async (keys) => {
         const rooms = await this.collection
@@ -160,19 +156,11 @@ export class RoomService {
 
   async updateMembershipById(
     _id: string,
-    username: string,
+    addingUser: UserDbObject,
     role?: RoomMembership | null,
-    isUserId = false,
     DANGEROUSLY_BYPASS_CHECK = false
   ) {
     if (!this.context.user) throw new AuthenticationError("");
-
-    const addingUser = await this.userService[
-      isUserId ? "findById" : "findByUsername"
-    ](username);
-
-    if (!addingUser)
-      throw new UserInputError("User does not exist", ["username"]);
 
     if (addingUser._id === this.context.user._id && !DANGEROUSLY_BYPASS_CHECK)
       throw new UserInputError(
@@ -227,15 +215,6 @@ export class RoomService {
       ),
       deleteByPattern(this.context.redis, `${REDIS_KEY.room(_id)}:*`),
     ]);
-    return true;
-  }
-
-  async deleteByCreatorId(creatorId: string) {
-    // Internal API. Used when deleting user
-    const rooms = await this.findByCreatorId(creatorId);
-    for (const room of rooms) {
-      await this.deleteById(room._id);
-    }
     return true;
   }
 

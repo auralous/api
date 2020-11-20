@@ -8,5 +8,6 @@ export {
   NowPlayingReaction,
   NowPlayingReactionType,
   MessageType,
+  RoomPermission,
 } from "./graphql.gen";
 export * from "./utils";

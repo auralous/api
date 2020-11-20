@@ -34,10 +34,17 @@ type Room {
   createdAt: DateTime!
 }
 
+type RoomPermission {
+  viewable: Boolean!
+  queueCanAdd: Boolean!
+  queueCanManage: Boolean!
+}
+
 type RoomState {
   id: ID!
   userIds: [String!]!
   # Settings
   anyoneCanAdd: Boolean!
   collabs: [String!]!
+  permission: RoomPermission!
 }

@@ -7,13 +7,8 @@ import type { Resolvers } from "../../types";
 const resolvers: Resolvers = {
   Subscription: {
     messageAdded: {
-      subscribe(parent, { id }, { pubsub, user, services }) {
-        if (
-          !user ||
-          !services.Room.isViewable(REDIS_KEY.message(id).id, user._id)
-        )
-          // id is roomId
-          throw new ForbiddenError("Cannot subscribe to this room");
+      subscribe(parent, { id }, { pubsub }) {
+        // FIXME: This allows nonmember to subscribe
         return pubsub.on(
           PUBSUB_CHANNELS.messageAdded,
           (payload) => payload.id === id
@@ -22,17 +17,15 @@ const resolvers: Resolvers = {
     },
   },
   Query: {
-    messages(parent, { id, offset, limit }, { user, services }) {
+    async messages(parent, { id, offset, limit }, { user, services }) {
       limit = limit || 20; // limit = 0 is invalid
       offset = offset || 0;
       if (limit > 20) throw new ForbiddenError("Too large limit");
       const stop = -offset - 1;
       const start = stop - limit + 1;
       // id is roomId
-      if (
-        !user ||
-        !services.Room.isViewable(REDIS_KEY.message(id).id, user._id)
-      )
+      const room = await services.Room.findById(REDIS_KEY.message(id).id);
+      if (!room || !services.Room.getPermission(room, user?._id).viewable)
         return null;
       return services.Message.findById(id, start, stop);
     },
@@ -42,7 +35,9 @@ const resolvers: Resolvers = {
       if (!user) throw new AuthenticationError("");
 
       // id is roomId
-      if (!(await services.Room.isViewable(REDIS_KEY.message(id).id, user._id)))
+      const room = await services.Room.findById(REDIS_KEY.message(id).id);
+
+      if (!room || !services.Room.getPermission(room, user._id).viewable)
         throw new ForbiddenError(
           "You are not allowed to send message to this channel"
         );

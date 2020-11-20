@@ -8,16 +8,17 @@ import {
 import { deleteByPattern } from "../db/redis";
 import { PUBSUB_CHANNELS, REDIS_KEY, CONFIG } from "../lib/constant";
 import { deleteCloudinaryImagesByPrefix } from "../lib/cloudinary";
-import {
-  MessageType,
-  RoomMembership,
-  RoomState,
-  UserDbObject,
-} from "../types/index";
+import { MessageType, RoomMembership } from "../types/index";
 
 import type { UpdateQuery } from "mongodb";
 import type { ServiceContext } from "./types";
-import type { RoomDbObject, NullablePartial } from "../types/index";
+import type {
+  RoomDbObject,
+  NullablePartial,
+  RoomPermission,
+  RoomState,
+  UserDbObject,
+} from "../types/index";
 import type { MessageService } from "./message";
 
 export class RoomService {
@@ -84,14 +85,14 @@ export class RoomService {
 
   async getRoomState(id: string): Promise<RoomState | null> {
     const room = await this.findById(id);
-    const isViewable = this.isViewable(id, this.context.user?._id);
     if (!room) return null;
-
+    const permission = this.getPermission(room, this.context.user?._id);
     return {
       id,
-      userIds: isViewable ? await this.getPresences(id) : [],
+      userIds: permission.viewable ? await this.getPresences(id) : [],
       anyoneCanAdd: room.anyoneCanAdd || false,
-      collabs: (isViewable && room.collabs) || [],
+      collabs: (permission.viewable && room.collabs) || [],
+      permission: permission,
     };
   }
 
@@ -151,16 +152,20 @@ export class RoomService {
     return room;
   }
 
-  async isViewable(id: string, userId?: string): Promise<boolean> {
-    const room = await this.findById(id);
-    if (!room) return false;
-    return room.isPublic || this.isMember(id, userId);
-  }
-
-  async isMember(id: string, userId?: string): Promise<boolean> {
-    const room = await this.findById(id);
-    if (!room || !userId) return false;
-    return room.creatorId === userId || !!room.collabs?.includes(userId);
+  getPermission(
+    room: RoomDbObject,
+    userId: string | undefined
+  ): RoomPermission {
+    const isMember =
+      !!userId &&
+      (room.creatorId === userId || !!room.collabs?.includes(userId));
+    return {
+      viewable: room.isPublic || isMember,
+      queueCanAdd:
+        Boolean(userId) &&
+        (room.creatorId === userId || isMember || Boolean(room.anyoneCanAdd)),
+      queueCanManage: room.creatorId === userId,
+    };
   }
 
   async updateMembershipById(
@@ -245,7 +250,8 @@ export class RoomService {
   }
 
   async pingPresence(roomId: string, userId: string): Promise<void> {
-    if (!this.isViewable(roomId, userId)) return;
+    const room = await this.findById(roomId);
+    if (!room || !this.getPermission(room, userId).viewable) return;
     const now = Date.now();
     // when was user last in room or possibly NaN if never in
     const lastTimestamp: number = parseInt(

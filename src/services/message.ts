@@ -1,9 +1,7 @@
 import fastJson from "fast-json-stringify";
 import { nanoid } from "nanoid/non-secure";
-import { AuthenticationError, ForbiddenError } from "../error";
 
 import { REDIS_KEY, PUBSUB_CHANNELS } from "../lib/constant";
-import type { RoomService } from "./room";
 import type { ServiceContext } from "./types";
 import type { MessageDbObject } from "../types";
 
@@ -21,10 +19,7 @@ const messageStringify = fastJson({
 });
 
 export class MessageService {
-  constructor(
-    private context: ServiceContext,
-    private roomService: RoomService
-  ) {}
+  constructor(private context: ServiceContext) {}
 
   private parseItem(str: string): MessageDbObject {
     return JSON.parse(str, (key, value) =>
@@ -52,37 +47,25 @@ export class MessageService {
     start = 0,
     stop = -1
   ): Promise<MessageDbObject[] | null> {
-    const { id: roomId, key } = REDIS_KEY.message(id);
-    // id is roomId
-    if (!(await this.roomService.isViewable(roomId, this.context.user?._id)))
-      return null;
     return this.context.redis
-      .lrange(key, start, stop)
+      .lrange(REDIS_KEY.message(id).key, start, stop)
       .then((strs) => strs.map(this.parseItem));
   }
 
   // add a new message
   async add(
     id: string,
-    message: Pick<MessageDbObject, "text" | "type">
+    message: Pick<MessageDbObject, "text" | "type" | "creatorId">
   ): Promise<number> {
-    if (!this.context.user?._id) throw new AuthenticationError("");
-    const { id: roomId, key } = REDIS_KEY.message(id);
-    // id is roomId
-    if (!(await this.roomService.isViewable(roomId, this.context.user._id)))
-      throw new ForbiddenError(
-        "You are not allowed to send message to this channel"
-      );
-
     const newMessage: MessageDbObject = {
       ...message,
       id: this.randomItemId(),
       createdAt: new Date(),
-      creatorId: this.context.user._id,
+      creatorId: message.creatorId,
     };
 
     const count = await this.context.redis.rpush(
-      key,
+      REDIS_KEY.message(id).key,
       this.stringifyItem(newMessage)
     );
 

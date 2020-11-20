@@ -4,7 +4,7 @@ import { uploadStreamToCloudinary } from "../../lib/cloudinary";
 import { defaultAvatar } from "../../lib/defaultAvatar";
 import { RoomMembership } from "../../types/index";
 
-import type { Resolvers } from "../../types/index";
+import type { Resolvers, UserDbObject } from "../../types/index";
 
 const resolvers: Resolvers = {
   Query: {
@@ -69,15 +69,22 @@ const resolvers: Resolvers = {
       { id, username, userId, role },
       { services }
     ) {
-      if (username)
-        await services.Room.updateMembershipById(id, username, role);
-      else if (userId)
-        await services.Room.updateMembershipById(id, userId, role, true);
-      else
-        throw new UserInputError("Must provide either username or userId", [
+      let user: UserDbObject | undefined | null;
+
+      if (username) {
+        user = await services.User.findByUsername(username);
+      } else if (userId) {
+        user = await services.User.findById(userId);
+      }
+
+      if (!user)
+        throw new UserInputError("User cannot be found", [
           "username",
           "userId",
         ]);
+
+      await services.Room.updateMembershipById(id, user, role);
+
       return true;
     },
     async joinPrivateRoom(parent, { id, password }, { services, user }) {
@@ -87,9 +94,8 @@ const resolvers: Resolvers = {
       if (room.password !== password) return false;
       await services.Room.updateMembershipById(
         id,
-        user._id,
+        user,
         RoomMembership.Collab,
-        true,
         true
       );
       return true;

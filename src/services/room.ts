@@ -73,9 +73,9 @@ export class RoomService {
     return room;
   }
 
-  private notifyStateUpdate(id: string) {
+  private async notifyStateUpdate(id: string) {
     this.context.pubsub.publish(PUBSUB_CHANNELS.roomStateUpdated, {
-      roomStateUpdated: this.getRoomState(id),
+      roomStateUpdated: await this.getRoomState(id),
     });
   }
 

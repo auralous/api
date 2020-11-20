@@ -7,6 +7,7 @@ import {
 import { PUBSUB_CHANNELS } from "../../lib/constant";
 
 import type { Resolvers } from "../../types/index";
+import { QueueAction } from "../../types/graphql.gen";
 
 const resolvers: Resolvers = {
   Query: {
@@ -34,7 +35,7 @@ const resolvers: Resolvers = {
       const queue = await services.Queue.findById(id);
 
       switch (action) {
-        case "add": {
+        case QueueAction.Add: {
           if (!tracks) throw new UserInputError("Missing tracks", ["tracks"]);
           if (!roomPermission.queueCanAdd)
             throw new ForbiddenError(
@@ -48,9 +49,12 @@ const resolvers: Resolvers = {
               creatorId: user?._id,
             }))
           );
+
+          // It is possible that adding a new item will restart nowPlaying
+          NowPlayingWorker.requestResolve(pubsub, room._id);
           break;
         }
-        case "remove":
+        case QueueAction.Remove:
           if (typeof position !== "number")
             throw new UserInputError("Missing position", ["position"]);
 
@@ -62,7 +66,7 @@ const resolvers: Resolvers = {
 
           await services.Queue.removeItem(id, position);
           break;
-        case "reorder":
+        case QueueAction.Reorder:
           if (typeof insertPosition !== "number")
             throw new UserInputError("Missing destination position", [
               "insertPosition",
@@ -79,7 +83,7 @@ const resolvers: Resolvers = {
 
           await services.Queue.reorderItems(id, position, insertPosition);
           break;
-        case "clear":
+        case QueueAction.Clear:
           if (!roomPermission.queueCanManage)
             throw new ForbiddenError(`You cannot remove other people's tracks`);
 
@@ -88,9 +92,6 @@ const resolvers: Resolvers = {
         default:
           throw new ForbiddenError("Invalid action");
       }
-
-      // Async check if nowPlaying should be reResolved
-      NowPlayingWorker.requestResolve(pubsub, room._id);
 
       return true;
     },

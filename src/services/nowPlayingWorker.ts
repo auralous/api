@@ -30,7 +30,7 @@ export class NowPlayingWorker {
   }
 
   constructor(db: Db, private redis: Redis.Cluster, private pubsub: PubSub) {
-    //this.resolve = this.resolve.bind(this);
+    this.resolve = this.resolve.bind(this);
     pubsub.sub.subscribe(PUBSUB_CHANNELS.nowPlayingWorker);
     pubsub.sub.on("message", (channel, message: string) => {
       // message has a format of action|roomId where action can either be 'skip' or 'resolve'
@@ -105,7 +105,7 @@ export class NowPlayingWorker {
       true
     );
 
-    if (prevCurrentTrack && prevCurrentTrack.endedAt < now) {
+    if (prevCurrentTrack && prevCurrentTrack.endedAt > now) {
       // No need to execute, there is still a nowPlaying track
       const retryIn = Math.max(
         0,

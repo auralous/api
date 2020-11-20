@@ -8,17 +8,26 @@ import {
 import { deleteByPattern } from "../db/redis";
 import { PUBSUB_CHANNELS, REDIS_KEY } from "../lib/constant";
 import { deleteCloudinaryImagesByPrefix } from "../lib/cloudinary";
-import { RoomMembership, RoomState, UserDbObject } from "../types/index";
+import {
+  MessageType,
+  RoomMembership,
+  RoomState,
+  UserDbObject,
+} from "../types/index";
 
 import type { UpdateQuery } from "mongodb";
 import type { ServiceContext } from "./types";
 import type { RoomDbObject, NullablePartial } from "../types/index";
+import type { MessageService } from "./message";
 
 export class RoomService {
   private collection = this.context.db.collection<RoomDbObject>("rooms");
   private loader: DataLoader<string, RoomDbObject | null>;
 
-  constructor(private context: ServiceContext) {
+  constructor(
+    private context: ServiceContext,
+    private messageService: MessageService
+  ) {
     this.loader = new DataLoader(
       async (keys) => {
         const rooms = await this.collection
@@ -236,10 +245,16 @@ export class RoomService {
   }
 
   async setUserPresence(_id: string, userId: string, joining: boolean) {
-    await this.context.redis[joining ? "sadd" : "srem"](
+    const result = await this.context.redis[joining ? "sadd" : "srem"](
       REDIS_KEY.roomUsers(_id),
       userId
     );
+    if (joining && result)
+      this.messageService.add(`room:${_id}`, {
+        text: _id,
+        type: MessageType.Join,
+        creatorId: userId,
+      });
     this.notifyStateUpdate(_id);
   }
 

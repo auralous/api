@@ -1,3 +1,4 @@
+import { NowPlayingWorker } from "../../services/nowPlayingWorker";
 import {
   AuthenticationError,
   ForbiddenError,
@@ -19,7 +20,7 @@ const resolvers: Resolvers = {
     async updateQueue(
       parent,
       { id, action, tracks, position, insertPosition },
-      { user, services }
+      { user, services, pubsub }
     ) {
       if (!user) throw new AuthenticationError("");
       const room = await services.Room.findById(id.substring(5));
@@ -91,7 +92,7 @@ const resolvers: Resolvers = {
       }
 
       // Async check if nowPlaying should be reResolved
-      services.NowPlaying.requestResolve(room._id);
+      NowPlayingWorker.requestResolve(pubsub, room._id);
 
       return true;
     },

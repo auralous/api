@@ -40,7 +40,7 @@ export const CONFIG = {
 } as const;
 
 export const PUBSUB_CHANNELS = {
-  nowPlayingResolve: "NOW_PLAYING_RESOLVE",
+  nowPlayingWorker: "NOW_PLAYING_WORKER",
   nowPlayingUpdated: "NOW_PLAYING_UPDATED",
   nowPlayingReactionsUpdated: "NOW_PLAYING_REACTIONS_UPDATED",
   roomStateUpdated: "ROOM_STATE_UPDATED",

@@ -1,5 +1,6 @@
 import { AuthenticationError, ForbiddenError } from "../error/index";
 import { PUBSUB_CHANNELS, REDIS_KEY } from "../lib/constant";
+import { NowPlayingWorker } from "./nowPlayingWorker";
 import { NowPlayingReaction, NowPlayingReactionType } from "../types/index";
 
 import type { QueueService } from "./queue";
@@ -39,25 +40,6 @@ export class NowPlayingService {
     });
   }
 
-  async requestResolve(id: string) {
-    if (!(await this.findById(id)))
-      return this.context.pubsub.pub.publish(
-        PUBSUB_CHANNELS.nowPlayingResolve,
-        id
-      );
-  }
-
-  async setById(id: string, queueItem: NowPlayingItemDbObject) {
-    await this.context.redis.set(
-      REDIS_KEY.nowPlaying(id),
-      this.queueService.stringifyItem(queueItem)
-    );
-  }
-
-  async removeById(id: string) {
-    return this.context.redis.del(REDIS_KEY.nowPlaying(id));
-  }
-
   async skipCurrentTrack(id: string): Promise<boolean> {
     if (!this.context.user) throw new AuthenticationError("");
     const room = await this.roomService.findById(id);
@@ -69,9 +51,7 @@ export class NowPlayingService {
       currentTrack.creatorId !== this.context.user._id
     )
       throw new AuthenticationError("You are not allowed to make changes");
-    await this.removeById(id);
-    await this.requestResolve(id);
-    return true;
+    return Boolean(NowPlayingWorker.requestSkip(this.context.pubsub, id));
   }
 
   // NowPlaying Reaction

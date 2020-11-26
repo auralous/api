@@ -1,7 +1,7 @@
 import type { IncomingMessage } from "http";
 import type { Db } from "mongodb";
 import type Redis from "ioredis";
-import type { SessionData } from "next-session";
+import type { Session } from "next-session/dist/types";
 import type { UserDbObject } from "./db";
 import type { PubSub } from "../lib/pubsub";
 import type { Services } from "../services/index";
@@ -10,7 +10,7 @@ import type { PlatformName } from "./graphql.gen";
 type SetCachControl = (maxAge: number, scope?: "PRIVATE" | "PUBLIC") => void;
 
 export type ExtendedIncomingMessage = IncomingMessage & {
-  session: SessionData;
+  session: Session;
   user?: UserDbObject | null;
   setCacheControl?: SetCachControl;
   is: (type: string) => boolean;

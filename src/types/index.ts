@@ -3,11 +3,11 @@ export * from "./db";
 export {
   Resolvers,
   PlatformName,
-  RoomMembership,
-  RoomState,
+  StoryMembership,
+  StoryState,
   NowPlayingReaction,
   NowPlayingReactionType,
   MessageType,
-  RoomPermission,
+  StoryPermission,
 } from "./graphql.gen";
 export * from "./utils";

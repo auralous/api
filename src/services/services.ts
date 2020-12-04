@@ -1,6 +1,6 @@
 import { NowPlayingService } from "./nowPlaying";
 import { QueueService } from "./queue";
-import { RoomService } from "./room";
+import { StoryService } from "./story";
 import { TrackService } from "./track";
 import { UserService } from "./user";
 import { MessageService } from "./message";
@@ -14,8 +14,8 @@ export default class Services {
   Track = new TrackService(this.context);
   Message = new MessageService(this.context);
   // These three depends on others and can be unsafe
-  Room = new RoomService(this.context, this.Message);
-  NowPlaying = new NowPlayingService(this.context, this.Queue, this.Room);
+  Story = new StoryService(this.context, this.Message);
+  NowPlaying = new NowPlayingService(this.context, this.Queue, this.Story);
 
   constructor(private context: ServiceContext) {}
 }

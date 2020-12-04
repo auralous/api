@@ -8,7 +8,7 @@ generates:
         User: ./db#UserDbObject
         Track: ./db#TrackDbObject
         Artist: ./db#ArtistDbObject
-        Room: ./db#RoomDbObject
+        Story: ./db#StoryDbObject
         QueueItem: ./db#QueueItemDbObject
       noSchemaStitching: true
     plugins:

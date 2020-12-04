@@ -29,7 +29,7 @@ export interface NowPlayingItemDbObject extends QueueItemDbObject {
   endedAt: Date;
 }
 
-export interface RoomDbObject {
+export interface StoryDbObject {
   _id: string;
   title: string;
   description?: string | null;

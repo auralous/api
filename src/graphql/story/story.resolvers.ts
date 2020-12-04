@@ -2,41 +2,41 @@ import { AuthenticationError, UserInputError } from "../../error/index";
 import { CONFIG, PUBSUB_CHANNELS } from "../../lib/constant";
 import { uploadStreamToCloudinary } from "../../lib/cloudinary";
 import { defaultAvatar } from "../../lib/defaultAvatar";
-import { RoomMembership } from "../../types/index";
+import { StoryMembership } from "../../types/index";
 
 import type { Resolvers, UserDbObject } from "../../types/index";
 
 const resolvers: Resolvers = {
   Query: {
-    room(parent, { id }, { services }) {
-      return services.Room.findById(id);
+    story(parent, { id }, { services }) {
+      return services.Story.findById(id);
     },
-    rooms(parent, { creatorId }, { services }) {
-      if (creatorId) return services.Room.findByCreatorId(creatorId);
+    storys(parent, { creatorId }, { services }) {
+      if (creatorId) return services.Story.findByCreatorId(creatorId);
       return null;
     },
-    async exploreRooms(parent, { by }, { services, setCacheControl }) {
+    async exploreStorys(parent, { by }, { services, setCacheControl }) {
       if (by === "random") {
-        const rooms = await services.Room.findRandom(20);
-        if (rooms) setCacheControl?.(CONFIG.randomRoomsMaxAge);
-        return rooms;
+        const storys = await services.Story.findRandom(20);
+        if (storys) setCacheControl?.(CONFIG.randomStorysMaxAge);
+        return storys;
       }
       throw new UserInputError("Invalid `by` parameter", ["by"]);
     },
-    searchRooms(parent, { query, limit }, { services }) {
-      return services.Room.search(query, limit);
+    searchStorys(parent, { query, limit }, { services }) {
+      return services.Story.search(query, limit);
     },
-    roomState(parent, { id }, { services }) {
-      return services.Room.getRoomState(id);
+    storyState(parent, { id }, { services }) {
+      return services.Story.getStoryState(id);
     },
   },
   Mutation: {
-    createRoom(
+    createStory(
       parent,
       { title, description, isPublic, anyoneCanAdd, password },
       { services }
     ) {
-      return services.Room.create({
+      return services.Story.create({
         title,
         description,
         isPublic,
@@ -44,7 +44,7 @@ const resolvers: Resolvers = {
         password,
       });
     },
-    async updateRoom(
+    async updateStory(
       parent,
       { id, title, description, image: imageFile, anyoneCanAdd, password },
       { user, services }
@@ -53,11 +53,11 @@ const resolvers: Resolvers = {
 
       const image = imageFile
         ? await uploadStreamToCloudinary((await imageFile).createReadStream(), {
-            publicId: `users/${user._id}/rooms/${id}/image`,
+            publicId: `users/${user._id}/storys/${id}/image`,
           })
         : undefined;
 
-      return services.Room.updateById(id, {
+      return services.Story.updateById(id, {
         title,
         description,
         image,
@@ -65,7 +65,7 @@ const resolvers: Resolvers = {
         password,
       });
     },
-    async updateRoomMembership(
+    async updateStoryMembership(
       parent,
       { id, username, userId, role },
       { services }
@@ -84,47 +84,47 @@ const resolvers: Resolvers = {
           "userId",
         ]);
 
-      await services.Room.updateMembershipById(id, user, role);
+      await services.Story.updateMembershipById(id, user, role);
 
       return true;
     },
-    async joinPrivateRoom(parent, { id, password }, { services, user }) {
+    async joinPrivateStory(parent, { id, password }, { services, user }) {
       if (!user) throw new AuthenticationError("");
-      const room = await services.Room.findById(id);
-      if (room?.isPublic !== false) return false;
-      if (room.password !== password) return false;
-      await services.Room.updateMembershipById(
+      const story = await services.Story.findById(id);
+      if (story?.isPublic !== false) return false;
+      if (story.password !== password) return false;
+      await services.Story.updateMembershipById(
         id,
         user,
-        RoomMembership.Collab,
+        StoryMembership.Collab,
         true
       );
       return true;
     },
-    async deleteRoom(parent, { id }, { services }) {
-      await services.Room.deleteById(id);
+    async deleteStory(parent, { id }, { services }) {
+      await services.Story.deleteById(id);
       return id;
     },
-    pingRoom(parent, { id }, { services, user }) {
+    pingStory(parent, { id }, { services, user }) {
       if (!user) return false;
-      services.Room.pingPresence(id, user._id);
+      services.Story.pingPresence(id, user._id);
       return true;
     },
   },
   Subscription: {
-    roomStateUpdated: {
+    storyStateUpdated: {
       subscribe(parent, { id }, { pubsub }) {
         return pubsub.on(
-          PUBSUB_CHANNELS.roomStateUpdated,
-          (payload) => payload.roomStateUpdated.id === id
+          PUBSUB_CHANNELS.storyStateUpdated,
+          (payload) => payload.storyStateUpdated.id === id
         );
       },
     },
   },
-  Room: {
+  Story: {
     id: ({ _id }) => _id,
     image({ image, _id }) {
-      return image || defaultAvatar("room", _id);
+      return image || defaultAvatar("story", _id);
     },
   },
 };

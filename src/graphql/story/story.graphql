@@ -1,0 +1,50 @@
+type Query {
+  story(id: ID!): Story
+  storyState(id: ID!): StoryState
+  storys(creatorId: String): [Story!]
+  exploreStorys(by: String!): [Story!]!
+  searchStorys(query: String!, limit: Int): [Story!]!
+}
+
+enum StoryMembership {
+  host
+  collab
+}
+
+type Mutation {
+  createStory(title: String!, description: String, isPublic: Boolean! anyoneCanAdd: Boolean, password: String): Story!
+  updateStory(id: ID!, title: String, description: String, image: Upload, anyoneCanAdd: Boolean, password: String): Story!
+  joinPrivateStory(id: ID!, password: String!): Boolean!
+  updateStoryMembership(id: ID!, username: String, userId: String, role: StoryMembership): Boolean!
+  deleteStory(id: ID!): ID!
+  pingStory(id: ID!): Boolean!
+}
+
+type Subscription {
+  storyStateUpdated(id: ID!): StoryState
+}
+
+type Story {
+  id: ID!
+  title: String!
+  isPublic: Boolean!
+  description: String
+  image: String!
+  creatorId: ID!
+  createdAt: DateTime!
+}
+
+type StoryPermission {
+  viewable: Boolean!
+  queueCanAdd: Boolean!
+  queueCanManage: Boolean!
+}
+
+type StoryState {
+  id: ID!
+  userIds: [String!]!
+  # Settings
+  anyoneCanAdd: Boolean!
+  collabs: [String!]!
+  permission: StoryPermission!
+}

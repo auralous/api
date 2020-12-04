@@ -8,22 +8,22 @@ import {
 import { deleteByPattern } from "../db/redis";
 import { PUBSUB_CHANNELS, REDIS_KEY, CONFIG } from "../lib/constant";
 import { deleteCloudinaryImagesByPrefix } from "../lib/cloudinary";
-import { MessageType, RoomMembership } from "../types/index";
+import { MessageType, StoryMembership } from "../types/index";
 
 import type { UpdateQuery } from "mongodb";
 import type { ServiceContext } from "./types";
 import type {
-  RoomDbObject,
+  StoryDbObject,
   NullablePartial,
-  RoomPermission,
-  RoomState,
+  StoryPermission,
+  StoryState,
   UserDbObject,
 } from "../types/index";
 import type { MessageService } from "./message";
 
-export class RoomService {
-  private collection = this.context.db.collection<RoomDbObject>("rooms");
-  private loader: DataLoader<string, RoomDbObject | null>;
+export class StoryService {
+  private collection = this.context.db.collection<StoryDbObject>("storys");
+  private loader: DataLoader<string, StoryDbObject | null>;
 
   constructor(
     private context: ServiceContext,
@@ -31,12 +31,13 @@ export class RoomService {
   ) {
     this.loader = new DataLoader(
       async (keys) => {
-        const rooms = await this.collection
+        const storys = await this.collection
           .find({ _id: { $in: keys as string[] } })
           .toArray();
         // retain order
         return keys.map(
-          (key) => rooms.find((room: RoomDbObject) => room._id === key) || null
+          (key) =>
+            storys.find((story: StoryDbObject) => story._id === key) || null
         );
       },
       { cache: !context.isWs }
@@ -58,7 +59,7 @@ export class RoomService {
   }) {
     if (!this.context.user) throw new AuthenticationError("");
     const {
-      ops: [room],
+      ops: [story],
     } = await this.collection.insertOne({
       _id: nanoid(12),
       title,
@@ -69,13 +70,13 @@ export class RoomService {
       ...(typeof anyoneCanAdd === "boolean" && { anyoneCanAdd }),
       ...(typeof password === "string" && { password }),
     });
-    this.loader.clear(room._id).prime(room._id, room);
-    return room;
+    this.loader.clear(story._id).prime(story._id, story);
+    return story;
   }
 
   private async notifyStateUpdate(id: string) {
-    this.context.pubsub.publish(PUBSUB_CHANNELS.roomStateUpdated, {
-      roomStateUpdated: await this.getRoomState(id),
+    this.context.pubsub.publish(PUBSUB_CHANNELS.storyStateUpdated, {
+      storyStateUpdated: await this.getStoryState(id),
     });
   }
 
@@ -83,15 +84,15 @@ export class RoomService {
     return this.loader.load(id);
   }
 
-  async getRoomState(id: string): Promise<RoomState | null> {
-    const room = await this.findById(id);
-    if (!room) return null;
-    const permission = this.getPermission(room, this.context.user?._id);
+  async getStoryState(id: string): Promise<StoryState | null> {
+    const story = await this.findById(id);
+    if (!story) return null;
+    const permission = this.getPermission(story, this.context.user?._id);
     return {
       id,
       userIds: permission.viewable ? await this.getPresences(id) : [],
-      anyoneCanAdd: room.anyoneCanAdd || false,
-      collabs: (permission.viewable && room.collabs) || [],
+      anyoneCanAdd: story.anyoneCanAdd || false,
+      collabs: (permission.viewable && story.collabs) || [],
       permission: permission,
     };
   }
@@ -101,15 +102,15 @@ export class RoomService {
   }
 
   async findRandom(size: number) {
-    const rooms = await this.collection
+    const storys = await this.collection
       .aggregate([{ $sample: { size } }])
       .toArray();
     // save them to cache
-    for (let i = 0; i < rooms.length; i += 1) {
-      const { _id } = rooms[i];
-      this.loader.clear(_id).prime(_id, rooms[i]);
+    for (let i = 0; i < storys.length; i += 1) {
+      const { _id } = storys[i];
+      this.loader.clear(_id).prime(_id, storys[i]);
     }
-    return rooms;
+    return storys;
   }
 
   async updateById(
@@ -121,10 +122,10 @@ export class RoomService {
       anyoneCanAdd,
       collabs,
       password,
-    }: NullablePartial<RoomDbObject>
+    }: NullablePartial<StoryDbObject>
   ) {
     if (!this.context.user) throw new AuthenticationError("");
-    const { value: room } = await this.collection.findOneAndUpdate(
+    const { value: story } = await this.collection.findOneAndUpdate(
       {
         _id,
         creatorId: this.context.user._id,
@@ -141,37 +142,37 @@ export class RoomService {
       },
       { returnOriginal: false }
     );
-    if (!room) throw new ForbiddenError("Cannot update room");
+    if (!story) throw new ForbiddenError("Cannot update story");
     // save to cache
-    this.loader.clear(_id).prime(_id, room);
+    this.loader.clear(_id).prime(_id, story);
 
-    // If anyoneCanAdd, collabs, is changed, publish to roomState
+    // If anyoneCanAdd, collabs, is changed, publish to storyState
     if (collabs || typeof anyoneCanAdd === "boolean")
       this.notifyStateUpdate(_id);
 
-    return room;
+    return story;
   }
 
   getPermission(
-    room: RoomDbObject,
+    story: StoryDbObject,
     userId: string | undefined
-  ): RoomPermission {
+  ): StoryPermission {
     const isMember =
       !!userId &&
-      (room.creatorId === userId || !!room.collabs?.includes(userId));
+      (story.creatorId === userId || !!story.collabs?.includes(userId));
     return {
-      viewable: room.isPublic || isMember,
+      viewable: story.isPublic || isMember,
       queueCanAdd:
         Boolean(userId) &&
-        (room.creatorId === userId || isMember || Boolean(room.anyoneCanAdd)),
-      queueCanManage: room.creatorId === userId,
+        (story.creatorId === userId || isMember || Boolean(story.anyoneCanAdd)),
+      queueCanManage: story.creatorId === userId,
     };
   }
 
   async updateMembershipById(
     _id: string,
     addingUser: UserDbObject,
-    role?: RoomMembership | null,
+    role?: StoryMembership | null,
     DANGEROUSLY_BYPASS_CHECK = false
   ) {
     if (!this.context.user) throw new AuthenticationError("");
@@ -182,9 +183,9 @@ export class RoomService {
         ["userId"]
       );
 
-    let update: UpdateQuery<RoomDbObject>;
+    let update: UpdateQuery<StoryDbObject>;
 
-    if (role === RoomMembership.Collab) {
+    if (role === StoryMembership.Collab) {
       update = {
         $addToSet: { collabs: addingUser._id },
       };
@@ -194,7 +195,7 @@ export class RoomService {
       };
     }
 
-    const { value: room } = await this.collection.findOneAndUpdate(
+    const { value: story } = await this.collection.findOneAndUpdate(
       {
         _id,
         ...(!DANGEROUSLY_BYPASS_CHECK && { creatorId: this.context.user._id }),
@@ -203,14 +204,14 @@ export class RoomService {
       { returnOriginal: false }
     );
 
-    if (!room) throw new ForbiddenError("Cannot update room");
+    if (!story) throw new ForbiddenError("Cannot update story");
     // save to cache
-    this.loader.clear(_id).prime(_id, room);
+    this.loader.clear(_id).prime(_id, story);
 
     // Publish
     this.notifyStateUpdate(_id);
 
-    return room;
+    return story;
   }
 
   async deleteById(_id: string) {
@@ -219,43 +220,46 @@ export class RoomService {
       _id,
       creatorId: this.context.user._id,
     });
-    if (!deletedCount) throw new ForbiddenError("Cannot delete room");
+    if (!deletedCount) throw new ForbiddenError("Cannot delete story");
     // remove from cache
     this.loader.clear(_id);
     // delete associated
     await Promise.all([
       deleteCloudinaryImagesByPrefix(
-        `users/${this.context.user._id}/rooms/${_id}`
+        `users/${this.context.user._id}/storys/${_id}`
       ),
-      deleteByPattern(this.context.redis, `${REDIS_KEY.room(_id)}:*`),
+      deleteByPattern(this.context.redis, `${REDIS_KEY.story(_id)}:*`),
     ]);
     return true;
   }
 
   async search(query: string, limit?: number | null) {
-    const rooms = await this.collection
+    const storys = await this.collection
       .aggregate([
         { $searchBeta: { search: { query, path: "title" } } },
         { $limit: limit || 30 },
       ])
       .toArray();
     // save them to cache
-    for (let i = 0; i < rooms.length; i += 1) {
-      const id = rooms[i]._id.toString();
-      this.loader.clear(id).prime(id, rooms[i]);
+    for (let i = 0; i < storys.length; i += 1) {
+      const id = storys[i]._id.toString();
+      this.loader.clear(id).prime(id, storys[i]);
     }
-    return rooms.filter(
-      (room) => room.isPublic || room.creatorId === this.context.user?._id
+    return storys.filter(
+      (story) => story.isPublic || story.creatorId === this.context.user?._id
     );
   }
 
-  async pingPresence(roomId: string, userId: string): Promise<void> {
-    const room = await this.findById(roomId);
-    if (!room || !this.getPermission(room, userId).viewable) return;
+  async pingPresence(storyId: string, userId: string): Promise<void> {
+    const story = await this.findById(storyId);
+    if (!story || !this.getPermission(story, userId).viewable) return;
     const now = Date.now();
-    // when was user last in room or possibly NaN if never in
+    // when was user last in story or possibly NaN if never in
     const lastTimestamp: number = parseInt(
-      await this.context.redis.zscore(REDIS_KEY.roomUserStatus(roomId), userId),
+      await this.context.redis.zscore(
+        REDIS_KEY.storyUserStatus(storyId),
+        userId
+      ),
       10
     );
 
@@ -264,25 +268,25 @@ export class RoomService {
 
     // Ping that user is still here
     await this.context.redis.zadd(
-      REDIS_KEY.roomUserStatus(roomId),
+      REDIS_KEY.storyUserStatus(storyId),
       now,
       userId
     );
     if (justJoined) {
       // notify that user just joined
-      this.messageService.add(`room:${roomId}`, {
-        text: roomId,
+      this.messageService.add(`story:${storyId}`, {
+        text: storyId,
         type: MessageType.Join,
         creatorId: userId,
       });
-      this.notifyStateUpdate(roomId);
+      this.notifyStateUpdate(storyId);
     }
   }
 
   async getPresences(_id: string): Promise<string[]> {
     const minRange = Date.now() - CONFIG.activityTimeout;
     return this.context.redis.zrevrangebyscore(
-      REDIS_KEY.roomUserStatus(_id),
+      REDIS_KEY.storyUserStatus(_id),
       Infinity,
       minRange
     );

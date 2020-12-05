@@ -1,9 +1,9 @@
 type Query {
   story(id: ID!): Story
   storyState(id: ID!): StoryState
-  storys(creatorId: String): [Story!]
-  exploreStorys(by: String!): [Story!]!
-  searchStorys(query: String!, limit: Int): [Story!]!
+  stories(creatorId: String): [Story!]
+  exploreStories(by: String!): [Story!]!
+  searchStories(query: String!, limit: Int): [Story!]!
 }
 
 enum StoryMembership {

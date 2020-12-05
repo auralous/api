@@ -22,7 +22,7 @@ import type {
 import type { MessageService } from "./message";
 
 export class StoryService {
-  private collection = this.context.db.collection<StoryDbObject>("storys");
+  private collection = this.context.db.collection<StoryDbObject>("stories");
   private loader: DataLoader<string, StoryDbObject | null>;
 
   constructor(
@@ -31,13 +31,13 @@ export class StoryService {
   ) {
     this.loader = new DataLoader(
       async (keys) => {
-        const storys = await this.collection
+        const stories = await this.collection
           .find({ _id: { $in: keys as string[] } })
           .toArray();
         // retain order
         return keys.map(
           (key) =>
-            storys.find((story: StoryDbObject) => story._id === key) || null
+            stories.find((story: StoryDbObject) => story._id === key) || null
         );
       },
       { cache: !context.isWs }
@@ -102,15 +102,15 @@ export class StoryService {
   }
 
   async findRandom(size: number) {
-    const storys = await this.collection
+    const stories = await this.collection
       .aggregate([{ $sample: { size } }])
       .toArray();
     // save them to cache
-    for (let i = 0; i < storys.length; i += 1) {
-      const { _id } = storys[i];
-      this.loader.clear(_id).prime(_id, storys[i]);
+    for (let i = 0; i < stories.length; i += 1) {
+      const { _id } = stories[i];
+      this.loader.clear(_id).prime(_id, stories[i]);
     }
-    return storys;
+    return stories;
   }
 
   async updateById(
@@ -226,7 +226,7 @@ export class StoryService {
     // delete associated
     await Promise.all([
       deleteCloudinaryImagesByPrefix(
-        `users/${this.context.user._id}/storys/${_id}`
+        `users/${this.context.user._id}/stories/${_id}`
       ),
       deleteByPattern(this.context.redis, `${REDIS_KEY.story(_id)}:*`),
     ]);
@@ -234,18 +234,18 @@ export class StoryService {
   }
 
   async search(query: string, limit?: number | null) {
-    const storys = await this.collection
+    const stories = await this.collection
       .aggregate([
         { $searchBeta: { search: { query, path: "title" } } },
         { $limit: limit || 30 },
       ])
       .toArray();
     // save them to cache
-    for (let i = 0; i < storys.length; i += 1) {
-      const id = storys[i]._id.toString();
-      this.loader.clear(id).prime(id, storys[i]);
+    for (let i = 0; i < stories.length; i += 1) {
+      const id = stories[i]._id.toString();
+      this.loader.clear(id).prime(id, stories[i]);
     }
-    return storys.filter(
+    return stories.filter(
       (story) => story.isPublic || story.creatorId === this.context.user?._id
     );
   }

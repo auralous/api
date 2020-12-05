@@ -39,8 +39,8 @@ const resolvers: Resolvers = {
       const deleted = await services.User.deleteMe();
       if (deleted) {
         // delete every story
-        const allStorys = await services.Story.findByCreatorId(user._id);
-        for (const story of allStorys) {
+        const allStories = await services.Story.findByCreatorId(user._id);
+        for (const story of allStories) {
           await services.Story.deleteById(story._id);
         }
       }

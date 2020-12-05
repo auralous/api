@@ -11,19 +11,19 @@ const resolvers: Resolvers = {
     story(parent, { id }, { services }) {
       return services.Story.findById(id);
     },
-    storys(parent, { creatorId }, { services }) {
+    stories(parent, { creatorId }, { services }) {
       if (creatorId) return services.Story.findByCreatorId(creatorId);
       return null;
     },
-    async exploreStorys(parent, { by }, { services, setCacheControl }) {
+    async exploreStories(parent, { by }, { services, setCacheControl }) {
       if (by === "random") {
-        const storys = await services.Story.findRandom(20);
-        if (storys) setCacheControl?.(CONFIG.randomStorysMaxAge);
-        return storys;
+        const stories = await services.Story.findRandom(20);
+        if (stories) setCacheControl?.(CONFIG.randomStoriesMaxAge);
+        return stories;
       }
       throw new UserInputError("Invalid `by` parameter", ["by"]);
     },
-    searchStorys(parent, { query, limit }, { services }) {
+    searchStories(parent, { query, limit }, { services }) {
       return services.Story.search(query, limit);
     },
     storyState(parent, { id }, { services }) {
@@ -53,7 +53,7 @@ const resolvers: Resolvers = {
 
       const image = imageFile
         ? await uploadStreamToCloudinary((await imageFile).createReadStream(), {
-            publicId: `users/${user._id}/storys/${id}/image`,
+            publicId: `users/${user._id}/stories/${id}/image`,
           })
         : undefined;
 

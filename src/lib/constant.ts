@@ -36,7 +36,7 @@ export const CONFIG = {
   userMaxAge: 4 * 60 * 60,
   searchMaxAge: 2 * 60 * 60,
   searchPlaylistMaxAge: 10 * 60,
-  randomStorysMaxAge: 10 * 60,
+  randomStoriesMaxAge: 10 * 60,
   activityTimeout: 60 * 1000, // story precense: if user does not ping in 1 min, they are considered left
 } as const;
 

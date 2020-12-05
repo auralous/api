@@ -52,9 +52,9 @@ export class NowPlayingWorker {
   private async init(db: Db) {
     console.log("Initializing NowPlaying jobs...");
     // This is called upon service startup to set up delay jobs
-    // To process NowPlaying for all storys in database
+    // To process NowPlaying for all stories in database
     const storyArray = await db
-      .collection<StoryDbObject>("storys")
+      .collection<StoryDbObject>("stories")
       .find({})
       .toArray();
 

@@ -39,8 +39,6 @@ export interface StoryDbObject {
   image?: string | null;
   // Settings
   collabs?: string[];
-  anyoneCanAdd?: boolean;
-  password?: string;
 }
 
 export interface TrackDbObject {

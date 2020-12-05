@@ -12,9 +12,8 @@ enum StoryMembership {
 }
 
 type Mutation {
-  createStory(title: String!, description: String, isPublic: Boolean! anyoneCanAdd: Boolean, password: String): Story!
-  updateStory(id: ID!, title: String, description: String, image: Upload, anyoneCanAdd: Boolean, password: String): Story!
-  joinPrivateStory(id: ID!, password: String!): Boolean!
+  createStory(title: String!, description: String, isPublic: Boolean!): Story!
+  updateStory(id: ID!, title: String, description: String, image: Upload): Story!
   updateStoryMembership(id: ID!, username: String, userId: String, role: StoryMembership): Boolean!
   deleteStory(id: ID!): ID!
   pingStory(id: ID!): Boolean!
@@ -44,7 +43,6 @@ type StoryState {
   id: ID!
   userIds: [String!]!
   # Settings
-  anyoneCanAdd: Boolean!
   collabs: [String!]!
   permission: StoryPermission!
 }

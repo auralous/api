@@ -2,7 +2,6 @@ import { AuthenticationError, UserInputError } from "../../error/index";
 import { CONFIG, PUBSUB_CHANNELS } from "../../lib/constant";
 import { uploadStreamToCloudinary } from "../../lib/cloudinary";
 import { defaultAvatar } from "../../lib/defaultAvatar";
-import { StoryMembership } from "../../types/index";
 
 import type { Resolvers, UserDbObject } from "../../types/index";
 
@@ -31,22 +30,16 @@ const resolvers: Resolvers = {
     },
   },
   Mutation: {
-    createStory(
-      parent,
-      { title, description, isPublic, anyoneCanAdd, password },
-      { services }
-    ) {
+    createStory(parent, { title, description, isPublic }, { services }) {
       return services.Story.create({
         title,
         description,
         isPublic,
-        anyoneCanAdd,
-        password,
       });
     },
     async updateStory(
       parent,
-      { id, title, description, image: imageFile, anyoneCanAdd, password },
+      { id, title, description, image: imageFile },
       { user, services }
     ) {
       if (!user) throw new AuthenticationError("");
@@ -61,8 +54,6 @@ const resolvers: Resolvers = {
         title,
         description,
         image,
-        anyoneCanAdd,
-        password,
       });
     },
     async updateStoryMembership(
@@ -86,19 +77,6 @@ const resolvers: Resolvers = {
 
       await services.Story.updateMembershipById(id, user, role);
 
-      return true;
-    },
-    async joinPrivateStory(parent, { id, password }, { services, user }) {
-      if (!user) throw new AuthenticationError("");
-      const story = await services.Story.findById(id);
-      if (story?.isPublic !== false) return false;
-      if (story.password !== password) return false;
-      await services.Story.updateMembershipById(
-        id,
-        user,
-        StoryMembership.Collab,
-        true
-      );
       return true;
     },
     async deleteStory(parent, { id }, { services }) {

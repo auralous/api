@@ -48,14 +48,10 @@ export class StoryService {
     title,
     description,
     isPublic,
-    anyoneCanAdd,
-    password,
   }: {
     title: string;
     description?: string | null;
     isPublic: boolean;
-    anyoneCanAdd?: boolean | null;
-    password?: string | null;
   }) {
     if (!this.context.user) throw new AuthenticationError("");
     const {
@@ -67,8 +63,6 @@ export class StoryService {
       isPublic,
       creatorId: this.context.user._id,
       createdAt: new Date(),
-      ...(typeof anyoneCanAdd === "boolean" && { anyoneCanAdd }),
-      ...(typeof password === "string" && { password }),
     });
     this.loader.clear(story._id).prime(story._id, story);
     return story;
@@ -91,7 +85,6 @@ export class StoryService {
     return {
       id,
       userIds: permission.viewable ? await this.getPresences(id) : [],
-      anyoneCanAdd: story.anyoneCanAdd || false,
       collabs: (permission.viewable && story.collabs) || [],
       permission: permission,
     };
@@ -115,14 +108,7 @@ export class StoryService {
 
   async updateById(
     _id: string,
-    {
-      title,
-      description,
-      image,
-      anyoneCanAdd,
-      collabs,
-      password,
-    }: NullablePartial<StoryDbObject>
+    { title, description, image, collabs }: NullablePartial<StoryDbObject>
   ) {
     if (!this.context.user) throw new AuthenticationError("");
     const { value: story } = await this.collection.findOneAndUpdate(
@@ -136,8 +122,6 @@ export class StoryService {
           ...(description !== undefined && { description }),
           ...(image !== undefined && { image }),
           ...(collabs && { collabs }),
-          ...(typeof anyoneCanAdd === "boolean" && { anyoneCanAdd }),
-          ...(typeof password === "string" && { password }),
         },
       },
       { returnOriginal: false }
@@ -146,9 +130,7 @@ export class StoryService {
     // save to cache
     this.loader.clear(_id).prime(_id, story);
 
-    // If anyoneCanAdd, collabs, is changed, publish to storyState
-    if (collabs || typeof anyoneCanAdd === "boolean")
-      this.notifyStateUpdate(_id);
+    if (collabs) this.notifyStateUpdate(_id);
 
     return story;
   }
@@ -162,9 +144,7 @@ export class StoryService {
       (story.creatorId === userId || !!story.collabs?.includes(userId));
     return {
       viewable: story.isPublic || isMember,
-      queueCanAdd:
-        Boolean(userId) &&
-        (story.creatorId === userId || isMember || Boolean(story.anyoneCanAdd)),
+      queueCanAdd: Boolean(userId) && (story.creatorId === userId || isMember),
       queueCanManage: story.creatorId === userId,
     };
   }

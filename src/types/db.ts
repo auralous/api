@@ -38,6 +38,7 @@ export interface StoryDbObject {
   image?: string | null;
   // Settings
   queueable?: string[];
+  viewable?: string[];
 }
 
 export interface TrackDbObject {

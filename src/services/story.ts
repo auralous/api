@@ -69,8 +69,8 @@ export class StoryService {
     const permission = this.getPermission(story, this.context.user?._id);
     return {
       id,
-      userIds: permission.viewable ? await this.getPresences(id) : [],
-      queueable: (permission.viewable && story.queueable) || [],
+      userIds: permission.isViewable ? await this.getPresences(id) : [],
+      queueable: (permission.isViewable && story.queueable) || [],
       permission: permission,
     };
   }
@@ -124,7 +124,8 @@ export class StoryService {
     userId: string | undefined
   ): StoryPermission {
     return {
-      viewable: story.isPublic,
+      isViewable:
+        story.isPublic || (!!userId && !!story.viewable?.includes(userId)),
       isQueueable: Boolean(
         !!userId &&
           (story.creatorId === userId || story.queueable?.includes(userId))
@@ -153,7 +154,7 @@ export class StoryService {
 
   async pingPresence(storyId: string, userId: string): Promise<void> {
     const story = await this.findById(storyId);
-    if (!story || !this.getPermission(story, userId).viewable) return;
+    if (!story || !this.getPermission(story, userId).isViewable) return;
     const now = Date.now();
     // when was user last in story or possibly NaN if never in
     const lastTimestamp: number = parseInt(

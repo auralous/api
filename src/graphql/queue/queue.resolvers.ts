@@ -14,7 +14,7 @@ const resolvers: Resolvers = {
     async queue(parent, { id }, { services, user }) {
       const [, storyId] = id.split(":");
       const story = await services.Story.findById(storyId);
-      if (!story || !services.Story.getPermission(story, user?._id).viewable)
+      if (!story || !services.Story.getPermission(story, user?._id).isViewable)
         return null;
       return { id, items: [] };
     },

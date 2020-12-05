@@ -25,7 +25,7 @@ const resolvers: Resolvers = {
       const start = stop - limit + 1;
       // id is storyId
       const story = await services.Story.findById(REDIS_KEY.message(id).id);
-      if (!story || !services.Story.getPermission(story, user?._id).viewable)
+      if (!story || !services.Story.getPermission(story, user?._id).isViewable)
         return null;
       return services.Message.findById(id, start, stop);
     },
@@ -37,7 +37,7 @@ const resolvers: Resolvers = {
       // id is storyId
       const story = await services.Story.findById(REDIS_KEY.message(id).id);
 
-      if (!story || !services.Story.getPermission(story, user._id).viewable)
+      if (!story || !services.Story.getPermission(story, user._id).isViewable)
         throw new ForbiddenError(
           "You are not allowed to send message to this channel"
         );

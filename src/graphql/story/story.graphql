@@ -6,14 +6,8 @@ type Query {
   searchStories(query: String!, limit: Int): [Story!]!
 }
 
-enum StoryMembership {
-  host
-  collab
-}
-
 type Mutation {
   createStory(text: String!, isPublic: Boolean!): Story!
-  updateStoryMembership(id: ID!, username: String, userId: String, role: StoryMembership): Boolean!
   deleteStory(id: ID!): ID!
   pingStory(id: ID!): Boolean!
 }
@@ -33,14 +27,13 @@ type Story {
 
 type StoryPermission {
   viewable: Boolean!
-  queueCanAdd: Boolean!
-  queueCanManage: Boolean!
+  isQueueable: Boolean!
 }
 
 type StoryState {
   id: ID!
   userIds: [String!]!
   # Settings
-  collabs: [String!]!
+  queueable: [String!]!
   permission: StoryPermission!
 }

@@ -3,7 +3,6 @@ export * from "./db";
 export {
   Resolvers,
   PlatformName,
-  StoryMembership,
   StoryState,
   NowPlayingReaction,
   NowPlayingReactionType,

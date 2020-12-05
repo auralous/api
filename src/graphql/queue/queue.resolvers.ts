@@ -32,12 +32,10 @@ const resolvers: Resolvers = {
       // Check permission
       const storyPermission = services.Story.getPermission(story, user._id);
 
-      const queue = await services.Queue.findById(id);
-
       switch (action) {
         case QueueAction.Add: {
           if (!tracks) throw new UserInputError("Missing tracks", ["tracks"]);
-          if (!storyPermission.queueCanAdd)
+          if (!storyPermission.isQueueable)
             throw new ForbiddenError(
               "You are not allowed to add to this queue"
             );
@@ -58,12 +56,6 @@ const resolvers: Resolvers = {
           if (typeof position !== "number")
             throw new UserInputError("Missing position", ["position"]);
 
-          if (
-            !storyPermission.queueCanManage &&
-            queue[position].creatorId !== user._id
-          )
-            throw new ForbiddenError(`You cannot remove other people's tracks`);
-
           await services.Queue.removeItem(id, position);
           break;
         case QueueAction.Reorder:
@@ -76,17 +68,9 @@ const resolvers: Resolvers = {
               "position",
             ]);
 
-          if (!storyPermission.queueCanManage)
-            throw new ForbiddenError(
-              `You cannot reorder other people's tracks`
-            );
-
           await services.Queue.reorderItems(id, position, insertPosition);
           break;
         case QueueAction.Clear:
-          if (!storyPermission.queueCanManage)
-            throw new ForbiddenError(`You cannot remove other people's tracks`);
-
           await services.Queue.deleteById(id);
           break;
         default:

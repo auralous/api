@@ -1,23 +1,17 @@
 import DataLoader from "dataloader";
 import { nanoid } from "nanoid";
-import {
-  AuthenticationError,
-  ForbiddenError,
-  UserInputError,
-} from "../error/index";
+import { AuthenticationError, ForbiddenError } from "../error/index";
 import { deleteByPattern } from "../db/redis";
 import { PUBSUB_CHANNELS, REDIS_KEY, CONFIG } from "../lib/constant";
 import { deleteCloudinaryImagesByPrefix } from "../lib/cloudinary";
-import { MessageType, StoryMembership } from "../types/index";
+import { MessageType } from "../types/index";
 
-import type { UpdateQuery } from "mongodb";
 import type { ServiceContext } from "./types";
 import type {
   StoryDbObject,
   NullablePartial,
   StoryPermission,
   StoryState,
-  UserDbObject,
 } from "../types/index";
 import type { MessageService } from "./message";
 
@@ -76,7 +70,7 @@ export class StoryService {
     return {
       id,
       userIds: permission.viewable ? await this.getPresences(id) : [],
-      collabs: (permission.viewable && story.collabs) || [],
+      queueable: (permission.viewable && story.queueable) || [],
       permission: permission,
     };
   }
@@ -99,7 +93,7 @@ export class StoryService {
 
   async updateById(
     _id: string,
-    { text, image, collabs }: NullablePartial<StoryDbObject>
+    { text, image, queueable }: NullablePartial<StoryDbObject>
   ) {
     if (!this.context.user) throw new AuthenticationError("");
     const { value: story } = await this.collection.findOneAndUpdate(
@@ -111,7 +105,7 @@ export class StoryService {
         $set: {
           ...(text && { text }),
           ...(image !== undefined && { image }),
-          ...(collabs && { collabs }),
+          ...(queueable && { queueable }),
         },
       },
       { returnOriginal: false }
@@ -120,7 +114,7 @@ export class StoryService {
     // save to cache
     this.loader.clear(_id).prime(_id, story);
 
-    if (collabs) this.notifyStateUpdate(_id);
+    if (queueable) this.notifyStateUpdate(_id);
 
     return story;
   }
@@ -129,59 +123,13 @@ export class StoryService {
     story: StoryDbObject,
     userId: string | undefined
   ): StoryPermission {
-    const isMember =
-      !!userId &&
-      (story.creatorId === userId || !!story.collabs?.includes(userId));
     return {
-      viewable: story.isPublic || isMember,
-      queueCanAdd: Boolean(userId) && (story.creatorId === userId || isMember),
-      queueCanManage: story.creatorId === userId,
+      viewable: story.isPublic,
+      isQueueable: Boolean(
+        !!userId &&
+          (story.creatorId === userId || story.queueable?.includes(userId))
+      ),
     };
-  }
-
-  async updateMembershipById(
-    _id: string,
-    addingUser: UserDbObject,
-    role?: StoryMembership | null,
-    DANGEROUSLY_BYPASS_CHECK = false
-  ) {
-    if (!this.context.user) throw new AuthenticationError("");
-
-    if (addingUser._id === this.context.user._id && !DANGEROUSLY_BYPASS_CHECK)
-      throw new UserInputError(
-        `You added yourself... Wait you can't do that!`,
-        ["userId"]
-      );
-
-    let update: UpdateQuery<StoryDbObject>;
-
-    if (role === StoryMembership.Collab) {
-      update = {
-        $addToSet: { collabs: addingUser._id },
-      };
-    } else {
-      update = {
-        $pull: { collabs: addingUser._id },
-      };
-    }
-
-    const { value: story } = await this.collection.findOneAndUpdate(
-      {
-        _id,
-        ...(!DANGEROUSLY_BYPASS_CHECK && { creatorId: this.context.user._id }),
-      },
-      update,
-      { returnOriginal: false }
-    );
-
-    if (!story) throw new ForbiddenError("Cannot update story");
-    // save to cache
-    this.loader.clear(_id).prime(_id, story);
-
-    // Publish
-    this.notifyStateUpdate(_id);
-
-    return story;
   }
 
   async deleteById(_id: string) {

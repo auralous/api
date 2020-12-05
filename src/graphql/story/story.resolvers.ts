@@ -2,7 +2,7 @@ import { UserInputError } from "../../error/index";
 import { CONFIG, PUBSUB_CHANNELS } from "../../lib/constant";
 import { defaultAvatar } from "../../lib/defaultAvatar";
 
-import type { Resolvers, UserDbObject } from "../../types/index";
+import type { Resolvers } from "../../types/index";
 
 const resolvers: Resolvers = {
   Query: {
@@ -31,29 +31,6 @@ const resolvers: Resolvers = {
         text,
         isPublic,
       });
-    },
-    async updateStoryMembership(
-      parent,
-      { id, username, userId, role },
-      { services }
-    ) {
-      let user: UserDbObject | undefined | null;
-
-      if (username) {
-        user = await services.User.findByUsername(username);
-      } else if (userId) {
-        user = await services.User.findById(userId);
-      }
-
-      if (!user)
-        throw new UserInputError("User cannot be found", [
-          "username",
-          "userId",
-        ]);
-
-      await services.Story.updateMembershipById(id, user, role);
-
-      return true;
     },
     async deleteStory(parent, { id }, { services }) {
       await services.Story.deleteById(id);

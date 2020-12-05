@@ -12,8 +12,7 @@ enum StoryMembership {
 }
 
 type Mutation {
-  createStory(title: String!, description: String, isPublic: Boolean!): Story!
-  updateStory(id: ID!, title: String, description: String, image: Upload): Story!
+  createStory(text: String!, isPublic: Boolean!): Story!
   updateStoryMembership(id: ID!, username: String, userId: String, role: StoryMembership): Boolean!
   deleteStory(id: ID!): ID!
   pingStory(id: ID!): Boolean!
@@ -25,9 +24,8 @@ type Subscription {
 
 type Story {
   id: ID!
-  title: String!
+  text: String!
   isPublic: Boolean!
-  description: String
   image: String!
   creatorId: ID!
   createdAt: DateTime!

@@ -44,22 +44,13 @@ export class StoryService {
     );
   }
 
-  async create({
-    title,
-    description,
-    isPublic,
-  }: {
-    title: string;
-    description?: string | null;
-    isPublic: boolean;
-  }) {
+  async create({ text, isPublic }: Pick<StoryDbObject, "text" | "isPublic">) {
     if (!this.context.user) throw new AuthenticationError("");
     const {
       ops: [story],
     } = await this.collection.insertOne({
       _id: nanoid(12),
-      title,
-      description: description || undefined,
+      text,
       isPublic,
       creatorId: this.context.user._id,
       createdAt: new Date(),
@@ -108,7 +99,7 @@ export class StoryService {
 
   async updateById(
     _id: string,
-    { title, description, image, collabs }: NullablePartial<StoryDbObject>
+    { text, image, collabs }: NullablePartial<StoryDbObject>
   ) {
     if (!this.context.user) throw new AuthenticationError("");
     const { value: story } = await this.collection.findOneAndUpdate(
@@ -118,8 +109,7 @@ export class StoryService {
       },
       {
         $set: {
-          ...(title && { title }),
-          ...(description !== undefined && { description }),
+          ...(text && { text }),
           ...(image !== undefined && { image }),
           ...(collabs && { collabs }),
         },
@@ -211,23 +201,6 @@ export class StoryService {
       deleteByPattern(this.context.redis, `${REDIS_KEY.story(_id)}:*`),
     ]);
     return true;
-  }
-
-  async search(query: string, limit?: number | null) {
-    const stories = await this.collection
-      .aggregate([
-        { $searchBeta: { search: { query, path: "title" } } },
-        { $limit: limit || 30 },
-      ])
-      .toArray();
-    // save them to cache
-    for (let i = 0; i < stories.length; i += 1) {
-      const id = stories[i]._id.toString();
-      this.loader.clear(id).prime(id, stories[i]);
-    }
-    return stories.filter(
-      (story) => story.isPublic || story.creatorId === this.context.user?._id
-    );
   }
 
   async pingPresence(storyId: string, userId: string): Promise<void> {

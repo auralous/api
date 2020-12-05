@@ -31,8 +31,7 @@ export interface NowPlayingItemDbObject extends QueueItemDbObject {
 
 export interface StoryDbObject {
   _id: string;
-  title: string;
-  description?: string | null;
+  text: string;
   creatorId: string;
   createdAt: Date;
   isPublic: boolean;

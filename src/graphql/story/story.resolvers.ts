@@ -1,6 +1,5 @@
-import { AuthenticationError, UserInputError } from "../../error/index";
+import { UserInputError } from "../../error/index";
 import { CONFIG, PUBSUB_CHANNELS } from "../../lib/constant";
-import { uploadStreamToCloudinary } from "../../lib/cloudinary";
 import { defaultAvatar } from "../../lib/defaultAvatar";
 
 import type { Resolvers, UserDbObject } from "../../types/index";
@@ -22,38 +21,15 @@ const resolvers: Resolvers = {
       }
       throw new UserInputError("Invalid `by` parameter", ["by"]);
     },
-    searchStories(parent, { query, limit }, { services }) {
-      return services.Story.search(query, limit);
-    },
     storyState(parent, { id }, { services }) {
       return services.Story.getStoryState(id);
     },
   },
   Mutation: {
-    createStory(parent, { title, description, isPublic }, { services }) {
+    createStory(parent, { text, isPublic }, { services }) {
       return services.Story.create({
-        title,
-        description,
+        text,
         isPublic,
-      });
-    },
-    async updateStory(
-      parent,
-      { id, title, description, image: imageFile },
-      { user, services }
-    ) {
-      if (!user) throw new AuthenticationError("");
-
-      const image = imageFile
-        ? await uploadStreamToCloudinary((await imageFile).createReadStream(), {
-            publicId: `users/${user._id}/stories/${id}/image`,
-          })
-        : undefined;
-
-      return services.Story.updateById(id, {
-        title,
-        description,
-        image,
       });
     },
     async updateStoryMembership(

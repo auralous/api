@@ -48,6 +48,8 @@ export class StoryService {
       isPublic,
       creatorId: this.context.user._id,
       createdAt: new Date(),
+      viewable: [],
+      queueable: [],
     });
     this.loader.clear(story._id).prime(story._id, story);
     return story;
@@ -125,10 +127,12 @@ export class StoryService {
   ): StoryPermission {
     return {
       isViewable:
-        story.isPublic || (!!userId && !!story.viewable?.includes(userId)),
+        story.isPublic ||
+        story.creatorId === userId ||
+        (!!userId && !!story.viewable.includes(userId)),
       isQueueable: Boolean(
         !!userId &&
-          (story.creatorId === userId || story.queueable?.includes(userId))
+          (story.creatorId === userId || story.queueable.includes(userId))
       ),
     };
   }

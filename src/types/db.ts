@@ -37,8 +37,8 @@ export interface StoryDbObject {
   isPublic: boolean;
   image?: string | null;
   // Settings
-  queueable?: string[];
-  viewable?: string[];
+  queueable: string[];
+  viewable: string[];
 }
 
 export interface TrackDbObject {

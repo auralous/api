@@ -12,8 +12,7 @@ import { QueueAction } from "../../types/graphql.gen";
 const resolvers: Resolvers = {
   Query: {
     async queue(parent, { id }, { services, user }) {
-      const [, storyId] = id.split(":");
-      const story = await services.Story.findById(storyId);
+      const story = await services.Story.findById(id.split(":")[0]);
       if (!story || !services.Story.getPermission(story, user?._id).isViewable)
         return null;
       return { id, items: [] };
@@ -26,7 +25,7 @@ const resolvers: Resolvers = {
       { user, services, pubsub }
     ) {
       if (!user) throw new AuthenticationError("");
-      const story = await services.Story.findById(id.substring(5));
+      const story = await services.Story.findById(id);
       if (!story) throw new ForbiddenError("Story does not exist");
 
       // Check permission

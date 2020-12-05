@@ -115,8 +115,8 @@ export class NowPlayingWorker {
       return prevCurrentTrack;
     }
 
-    const queueId = `story:${storyId}`;
-    const playedQueueId = `story:${storyId}:played`;
+    const queueId = storyId;
+    const playedQueueId = `${storyId}:played`;
 
     let currentTrack: NowPlayingItemDbObject | null = null;
 

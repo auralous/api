@@ -11,14 +11,12 @@ export const REDIS_KEY = {
   nowPlayingReaction(storyId: string, currQueueItemId: string) {
     return `story:${storyId}:reactions:${currQueueItemId}`;
   },
-  queue(typeAndId: string) {
-    const [type, id] = typeAndId.split(":");
-    if (type !== "story") throw new Error("Invalid resourceType");
-    if (typeAndId.includes(":played")) {
+  queue(storyId: string) {
+    if (storyId.includes(":played")) {
       // Played queue ends with :played instead of :queue
-      return `${this[type](id)}:played`;
+      return `${this.story(storyId)}:played`;
     }
-    return `${this[type](id)}:queue`;
+    return `${this.story(storyId)}:queue`;
   },
   message(typeAndId: string) {
     const [type, id] = typeAndId.split(":");

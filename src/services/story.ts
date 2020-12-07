@@ -4,7 +4,7 @@ import { AuthenticationError, ForbiddenError } from "../error/index";
 import { deleteByPattern } from "../db/redis";
 import { PUBSUB_CHANNELS, REDIS_KEY, CONFIG } from "../lib/constant";
 import { deleteCloudinaryImagesByPrefix } from "../lib/cloudinary";
-import { MessageType } from "../types/index";
+import { MessageType, StoryStatus } from "../types/index";
 
 import type { ServiceContext } from "./types";
 import type {
@@ -29,10 +29,24 @@ export class StoryService {
           .find({ _id: { $in: keys as string[] } })
           .toArray();
         // retain order
-        return keys.map(
-          (key) =>
-            stories.find((story: StoryDbObject) => story._id === key) || null
-        );
+        return keys.map((key) => {
+          const story = stories.find(
+            (story: StoryDbObject) => story._id === key
+          );
+          if (!story) return null;
+          // check for story state changes
+          if (
+            story.status === StoryStatus.Live &&
+            Date.now() - story.lastCreatorActivityAt.getTime() >
+              CONFIG.storyLiveTimeout
+          ) {
+            // creator is not active in awhile unlive story
+            story.status = StoryStatus.Published;
+            // async update it
+            this.updateById(story._id, { status: story.status });
+          }
+          return story;
+        });
       },
       { cache: !context.isWs }
     );
@@ -40,6 +54,9 @@ export class StoryService {
 
   async create({ text, isPublic }: Pick<StoryDbObject, "text" | "isPublic">) {
     if (!this.context.user) throw new AuthenticationError("");
+
+    const createdAt = new Date();
+
     const {
       ops: [story],
     } = await this.collection.insertOne({
@@ -47,9 +64,11 @@ export class StoryService {
       text,
       isPublic,
       creatorId: this.context.user._id,
-      createdAt: new Date(),
+      createdAt,
+      status: StoryStatus.Live,
       viewable: [],
       queueable: [],
+      lastCreatorActivityAt: createdAt,
     });
     this.loader.clear(story._id).prime(story._id, story);
     return story;
@@ -95,7 +114,13 @@ export class StoryService {
 
   async updateById(
     _id: string,
-    { text, image, queueable }: NullablePartial<StoryDbObject>
+    {
+      text,
+      image,
+      queueable,
+      lastCreatorActivityAt,
+      status,
+    }: NullablePartial<StoryDbObject>
   ) {
     if (!this.context.user) throw new AuthenticationError("");
     const { value: story } = await this.collection.findOneAndUpdate(
@@ -108,6 +133,8 @@ export class StoryService {
           ...(text && { text }),
           ...(image !== undefined && { image }),
           ...(queueable && { queueable }),
+          ...(lastCreatorActivityAt && { lastCreatorActivityAt }),
+          ...(status && { status }),
         },
       },
       { returnOriginal: false }
@@ -159,6 +186,12 @@ export class StoryService {
   async pingPresence(storyId: string, userId: string): Promise<void> {
     const story = await this.findById(storyId);
     if (!story || !this.getPermission(story, userId).isViewable) return;
+
+    // update lastCreatorActivityAt
+    if (userId === story._id) {
+      await this.updateById(storyId, { lastCreatorActivityAt: new Date() });
+    }
+
     const now = Date.now();
     // when was user last in story or possibly NaN if never in
     const lastTimestamp: number = parseInt(

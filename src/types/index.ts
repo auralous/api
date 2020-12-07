@@ -8,5 +8,6 @@ export {
   NowPlayingReactionType,
   MessageType,
   StoryPermission,
+  StoryStatus,
 } from "./graphql.gen";
 export * from "./utils";

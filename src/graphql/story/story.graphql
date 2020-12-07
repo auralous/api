@@ -23,6 +23,7 @@ type Story {
   image: String!
   creatorId: ID!
   createdAt: DateTime!
+  status: StoryStatus!
 }
 
 type StoryPermission {
@@ -36,4 +37,10 @@ type StoryState {
   # Settings
   queueable: [String!]!
   permission: StoryPermission!
+}
+
+enum StoryStatus {
+  published
+  unpublished
+  live
 }

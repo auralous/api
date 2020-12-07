@@ -35,7 +35,8 @@ export const CONFIG = {
   searchMaxAge: 2 * 60 * 60,
   searchPlaylistMaxAge: 10 * 60,
   randomStoriesMaxAge: 10 * 60,
-  activityTimeout: 60 * 1000, // story precense: if user does not ping in 1 min, they are considered left
+  activityTimeout: 60 * 1000, // if user does not ping in 1 min, they are considered left
+  storyLiveTimeout: 15 * 60 * 1000, // if creator is not active in story in 15 min, unpublish it
 } as const;
 
 export const PUBSUB_CHANNELS = {

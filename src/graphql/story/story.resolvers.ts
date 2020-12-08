@@ -1,16 +1,25 @@
 import { PUBSUB_CHANNELS } from "../../lib/constant";
 import { defaultAvatar } from "../../lib/defaultAvatar";
 
-import type { Resolvers } from "../../types/index";
+import type { Resolvers, StoryDbObject } from "../../types/index";
 
 const resolvers: Resolvers = {
   Query: {
-    story(parent, { id }, { services }) {
-      return services.Story.findById(id);
+    story(parent, { id }, { services, user }) {
+      return services.Story.findById(id).then((s) => {
+        if (!s || !services.Story.getPermission(s, user?._id).isViewable)
+          return null;
+        return s;
+      });
     },
-    stories(parent, { creatorId }, { services }) {
-      if (creatorId) return services.Story.findByCreatorId(creatorId);
-      return null;
+    async stories(parent, { creatorId }, { services, user }) {
+      let stories: StoryDbObject[] | null = null;
+      if (creatorId) {
+        stories = (await services.Story.findByCreatorId(creatorId)).filter(
+          (s) => services.Story.getPermission(s, user?._id).isViewable
+        );
+      }
+      return stories;
     },
     async storyUsers(parent, { id }, { services, user }) {
       const story = await services.Story.findById(id);

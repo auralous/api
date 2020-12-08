@@ -48,7 +48,7 @@ const resolvers: Resolvers = {
           );
 
           // It is possible that adding a new item will restart nowPlaying
-          NowPlayingWorker.requestResolve(pubsub, story._id);
+          NowPlayingWorker.requestResolve(pubsub, story._id.toHexString());
           break;
         }
         case QueueAction.Remove:

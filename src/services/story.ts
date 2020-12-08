@@ -1,5 +1,5 @@
 import DataLoader from "dataloader";
-import { nanoid } from "nanoid";
+import { ObjectID } from "mongodb";
 import { AuthenticationError, ForbiddenError } from "../error/index";
 import { deleteByPattern } from "../db/redis";
 import { PUBSUB_CHANNELS, REDIS_KEY, CONFIG } from "../lib/constant";
@@ -26,12 +26,12 @@ export class StoryService {
     this.loader = new DataLoader(
       async (keys) => {
         const stories = await this.collection
-          .find({ _id: { $in: keys as string[] } })
+          .find({ _id: { $in: keys.map(ObjectID.createFromHexString) } })
           .toArray();
         // retain order
         return keys.map((key) => {
           const story = stories.find(
-            (story: StoryDbObject) => story._id === key
+            (story: StoryDbObject) => story._id.toHexString() === key
           );
           if (!story) return null;
           // check for story state changes
@@ -43,7 +43,7 @@ export class StoryService {
             // creator is not active in awhile unlive story
             story.status = StoryStatus.Published;
             // async update it
-            this.updateById(story._id, { status: story.status });
+            this.updateById(story._id.toHexString(), { status: story.status });
           }
           return story;
         });
@@ -60,7 +60,6 @@ export class StoryService {
     const {
       ops: [story],
     } = await this.collection.insertOne({
-      _id: nanoid(12),
       text,
       isPublic,
       creatorId: this.context.user._id,
@@ -70,7 +69,8 @@ export class StoryService {
       queueable: [],
       lastCreatorActivityAt: createdAt,
     });
-    this.loader.clear(story._id).prime(story._id, story);
+    const idStr = story._id.toHexString();
+    this.loader.clear(idStr).prime(idStr, story);
     return story;
   }
 
@@ -100,20 +100,8 @@ export class StoryService {
     return this.collection.find({ creatorId }).toArray();
   }
 
-  async findRandom(size: number) {
-    const stories = await this.collection
-      .aggregate([{ $sample: { size } }])
-      .toArray();
-    // save them to cache
-    for (let i = 0; i < stories.length; i += 1) {
-      const { _id } = stories[i];
-      this.loader.clear(_id).prime(_id, stories[i]);
-    }
-    return stories;
-  }
-
   async updateById(
-    _id: string,
+    id: string,
     {
       text,
       image,
@@ -125,7 +113,7 @@ export class StoryService {
     if (!this.context.user) throw new AuthenticationError("");
     const { value: story } = await this.collection.findOneAndUpdate(
       {
-        _id,
+        _id: new ObjectID(id),
         creatorId: this.context.user._id,
       },
       {
@@ -141,9 +129,9 @@ export class StoryService {
     );
     if (!story) throw new ForbiddenError("Cannot update story");
     // save to cache
-    this.loader.clear(_id).prime(_id, story);
+    this.loader.clear(id).prime(id, story);
 
-    if (queueable) this.notifyStateUpdate(_id);
+    if (queueable) this.notifyStateUpdate(id);
 
     return story;
   }
@@ -164,21 +152,21 @@ export class StoryService {
     };
   }
 
-  async deleteById(_id: string) {
+  async deleteById(id: string) {
     if (!this.context.user) throw new AuthenticationError("");
     const { deletedCount } = await this.collection.deleteOne({
-      _id,
+      _id: new ObjectID(id),
       creatorId: this.context.user._id,
     });
     if (!deletedCount) throw new ForbiddenError("Cannot delete story");
     // remove from cache
-    this.loader.clear(_id);
+    this.loader.clear(id);
     // delete associated
     await Promise.all([
       deleteCloudinaryImagesByPrefix(
-        `users/${this.context.user._id}/stories/${_id}`
+        `users/${this.context.user._id}/stories/${id}`
       ),
-      deleteByPattern(this.context.redis, `${REDIS_KEY.story(_id)}:*`),
+      deleteByPattern(this.context.redis, `${REDIS_KEY.story(id)}:*`),
     ]);
     return true;
   }
@@ -188,7 +176,7 @@ export class StoryService {
     if (!story || !this.getPermission(story, userId).isViewable) return;
 
     // update lastCreatorActivityAt
-    if (userId === story._id) {
+    if (userId === story.creatorId) {
       await this.updateById(storyId, { lastCreatorActivityAt: new Date() });
     }
 

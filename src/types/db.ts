@@ -1,3 +1,4 @@
+import { ObjectID } from "mongodb";
 import type { PlatformName, MessageType, StoryStatus } from "./graphql.gen";
 
 export interface UserOauthProvider {
@@ -30,7 +31,7 @@ export interface NowPlayingItemDbObject extends QueueItemDbObject {
 }
 
 export interface StoryDbObject {
-  _id: string;
+  _id: ObjectID;
   text: string;
   creatorId: string;
   createdAt: Date;

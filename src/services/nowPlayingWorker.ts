@@ -59,7 +59,7 @@ export class NowPlayingWorker {
       .toArray();
 
     for (const story of storyArray) {
-      this.resolve(story._id);
+      this.resolve(story._id.toHexString());
     }
   }
 

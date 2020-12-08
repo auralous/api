@@ -1,5 +1,4 @@
-import { UserInputError } from "../../error/index";
-import { CONFIG, PUBSUB_CHANNELS } from "../../lib/constant";
+import { PUBSUB_CHANNELS } from "../../lib/constant";
 import { defaultAvatar } from "../../lib/defaultAvatar";
 
 import type { Resolvers } from "../../types/index";
@@ -13,16 +12,14 @@ const resolvers: Resolvers = {
       if (creatorId) return services.Story.findByCreatorId(creatorId);
       return null;
     },
-    async exploreStories(parent, { by }, { services, setCacheControl }) {
-      if (by === "random") {
-        const stories = await services.Story.findRandom(20);
-        if (stories) setCacheControl?.(CONFIG.randomStoriesMaxAge);
-        return stories;
-      }
-      throw new UserInputError("Invalid `by` parameter", ["by"]);
+    async storyUsers(parent, { id }, { services, user }) {
+      const story = await services.Story.findById(id);
+      if (!story || !services.Story.getPermission(story, user?._id).isViewable)
+        return null;
+      return services.Story.getPresences(id);
     },
-    storyState(parent, { id }, { services }) {
-      return services.Story.getStoryState(id);
+    storyFeed(parent, { next }, { services }) {
+      return services.Story.findForFeedPublic(undefined, next);
     },
   },
   Mutation: {
@@ -43,19 +40,19 @@ const resolvers: Resolvers = {
     },
   },
   Subscription: {
-    storyStateUpdated: {
+    storyUsersUpdated: {
       subscribe(parent, { id }, { pubsub }) {
         return pubsub.on(
-          PUBSUB_CHANNELS.storyStateUpdated,
-          (payload) => payload.storyStateUpdated.id === id
+          PUBSUB_CHANNELS.storyUsersUpdated,
+          (payload) => payload.id === id
         );
       },
     },
   },
   Story: {
-    id: ({ _id }) => _id,
+    id: ({ _id }) => _id.toHexString(),
     image({ image, _id }) {
-      return image || defaultAvatar("story", _id);
+      return image || defaultAvatar("story", _id.toHexString());
     },
   },
 };

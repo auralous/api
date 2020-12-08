@@ -7,12 +7,7 @@ import { deleteCloudinaryImagesByPrefix } from "../lib/cloudinary";
 import { MessageType, StoryStatus } from "../types/index";
 
 import type { ServiceContext } from "./types";
-import type {
-  StoryDbObject,
-  NullablePartial,
-  StoryPermission,
-  StoryState,
-} from "../types/index";
+import type { StoryDbObject, NullablePartial } from "../types/index";
 import type { MessageService } from "./message";
 
 export class StoryService {
@@ -74,30 +69,26 @@ export class StoryService {
     return story;
   }
 
-  private async notifyStateUpdate(id: string) {
-    this.context.pubsub.publish(PUBSUB_CHANNELS.storyStateUpdated, {
-      storyStateUpdated: await this.getStoryState(id),
-    });
-  }
-
   findById(id: string) {
     return this.loader.load(id);
   }
 
-  async getStoryState(id: string): Promise<StoryState | null> {
-    const story = await this.findById(id);
-    if (!story) return null;
-    const permission = this.getPermission(story, this.context.user?._id);
-    return {
-      id,
-      userIds: permission.isViewable ? await this.getPresences(id) : [],
-      queueable: (permission.isViewable && story.queueable) || [],
-      permission: permission,
-    };
-  }
-
   async findByCreatorId(creatorId: string) {
     return this.collection.find({ creatorId }).toArray();
+  }
+
+  async findForFeedPublic(
+    limit = 20,
+    next?: string | null
+  ): Promise<StoryDbObject[]> {
+    return this.collection
+      .find({
+        isPublic: true,
+        ...(next && { _id: { $lt: new ObjectID(next) } }),
+      })
+      .sort({ $natural: -1 })
+      .limit(limit)
+      .toArray();
   }
 
   async updateById(
@@ -131,15 +122,13 @@ export class StoryService {
     // save to cache
     this.loader.clear(id).prime(id, story);
 
-    if (queueable) this.notifyStateUpdate(id);
-
     return story;
   }
 
   getPermission(
     story: StoryDbObject,
     userId: string | undefined
-  ): StoryPermission {
+  ): { isViewable: boolean; isQueueable: boolean } {
     return {
       isViewable:
         story.isPublic ||
@@ -199,14 +188,20 @@ export class StoryService {
       now,
       userId
     );
+
     if (justJoined) {
-      // notify that user just joined
+      // notify that user just joined via message
       this.messageService.add(`story:${storyId}`, {
         text: storyId,
         type: MessageType.Join,
         creatorId: userId,
       });
-      this.notifyStateUpdate(storyId);
+
+      // Notify story user update via subscription
+      this.context.pubsub.publish(PUBSUB_CHANNELS.storyUsersUpdated, {
+        id: storyId,
+        storyUsersUpdated: await this.getPresences(storyId),
+      });
     }
   }
 

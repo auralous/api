@@ -1,9 +1,8 @@
 type Query {
   story(id: ID!): Story
-  storyState(id: ID!): StoryState
+  storyUsers(id: ID!): [String!]
   stories(creatorId: String): [Story!]
-  exploreStories(by: String!): [Story!]!
-  searchStories(query: String!, limit: Int): [Story!]!
+  storyFeed(forMe: Boolean, next: String): [Story!]!
 }
 
 type Mutation {
@@ -13,7 +12,7 @@ type Mutation {
 }
 
 type Subscription {
-  storyStateUpdated(id: ID!): StoryState
+  storyUsersUpdated(id: ID!): [String!]!
 }
 
 type Story {
@@ -24,19 +23,7 @@ type Story {
   creatorId: ID!
   createdAt: DateTime!
   status: StoryStatus!
-}
-
-type StoryPermission {
-  isViewable: Boolean!
-  isQueueable: Boolean!
-}
-
-type StoryState {
-  id: ID!
-  userIds: [String!]!
-  # Settings
   queueable: [String!]!
-  permission: StoryPermission!
 }
 
 enum StoryStatus {

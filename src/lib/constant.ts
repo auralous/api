@@ -34,7 +34,6 @@ export const CONFIG = {
   userMaxAge: 4 * 60 * 60,
   searchMaxAge: 2 * 60 * 60,
   searchPlaylistMaxAge: 10 * 60,
-  randomStoriesMaxAge: 10 * 60,
   activityTimeout: 60 * 1000, // if user does not ping in 1 min, they are considered left
   storyLiveTimeout: 15 * 60 * 1000, // if creator is not active in story in 15 min, unpublish it
 } as const;
@@ -43,7 +42,7 @@ export const PUBSUB_CHANNELS = {
   nowPlayingWorker: "NOW_PLAYING_WORKER",
   nowPlayingUpdated: "NOW_PLAYING_UPDATED",
   nowPlayingReactionsUpdated: "NOW_PLAYING_REACTIONS_UPDATED",
-  storyStateUpdated: "STORY_STATE_UPDATED",
+  storyUsersUpdated: "STORY_USERS_UPDATED",
   messageAdded: "MESSAGE_ADDED",
   queueUpdated: "QUEUE_UPDATED",
 };

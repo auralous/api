@@ -29,15 +29,12 @@ const resolvers: Resolvers = {
       if (!story) throw new ForbiddenError("Story does not exist");
 
       // Check permission
-      const storyPermission = services.Story.getPermission(story, user._id);
+      if (!services.Story.getPermission(story, user._id).isQueueable)
+        throw new ForbiddenError("You are not allowed to add to this queue");
 
       switch (action) {
         case QueueAction.Add: {
           if (!tracks) throw new UserInputError("Missing tracks", ["tracks"]);
-          if (!storyPermission.isQueueable)
-            throw new ForbiddenError(
-              "You are not allowed to add to this queue"
-            );
 
           await services.Queue.pushItems(
             id,

@@ -78,7 +78,7 @@ export class StoryService {
   }
 
   async findForFeedPublic(
-    limit = 20,
+    limit: number,
     next?: string | null
   ): Promise<StoryDbObject[]> {
     return this.collection

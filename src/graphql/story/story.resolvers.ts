@@ -1,3 +1,4 @@
+import { ForbiddenError } from "../../error";
 import { PUBSUB_CHANNELS } from "../../lib/constant";
 import { defaultAvatar } from "../../lib/defaultAvatar";
 
@@ -27,8 +28,10 @@ const resolvers: Resolvers = {
         return null;
       return services.Story.getPresences(id);
     },
-    storyFeed(parent, { next }, { services }) {
-      return services.Story.findForFeedPublic(undefined, next);
+    storyFeed(parent, { id, next, limit }, { services }) {
+      if (limit > 20) throw new ForbiddenError("Too large limit");
+      if (id === "PUBLIC") return services.Story.findForFeedPublic(limit, next);
+      return [];
     },
   },
   Mutation: {

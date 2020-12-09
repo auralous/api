@@ -4,7 +4,7 @@ import { AuthenticationError, ForbiddenError } from "../error/index";
 import { deleteByPattern } from "../db/redis";
 import { PUBSUB_CHANNELS, REDIS_KEY, CONFIG } from "../lib/constant";
 import { deleteCloudinaryImagesByPrefix } from "../lib/cloudinary";
-import { MessageType, StoryStatus } from "../types/index";
+import { MessageType } from "../types/index";
 
 import type { ServiceContext } from "./types";
 import type { StoryDbObject, NullablePartial } from "../types/index";
@@ -39,12 +39,12 @@ export class StoryService {
   // Return the story itself but switch it to "published if applicable"
   private checkStoryStatus(story: StoryDbObject): StoryDbObject {
     if (
-      story.status === StoryStatus.Live &&
+      story.isLive &&
       Date.now() - story.lastCreatorActivityAt.getTime() >
         CONFIG.storyLiveTimeout
     ) {
       // creator is not active in awhile unlive story
-      story.status = StoryStatus.Published;
+      story.isLive = false;
       // async update it
       this.unliveStory(story._id.toHexString());
     }
@@ -52,7 +52,7 @@ export class StoryService {
   }
 
   async unliveStory(storyId: string): Promise<StoryDbObject> {
-    return this.updateById(storyId, { status: StoryStatus.Published });
+    return this.updateById(storyId, { isLive: false });
   }
 
   async create({ text, isPublic }: Pick<StoryDbObject, "text" | "isPublic">) {
@@ -69,7 +69,7 @@ export class StoryService {
       isPublic,
       creatorId: this.context.user._id,
       createdAt,
-      status: StoryStatus.Live,
+      isLive: true,
       viewable: [],
       queueable: [],
       lastCreatorActivityAt: createdAt,
@@ -113,7 +113,7 @@ export class StoryService {
       image,
       queueable,
       lastCreatorActivityAt,
-      status,
+      isLive,
     }: NullablePartial<StoryDbObject>
   ) {
     if (!this.context.user) throw new AuthenticationError("");
@@ -128,7 +128,7 @@ export class StoryService {
           ...(image !== undefined && { image }),
           ...(queueable && { queueable }),
           ...(lastCreatorActivityAt && { lastCreatorActivityAt }),
-          ...(status && { status }),
+          ...(typeof isLive === "boolean" && { isLive }),
         },
       },
       { returnOriginal: false }

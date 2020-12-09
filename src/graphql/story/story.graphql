@@ -22,12 +22,6 @@ type Story {
   image: String!
   creatorId: ID!
   createdAt: DateTime!
-  status: StoryStatus!
+  isLive: Boolean!
   queueable: [String!]!
-}
-
-enum StoryStatus {
-  published
-  unpublished
-  live
 }

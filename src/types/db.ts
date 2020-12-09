@@ -1,5 +1,5 @@
 import { ObjectID } from "mongodb";
-import type { PlatformName, MessageType, StoryStatus } from "./graphql.gen";
+import type { PlatformName, MessageType } from "./graphql.gen";
 
 export interface UserOauthProvider {
   provider: PlatformName;
@@ -36,7 +36,7 @@ export interface StoryDbObject {
   creatorId: string;
   createdAt: Date;
   isPublic: boolean;
-  status: StoryStatus;
+  isLive: boolean;
   image?: string | null;
   // Settings
   queueable: string[];

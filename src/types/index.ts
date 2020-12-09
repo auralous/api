@@ -6,6 +6,5 @@ export {
   NowPlayingReaction,
   NowPlayingReactionType,
   MessageType,
-  StoryStatus,
 } from "./graphql.gen";
 export * from "./utils";

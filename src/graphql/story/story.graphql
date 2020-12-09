@@ -8,6 +8,7 @@ type Query {
 type Mutation {
   createStory(text: String!, isPublic: Boolean!): Story!
   deleteStory(id: ID!): ID!
+  changeStoryQueueable(id: ID!, userId: String!, isRemoving: Boolean!): Story!
   pingStory(id: ID!): Boolean!
 }
 

@@ -4,7 +4,7 @@ import { AuthenticationError, ForbiddenError } from "../error/index";
 import { deleteByPattern } from "../db/redis";
 import { PUBSUB_CHANNELS, REDIS_KEY, CONFIG } from "../lib/constant";
 import { deleteCloudinaryImagesByPrefix } from "../lib/cloudinary";
-import { MessageType } from "../types/index";
+import { MessageType, UserDbObject } from "../types/index";
 
 import type { ServiceContext } from "./types";
 import type { StoryDbObject, NullablePartial } from "../types/index";
@@ -106,6 +106,8 @@ export class StoryService {
       .then((stories) => stories.map((s) => this.checkStoryStatus(s)));
   }
 
+  // Manage API
+
   async updateById(
     id: string,
     {
@@ -115,7 +117,7 @@ export class StoryService {
       lastCreatorActivityAt,
       isLive,
     }: NullablePartial<StoryDbObject>
-  ) {
+  ): Promise<StoryDbObject> {
     if (!this.context.user) throw new AuthenticationError("");
     const { value: story } = await this.collection.findOneAndUpdate(
       {
@@ -140,22 +142,6 @@ export class StoryService {
     return story;
   }
 
-  getPermission(
-    story: StoryDbObject,
-    userId: string | undefined
-  ): { isViewable: boolean; isQueueable: boolean } {
-    return {
-      isViewable:
-        story.isPublic ||
-        story.creatorId === userId ||
-        (!!userId && !!story.viewable.includes(userId)),
-      isQueueable: Boolean(
-        !!userId &&
-          (story.creatorId === userId || story.queueable.includes(userId))
-      ),
-    };
-  }
-
   async deleteById(id: string) {
     if (!this.context.user) throw new AuthenticationError("");
     const { deletedCount } = await this.collection.deleteOne({
@@ -174,6 +160,28 @@ export class StoryService {
     ]);
     return true;
   }
+
+  async addOrRemoveQueueable(
+    id: string,
+    addingUser: UserDbObject,
+    isRemoving: boolean
+  ) {
+    if (!this.context.user) throw new AuthenticationError("");
+    const { value: story } = await this.collection.findOneAndUpdate(
+      {
+        _id: new ObjectID(id),
+        creatorId: this.context.user._id,
+      },
+      isRemoving
+        ? { $pull: { queueable: addingUser._id } }
+        : { $addToSet: { queueable: addingUser._id } },
+      { returnOriginal: false }
+    );
+    if (!story) throw new ForbiddenError("Cannot update story");
+    return story;
+  }
+
+  // Presence API
 
   async pingPresence(storyId: string, userId: string): Promise<void> {
     const story = await this.findById(storyId);
@@ -227,5 +235,23 @@ export class StoryService {
       Infinity,
       minRange
     );
+  }
+
+  // Util
+
+  getPermission(
+    story: StoryDbObject,
+    userId: string | undefined
+  ): { isViewable: boolean; isQueueable: boolean } {
+    return {
+      isViewable:
+        story.isPublic ||
+        story.creatorId === userId ||
+        (!!userId && !!story.viewable.includes(userId)),
+      isQueueable: Boolean(
+        !!userId &&
+          (story.creatorId === userId || story.queueable.includes(userId))
+      ),
+    };
   }
 }

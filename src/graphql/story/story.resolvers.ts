@@ -1,4 +1,4 @@
-import { ForbiddenError } from "../../error";
+import { ForbiddenError, UserInputError } from "../../error";
 import { PUBSUB_CHANNELS } from "../../lib/constant";
 import { defaultAvatar } from "../../lib/defaultAvatar";
 
@@ -49,6 +49,16 @@ const resolvers: Resolvers = {
       if (!user) return false;
       services.Story.pingPresence(id, user._id);
       return true;
+    },
+    async changeStoryQueueable(
+      parent,
+      { id, userId, isRemoving },
+      { services }
+    ) {
+      const addingUser = await services.User.findById(userId);
+      if (!addingUser)
+        throw new UserInputError("User does not exist", ["userId"]);
+      return services.Story.addOrRemoveQueueable(id, addingUser, isRemoving);
     },
   },
   Subscription: {

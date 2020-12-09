@@ -60,6 +60,8 @@ export class StoryService {
 
     const createdAt = new Date();
 
+    text = text.trim().substring(0, CONFIG.storyTextMaxLength);
+
     const {
       ops: [story],
     } = await this.collection.insertOne({

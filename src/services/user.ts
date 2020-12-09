@@ -10,6 +10,7 @@ import { deleteCloudinaryImagesByPrefix } from "../lib/cloudinary";
 
 import type { ServiceContext } from "./types";
 import { UserDbObject, NullablePartial } from "../types/index";
+import { CONFIG } from "../lib/constant";
 
 export class UserService {
   private collection = this.context.db.collection<UserDbObject>("users");
@@ -109,7 +110,7 @@ export class UserService {
           lower: true,
           symbols: false,
           charmap: {},
-        }).substring(0, 15)
+        }).substring(0, CONFIG.usernameMaxLength)
       : null;
     if (username) {
       const checkUser = await this.findByUsername(username);

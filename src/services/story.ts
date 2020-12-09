@@ -22,29 +22,37 @@ export class StoryService {
       async (keys) => {
         const stories = await this.collection
           .find({ _id: { $in: keys.map(ObjectID.createFromHexString) } })
-          .toArray();
+          .toArray()
+          .then((stories) => stories.map((s) => this.checkStoryStatus(s)));
         // retain order
-        return keys.map((key) => {
-          const story = stories.find(
-            (story: StoryDbObject) => story._id.toHexString() === key
-          );
-          if (!story) return null;
-          // check for story state changes
-          if (
-            story.status === StoryStatus.Live &&
-            Date.now() - story.lastCreatorActivityAt.getTime() >
-              CONFIG.storyLiveTimeout
-          ) {
-            // creator is not active in awhile unlive story
-            story.status = StoryStatus.Published;
-            // async update it
-            this.updateById(story._id.toHexString(), { status: story.status });
-          }
-          return story;
-        });
+        return keys.map(
+          (key) =>
+            stories.find(
+              (story: StoryDbObject) => story._id.toHexString() === key
+            ) || null
+        );
       },
       { cache: !context.isWs }
     );
+  }
+
+  // Return the story itself but switch it to "published if applicable"
+  private checkStoryStatus(story: StoryDbObject): StoryDbObject {
+    if (
+      story.status === StoryStatus.Live &&
+      Date.now() - story.lastCreatorActivityAt.getTime() >
+        CONFIG.storyLiveTimeout
+    ) {
+      // creator is not active in awhile unlive story
+      story.status = StoryStatus.Published;
+      // async update it
+      this.unliveStory(story._id.toHexString());
+    }
+    return story;
+  }
+
+  async unliveStory(storyId: string): Promise<StoryDbObject> {
+    return this.updateById(storyId, { status: StoryStatus.Published });
   }
 
   async create({ text, isPublic }: Pick<StoryDbObject, "text" | "isPublic">) {
@@ -74,7 +82,11 @@ export class StoryService {
   }
 
   async findByCreatorId(creatorId: string) {
-    return this.collection.find({ creatorId }).toArray();
+    return this.collection
+      .find({ creatorId })
+      .sort({ $natural: -1 })
+      .toArray()
+      .then((stories) => stories.map((s) => this.checkStoryStatus(s)));
   }
 
   async findForFeedPublic(
@@ -88,7 +100,8 @@ export class StoryService {
       })
       .sort({ $natural: -1 })
       .limit(limit)
-      .toArray();
+      .toArray()
+      .then((stories) => stories.map((s) => this.checkStoryStatus(s)));
   }
 
   async updateById(

@@ -1,3 +1,4 @@
+import { ObjectID } from "mongodb";
 import type { PlatformName, MessageType } from "./graphql.gen";
 
 export interface UserOauthProvider {
@@ -29,18 +30,19 @@ export interface NowPlayingItemDbObject extends QueueItemDbObject {
   endedAt: Date;
 }
 
-export interface RoomDbObject {
-  _id: string;
-  title: string;
-  description?: string | null;
+export interface StoryDbObject {
+  _id: ObjectID;
+  text: string;
   creatorId: string;
   createdAt: Date;
   isPublic: boolean;
+  isLive: boolean;
   image?: string | null;
   // Settings
-  collabs?: string[];
-  anyoneCanAdd?: boolean;
-  password?: string;
+  queueable: string[];
+  viewable: string[];
+  // Internal
+  lastCreatorActivityAt: Date;
 }
 
 export interface TrackDbObject {

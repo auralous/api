@@ -1,14 +1,14 @@
 import { MongoClient, Db } from "mongodb";
 
-import type { UserDbObject, RoomDbObject } from "../types/index";
+import type { UserDbObject, StoryDbObject } from "../types/index";
 
 function applyIndex(db: Db) {
   // user
   db.collection<UserDbObject>("users").createIndexes([
     { key: { username: 1 }, unique: true },
   ]);
-  // room
-  db.collection<RoomDbObject>("rooms").createIndexes([
+  // story
+  db.collection<StoryDbObject>("stories").createIndexes([
     { key: { creatorId: 1 } },
     { key: { _id: 1, creatorId: 1 } },
   ]);

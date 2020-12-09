@@ -4,7 +4,7 @@ import { NowPlayingWorker } from "./nowPlayingWorker";
 import { NowPlayingReaction, NowPlayingReactionType } from "../types/index";
 
 import type { QueueService } from "./queue";
-import type { RoomService } from "./room";
+import type { StoryService } from "./story";
 import type { ServiceContext } from "./types";
 import type { NowPlayingItemDbObject } from "../types/index";
 
@@ -12,7 +12,7 @@ export class NowPlayingService {
   constructor(
     private context: ServiceContext,
     private queueService: QueueService,
-    private roomService: RoomService
+    private storyService: StoryService
   ) {}
 
   async findById(
@@ -42,12 +42,12 @@ export class NowPlayingService {
 
   async skipCurrentTrack(id: string): Promise<boolean> {
     if (!this.context.user) throw new AuthenticationError("");
-    const room = await this.roomService.findById(id);
-    if (!room) throw new ForbiddenError("Room does not exist");
+    const story = await this.storyService.findById(id);
+    if (!story) throw new ForbiddenError("Story does not exist");
     const currentTrack = await this.findById(id);
     if (!currentTrack) return false;
     if (
-      room.creatorId !== this.context.user._id &&
+      story.creatorId !== this.context.user._id &&
       currentTrack.creatorId !== this.context.user._id
     )
       throw new AuthenticationError("You are not allowed to make changes");

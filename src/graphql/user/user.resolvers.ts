@@ -38,10 +38,10 @@ const resolvers: Resolvers = {
       if (!user) throw new AuthenticationError("");
       const deleted = await services.User.deleteMe();
       if (deleted) {
-        // delete every room
-        const allRooms = await services.Room.findByCreatorId(user._id);
-        for (const room of allRooms) {
-          await services.Room.deleteById(room._id);
+        // delete every story
+        const allStories = await services.Story.findByCreatorId(user._id);
+        for (const story of allStories) {
+          await services.Story.deleteById(story._id.toHexString());
         }
       }
       return deleted;

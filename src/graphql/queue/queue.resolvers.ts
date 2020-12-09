@@ -12,9 +12,8 @@ import { QueueAction } from "../../types/graphql.gen";
 const resolvers: Resolvers = {
   Query: {
     async queue(parent, { id }, { services, user }) {
-      const [, roomId] = id.split(":");
-      const room = await services.Room.findById(roomId);
-      if (!room || !services.Room.getPermission(room, user?._id).viewable)
+      const story = await services.Story.findById(id.split(":")[0]);
+      if (!story || !services.Story.getPermission(story, user?._id).isViewable)
         return null;
       return { id, items: [] };
     },
@@ -26,21 +25,18 @@ const resolvers: Resolvers = {
       { user, services, pubsub }
     ) {
       if (!user) throw new AuthenticationError("");
-      const room = await services.Room.findById(id.substring(5));
-      if (!room) throw new ForbiddenError("Room does not exist");
+      const story = await services.Story.findById(id);
+      if (!story) throw new ForbiddenError("Story does not exist");
+
+      if (!story.isLive) throw new ForbiddenError("Story is not live");
 
       // Check permission
-      const roomPermission = services.Room.getPermission(room, user._id);
-
-      const queue = await services.Queue.findById(id);
+      if (!services.Story.getPermission(story, user._id).isQueueable)
+        throw new ForbiddenError("You are not allowed to add to this queue");
 
       switch (action) {
         case QueueAction.Add: {
           if (!tracks) throw new UserInputError("Missing tracks", ["tracks"]);
-          if (!roomPermission.queueCanAdd)
-            throw new ForbiddenError(
-              "You are not allowed to add to this queue"
-            );
 
           await services.Queue.pushItems(
             id,
@@ -51,18 +47,12 @@ const resolvers: Resolvers = {
           );
 
           // It is possible that adding a new item will restart nowPlaying
-          NowPlayingWorker.requestResolve(pubsub, room._id);
+          NowPlayingWorker.requestResolve(pubsub, story._id.toHexString());
           break;
         }
         case QueueAction.Remove:
           if (typeof position !== "number")
             throw new UserInputError("Missing position", ["position"]);
-
-          if (
-            !roomPermission.queueCanManage &&
-            queue[position].creatorId !== user._id
-          )
-            throw new ForbiddenError(`You cannot remove other people's tracks`);
 
           await services.Queue.removeItem(id, position);
           break;
@@ -76,17 +66,9 @@ const resolvers: Resolvers = {
               "position",
             ]);
 
-          if (!roomPermission.queueCanManage)
-            throw new ForbiddenError(
-              `You cannot reorder other people's tracks`
-            );
-
           await services.Queue.reorderItems(id, position, insertPosition);
           break;
         case QueueAction.Clear:
-          if (!roomPermission.queueCanManage)
-            throw new ForbiddenError(`You cannot remove other people's tracks`);
-
           await services.Queue.deleteById(id);
           break;
         default:

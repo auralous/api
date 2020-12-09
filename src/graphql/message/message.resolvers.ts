@@ -23,9 +23,9 @@ const resolvers: Resolvers = {
       if (limit > 20) throw new ForbiddenError("Too large limit");
       const stop = -offset - 1;
       const start = stop - limit + 1;
-      // id is roomId
-      const room = await services.Room.findById(REDIS_KEY.message(id).id);
-      if (!room || !services.Room.getPermission(room, user?._id).viewable)
+      // id is storyId
+      const story = await services.Story.findById(REDIS_KEY.message(id).id);
+      if (!story || !services.Story.getPermission(story, user?._id).isViewable)
         return null;
       return services.Message.findById(id, start, stop);
     },
@@ -34,10 +34,10 @@ const resolvers: Resolvers = {
     async addMessage(parents, { id, text }, { user, services }) {
       if (!user) throw new AuthenticationError("");
 
-      // id is roomId
-      const room = await services.Room.findById(REDIS_KEY.message(id).id);
+      // id is storyId
+      const story = await services.Story.findById(REDIS_KEY.message(id).id);
 
-      if (!room || !services.Room.getPermission(room, user._id).viewable)
+      if (!story || !services.Story.getPermission(story, user._id).isViewable)
         throw new ForbiddenError(
           "You are not allowed to send message to this channel"
         );

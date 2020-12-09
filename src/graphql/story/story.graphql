@@ -1,0 +1,28 @@
+type Query {
+  story(id: ID!): Story
+  storyUsers(id: ID!): [String!]
+  stories(creatorId: String): [Story!]
+  storyFeed(id: ID!, next: String, limit: Int!): [Story!]!
+}
+
+type Mutation {
+  createStory(text: String!, isPublic: Boolean!): Story!
+  deleteStory(id: ID!): ID!
+  changeStoryQueueable(id: ID!, userId: String!, isRemoving: Boolean!): Story!
+  pingStory(id: ID!): Boolean!
+}
+
+type Subscription {
+  storyUsersUpdated(id: ID!): [String!]!
+}
+
+type Story {
+  id: ID!
+  text: String!
+  isPublic: Boolean!
+  image: String!
+  creatorId: ID!
+  createdAt: DateTime!
+  isLive: Boolean!
+  queueable: [String!]!
+}

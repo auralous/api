@@ -1,28 +1,26 @@
 export const MAX_TRACK_DURATION = 7 * 60 * 1000;
 
 export const REDIS_KEY = {
-  room: (roomId: string) => `room:${roomId}`,
-  roomUserStatus(roomId: string) {
-    return `${this.room(roomId)}:userStatus`;
+  story: (storyId: string) => `story:${storyId}`,
+  storyUserStatus(storyId: string) {
+    return `${this.story(storyId)}:userStatus`;
   },
-  nowPlaying(roomId: string) {
-    return `room:${roomId}:playing`;
+  nowPlaying(storyId: string) {
+    return `story:${storyId}:playing`;
   },
-  nowPlayingReaction(roomId: string, currQueueItemId: string) {
-    return `room:${roomId}:reactions:${currQueueItemId}`;
+  nowPlayingReaction(storyId: string, currQueueItemId: string) {
+    return `story:${storyId}:reactions:${currQueueItemId}`;
   },
-  queue(typeAndId: string) {
-    const [type, id] = typeAndId.split(":");
-    if (type !== "room") throw new Error("Invalid resourceType");
-    if (typeAndId.includes(":played")) {
+  queue(storyId: string) {
+    if (storyId.includes(":played")) {
       // Played queue ends with :played instead of :queue
-      return `${this[type](id)}:played`;
+      return `${this.story(storyId)}:played`;
     }
-    return `${this[type](id)}:queue`;
+    return `${this.story(storyId)}:queue`;
   },
   message(typeAndId: string) {
     const [type, id] = typeAndId.split(":");
-    if (type !== "room") throw new Error("Invalid resourceType");
+    if (type !== "story") throw new Error("Invalid resourceType");
     return { type, id, key: `${this[type](id)}:messages` };
   },
   track: (platformAndId: string) => `track:${platformAndId}`,
@@ -36,15 +34,17 @@ export const CONFIG = {
   userMaxAge: 4 * 60 * 60,
   searchMaxAge: 2 * 60 * 60,
   searchPlaylistMaxAge: 10 * 60,
-  randomRoomsMaxAge: 10 * 60,
-  activityTimeout: 60 * 1000, // room precense: if user does not ping in 1 min, they are considered left
+  activityTimeout: 60 * 1000, // if user does not ping in 1 min, they are considered left
+  storyLiveTimeout: 15 * 60 * 1000, // if creator is not active in story in 15 min, unpublish it
+  usernameMaxLength: 15,
+  storyTextMaxLength: 60,
 } as const;
 
 export const PUBSUB_CHANNELS = {
   nowPlayingWorker: "NOW_PLAYING_WORKER",
   nowPlayingUpdated: "NOW_PLAYING_UPDATED",
   nowPlayingReactionsUpdated: "NOW_PLAYING_REACTIONS_UPDATED",
-  roomStateUpdated: "ROOM_STATE_UPDATED",
+  storyUsersUpdated: "STORY_USERS_UPDATED",
   messageAdded: "MESSAGE_ADDED",
   queueUpdated: "QUEUE_UPDATED",
 };

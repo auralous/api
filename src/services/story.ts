@@ -9,6 +9,7 @@ import { MessageType, UserDbObject } from "../types/index";
 import type { ServiceContext } from "./types";
 import type { StoryDbObject, NullablePartial } from "../types/index";
 import type { MessageService } from "./message";
+import { NowPlayingWorker } from "./nowPlayingWorker";
 
 export class StoryService {
   private collection = this.context.db.collection<StoryDbObject>("stories");
@@ -52,6 +53,11 @@ export class StoryService {
   }
 
   async unliveStory(storyId: string): Promise<StoryDbObject> {
+    // Delete queue. See QueueService#deleteById
+    await this.context.redis.del(REDIS_KEY.queue(storyId));
+    // Skip/Stop nowPlaying
+    NowPlayingWorker.requestSkip(this.context.pubsub, storyId);
+    // Unlive it
     return this.updateById(storyId, { isLive: false });
   }
 

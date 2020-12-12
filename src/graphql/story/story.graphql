@@ -9,6 +9,7 @@ type Mutation {
   createStory(text: String!, isPublic: Boolean!): Story!
   deleteStory(id: ID!): ID!
   changeStoryQueueable(id: ID!, userId: String!, isRemoving: Boolean!): Story!
+  unliveStory(id: ID!): Boolean!
   pingStory(id: ID!): Boolean!
 }
 

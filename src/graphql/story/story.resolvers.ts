@@ -41,6 +41,13 @@ const resolvers: Resolvers = {
         isPublic,
       });
     },
+    async unliveStory(parent, { id }, { services, user }) {
+      const story = await services.Story.findById(id);
+      if (!story) throw new UserInputError("Story not found", ["id"]);
+      if (story.creatorId !== user?._id)
+        throw new ForbiddenError("Story cannot be updated");
+      return services.Story.unliveStory(id);
+    },
     async deleteStory(parent, { id }, { services }) {
       await services.Story.deleteById(id);
       return id;

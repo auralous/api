@@ -52,13 +52,18 @@ export class StoryService {
     return story;
   }
 
-  async unliveStory(storyId: string): Promise<StoryDbObject> {
+  async unliveStory(storyId: string): Promise<boolean> {
+    // WARN: this does not check auth
     // Delete queue. See QueueService#deleteById
     await this.context.redis.del(REDIS_KEY.queue(storyId));
     // Skip/Stop nowPlaying
     NowPlayingWorker.requestSkip(this.context.pubsub, storyId);
     // Unlive it
-    return this.updateById(storyId, { isLive: false });
+    const { modifiedCount } = await this.collection.updateOne(
+      { _id: new ObjectID(storyId) },
+      { $set: { isLive: false } }
+    );
+    return Boolean(modifiedCount);
   }
 
   async create({ text, isPublic }: Pick<StoryDbObject, "text" | "isPublic">) {

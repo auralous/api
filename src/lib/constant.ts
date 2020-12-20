@@ -44,6 +44,7 @@ export const PUBSUB_CHANNELS = {
   nowPlayingWorker: "NOW_PLAYING_WORKER",
   nowPlayingUpdated: "NOW_PLAYING_UPDATED",
   nowPlayingReactionsUpdated: "NOW_PLAYING_REACTIONS_UPDATED",
+  storyUpdated: "STORY_UPDATED",
   storyUsersUpdated: "STORY_USERS_UPDATED",
   messageAdded: "MESSAGE_ADDED",
   queueUpdated: "QUEUE_UPDATED",

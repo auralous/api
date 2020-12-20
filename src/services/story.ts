@@ -37,6 +37,13 @@ export class StoryService {
     );
   }
 
+  notifyUpdate(story: StoryDbObject) {
+    this.context.pubsub.publish(PUBSUB_CHANNELS.storyUpdated, {
+      id: story._id.toHexString(),
+      storyUpdated: story,
+    });
+  }
+
   // Return the story itself but switch it to "published if applicable"
   private checkStoryStatus(story: StoryDbObject): StoryDbObject {
     if (
@@ -59,11 +66,15 @@ export class StoryService {
     // Skip/Stop nowPlaying
     NowPlayingWorker.requestSkip(this.context.pubsub, storyId);
     // Unlive it
-    const { modifiedCount } = await this.collection.updateOne(
+    const { value } = await this.collection.findOneAndUpdate(
       { _id: new ObjectID(storyId) },
-      { $set: { isLive: false } }
+      { $set: { isLive: false } },
+      { returnOriginal: false }
     );
-    return Boolean(modifiedCount);
+    if (!value) return false;
+    this.loader.clear(storyId).prime(storyId, value);
+    this.notifyUpdate(value);
+    return true;
   }
 
   async create({ text, isPublic }: Pick<StoryDbObject, "text" | "isPublic">) {
@@ -72,6 +83,12 @@ export class StoryService {
     const createdAt = new Date();
 
     text = text.trim().substring(0, CONFIG.storyTextMaxLength);
+
+    // Unlive all other stories
+    await this.collection.updateMany(
+      { isLive: true, creatorId: this.context.user._id },
+      { $set: { isLive: false } }
+    );
 
     const {
       ops: [story],
@@ -149,7 +166,7 @@ export class StoryService {
     if (!story) throw new ForbiddenError("Cannot update story");
     // save to cache
     this.loader.clear(id).prime(id, story);
-
+    this.notifyUpdate(story);
     return story;
   }
 
@@ -189,7 +206,8 @@ export class StoryService {
       { returnOriginal: false }
     );
     if (!story) throw new ForbiddenError("Cannot update story");
-    return story;
+    this.notifyUpdate(story);
+    return true;
   }
 
   // Presence API

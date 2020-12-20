@@ -77,11 +77,23 @@ const resolvers: Resolvers = {
         );
       },
     },
+    storyUpdated: {
+      async subscribe(parent, { id }, { pubsub, services, user }) {
+        const story = await services.Story.findById(id);
+        if (!story) throw new UserInputError("Story not found", ["id"]);
+        if (!services.Story.getPermission(story, user?._id).isViewable)
+          throw new ForbiddenError("Story cannot be subscribed");
+        return pubsub.on(
+          PUBSUB_CHANNELS.storyUpdated,
+          (payload) => payload.id === id
+        );
+      },
+    },
   },
   Story: {
-    id: ({ _id }) => _id.toHexString(),
+    id: ({ _id }) => String(_id),
     image({ image, _id }) {
-      return image || defaultAvatar("story", _id.toHexString());
+      return image || defaultAvatar("story", String(_id));
     },
   },
 };

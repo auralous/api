@@ -8,12 +8,13 @@ type Query {
 type Mutation {
   createStory(text: String!, isPublic: Boolean!): Story!
   deleteStory(id: ID!): ID!
-  changeStoryQueueable(id: ID!, userId: String!, isRemoving: Boolean!): Story!
+  changeStoryQueueable(id: ID!, userId: String!, isRemoving: Boolean!): Boolean!
   unliveStory(id: ID!): Boolean!
   pingStory(id: ID!): Boolean!
 }
 
 type Subscription {
+  storyUpdated(id: ID!): Story!
   storyUsersUpdated(id: ID!): [String!]!
 }
 

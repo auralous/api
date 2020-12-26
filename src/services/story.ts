@@ -111,10 +111,15 @@ export class StoryService {
     return this.loader.load(id);
   }
 
-  async findByCreatorId(creatorId: string) {
+  async findByCreatorId(
+    creatorId: string,
+    limit?: number,
+    next?: string | null
+  ) {
     return this.collection
-      .find({ creatorId })
+      .find({ creatorId, ...(next && { _id: { $lt: new ObjectID(next) } }) })
       .sort({ $natural: -1 })
+      .limit(limit || 99999)
       .toArray()
       .then((stories) => stories.map((s) => this.checkStoryStatus(s)));
   }

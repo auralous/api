@@ -1,8 +1,7 @@
 type Query {
   story(id: ID!): Story
   storyUsers(id: ID!): [String!]
-  stories(creatorId: String): [Story!]
-  storyFeed(id: ID!, next: String, limit: Int!): [Story!]!
+  stories(id: ID!, next: String, limit: Int!): [Story!]!
 }
 
 type Mutation {

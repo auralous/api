@@ -13,25 +13,24 @@ const resolvers: Resolvers = {
         return s;
       });
     },
-    async stories(parent, { creatorId }, { services, user }) {
-      let stories: StoryDbObject[] | null = null;
-      if (creatorId) {
-        stories = (await services.Story.findByCreatorId(creatorId)).filter(
-          (s) => services.Story.getPermission(s, user?._id).isViewable
-        );
+    async stories(parent, { id, limit, next }, { services, user }) {
+      if (limit > 20) throw new ForbiddenError("Too large limit");
+      let stories: StoryDbObject[] = [];
+      if (id === "PUBLIC")
+        stories = await services.Story.findForFeedPublic(limit, next);
+      else if (id.startsWith("creatorId:")) {
+        const creatorId = id.substring(10);
+        stories = await services.Story.findByCreatorId(creatorId, limit, next);
       }
-      return stories;
+      return stories.filter(
+        (s) => services.Story.getPermission(s, user?._id).isViewable
+      );
     },
     async storyUsers(parent, { id }, { services, user }) {
       const story = await services.Story.findById(id);
       if (!story || !services.Story.getPermission(story, user?._id).isViewable)
         return null;
       return services.Story.getPresences(id);
-    },
-    storyFeed(parent, { id, next, limit }, { services }) {
-      if (limit > 20) throw new ForbiddenError("Too large limit");
-      if (id === "PUBLIC") return services.Story.findForFeedPublic(limit, next);
-      return [];
     },
   },
   Mutation: {

@@ -4,7 +4,16 @@ import { reorder } from "../lib/utils";
 import { REDIS_KEY, PUBSUB_CHANNELS } from "../lib/constant";
 
 import type { ServiceContext } from "./types";
-import type { NowPlayingItemDbObject, QueueItemDbObject } from "../types/index";
+import type {
+  NowPlayingItemDbObject,
+  QueueItemDbObject,
+  StoryDbObject,
+  UserDbObject,
+} from "../types/index";
+import { AuthenticationError, ForbiddenError, UserInputError } from "../error";
+import { StoryService } from "./story";
+import { QueueAction } from "../types/graphql.gen";
+import { NowPlayingWorker } from "./nowPlayingWorker";
 
 const queueItemStringify = fastJson({
   title: "Queue Item",
@@ -121,5 +130,70 @@ export class QueueService {
 
   async deleteById(id: string) {
     return this.context.redis.del(REDIS_KEY.queue(id));
+  }
+
+  async executeQueueAction(
+    me: UserDbObject | null,
+    story: StoryDbObject,
+    {
+      action,
+      tracks,
+      position,
+      insertPosition,
+    }: {
+      action: QueueAction;
+      tracks?: string[] | null;
+      position?: number | null;
+      insertPosition?: number | null;
+    }
+  ) {
+    const id = String(story._id);
+    if (!me) throw new AuthenticationError("");
+
+    if (!story.isLive) throw new ForbiddenError("Story is not live");
+
+    if (!StoryService.getPermission(me, story).isQueueable)
+      throw new ForbiddenError("You are not allowed to add to this queue");
+
+    switch (action) {
+      case QueueAction.Add: {
+        if (!tracks) throw new UserInputError("Missing tracks", ["tracks"]);
+
+        await this.pushItems(
+          id,
+          ...tracks.map((trackId) => ({
+            trackId,
+            creatorId: me._id,
+          }))
+        );
+
+        // It is possible that adding a new item will restart nowPlaying
+        NowPlayingWorker.requestResolve(this.context.pubsub, String(story._id));
+        break;
+      }
+      case QueueAction.Remove:
+        if (typeof position !== "number")
+          throw new UserInputError("Missing position", ["position"]);
+
+        await this.removeItem(id, position);
+        break;
+      case QueueAction.Reorder:
+        if (typeof insertPosition !== "number")
+          throw new UserInputError("Missing destination position", [
+            "insertPosition",
+          ]);
+        if (typeof position !== "number")
+          throw new UserInputError("Missing originated position", ["position"]);
+
+        await this.reorderItems(id, position, insertPosition);
+        break;
+      case QueueAction.Clear:
+        await this.deleteById(id);
+        break;
+      default:
+        throw new ForbiddenError("Invalid action");
+    }
+
+    return true;
   }
 }

@@ -49,35 +49,32 @@ export function createApp(
   });
 
   app.get("/mAuth", async (req, res) => {
-    if (req.user) {
-      const serviceContext = {
-        user: req.user || null,
-        db,
-        redis,
-        pubsub,
-      };
+    if (!req.user) return res.writeHead(204).end();
 
-      if (req.user) {
-        const oauth = req.user.oauth;
-        const userService = new UserService(serviceContext);
-        const authService =
-          oauth.provider === PlatformName.Youtube
-            ? new YoutubeAuthService(serviceContext, userService)
-            : new SpotifyAuthService(serviceContext, userService);
+    const serviceContext = {
+      user: req.user || null,
+      db,
+      redis,
+      pubsub,
+    };
 
-        return res
-          .writeHead(200, undefined, { "content-type": "application/json" })
-          .end(
-            JSON.stringify({
-              platform: oauth.provider,
-              id: oauth.id,
-              accessToken: await authService.getAccessToken(),
-              expiredAt: oauth.expiredAt,
-            })
-          );
-      }
-      return res.writeHead(204).end();
-    }
+    const oauth = req.user.oauth;
+    const userService = new UserService(serviceContext);
+    const authService =
+      oauth.provider === PlatformName.Youtube
+        ? new YoutubeAuthService(serviceContext, userService)
+        : new SpotifyAuthService(serviceContext, userService);
+
+    return res
+      .writeHead(200, undefined, { "content-type": "application/json" })
+      .end(
+        JSON.stringify({
+          platform: oauth.provider,
+          id: oauth.id,
+          accessToken: await authService.getAccessToken(),
+          expiredAt: oauth.expiredAt,
+        })
+      );
   });
 
   createRoute("google", {

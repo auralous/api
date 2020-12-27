@@ -32,12 +32,6 @@ const queueItemStringify = fastJson({
 export class QueueService {
   constructor(private context: ServiceContext) {}
 
-  notifyUpdate(id: string) {
-    this.context.pubsub.publish(PUBSUB_CHANNELS.queueUpdated, {
-      queueUpdated: { id },
-    });
-  }
-
   static stringifyQueue(item: QueueItemDbObject): string {
     return queueItemStringify(item);
   }
@@ -48,8 +42,14 @@ export class QueueService {
     );
   }
 
-  static randomItemId(): string {
+  static randomQueueItemId(): string {
     return nanoid(4);
+  }
+
+  private notifyUpdate(id: string) {
+    this.context.pubsub.publish(PUBSUB_CHANNELS.queueUpdated, {
+      queueUpdated: { id },
+    });
   }
 
   /**
@@ -101,7 +101,7 @@ export class QueueService {
     const queueItems: QueueItemDbObject[] = items.map((item) => {
       return {
         ...item,
-        id: item.id || QueueService.randomItemId(),
+        id: item.id || QueueService.randomQueueItemId(),
       };
     });
     const count = await this.context.redis.rpush(

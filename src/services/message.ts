@@ -31,7 +31,7 @@ export class MessageService {
     return messageStringify(message);
   }
 
-  static randomItemId(): string {
+  static randomMessageItemId(): string {
     return nanoid(16);
   }
 
@@ -74,7 +74,7 @@ export class MessageService {
   ): Promise<number> {
     const newMessage: MessageDbObject = {
       ...message,
-      id: MessageService.randomItemId(),
+      id: MessageService.randomMessageItemId(),
       createdAt: new Date(),
       creatorId: message.creatorId,
     };

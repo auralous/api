@@ -34,14 +34,26 @@ export class StoryService {
     );
   }
 
-  notifyUpdate(story: StoryDbObject) {
+  /**
+   * Notify the story has changed
+   * Possibly because a new queueable, viewable, or isLive
+   * @param story
+   */
+  private notifyUpdate(story: StoryDbObject) {
     this.context.pubsub.publish(PUBSUB_CHANNELS.storyUpdated, {
       id: story._id.toHexString(),
       storyUpdated: story,
     });
   }
 
-  // Return the story itself but switch it to "published if applicable"
+  /**
+   * Check a story to see if it needs to be unlived
+   * Sometimes, the creator does not unlive a story manually
+   * We define a inactivity duration to unlive the story (CONFIG.storyLiveTimeout)
+   * This is often run everytime a story is accessed (either by itself or as part of a collection)
+   * Return the story itself for convenience passing into callbacks
+   * @param story
+   */
   private checkStoryStatus(story: StoryDbObject): StoryDbObject {
     if (
       story.isLive &&
@@ -56,6 +68,12 @@ export class StoryService {
     return story;
   }
 
+  /**
+   * Unlive a story (aka archieved)
+   * An unlived stories can be replayed at any time
+   * but no new songs can be added to it
+   * @param storyId
+   */
   async unliveStory(storyId: string): Promise<boolean> {
     // WARN: this does not check auth
     // Delete queue. See QueueService#deleteById
@@ -73,6 +91,11 @@ export class StoryService {
     return true;
   }
 
+  /**
+   * Create a story
+   * @param me
+   * @param param1 data of the new story
+   */
   async create(
     me: UserDbObject | null,
     { text, isPublic }: Pick<StoryDbObject, "text" | "isPublic">
@@ -104,10 +127,20 @@ export class StoryService {
     return story;
   }
 
+  /**
+   * Find a story by id
+   * @param id
+   */
   findById(id: string) {
     return this.loader.load(id);
   }
 
+  /**
+   * Find stories created by a user
+   * @param creatorId
+   * @param limit
+   * @param next
+   */
   async findByCreatorId(
     creatorId: string,
     limit?: number,
@@ -121,6 +154,11 @@ export class StoryService {
       .then((stories) => stories.map((s) => this.checkStoryStatus(s)));
   }
 
+  /**
+   * Find all public stories
+   * @param limit
+   * @param next
+   */
   async findForFeedPublic(
     limit: number,
     next?: string | null
@@ -136,8 +174,12 @@ export class StoryService {
       .then((stories) => stories.map((s) => this.checkStoryStatus(s)));
   }
 
-  // Manage API
-
+  /**
+   * Update a story by id
+   * @param me the creator of this story
+   * @param id
+   * @param param2
+   */
   async updateById(
     me: UserDbObject | null,
     id: string,
@@ -171,6 +213,11 @@ export class StoryService {
     return story;
   }
 
+  /**
+   * Delete a story by id
+   * @param me the creator of that story
+   * @param id
+   */
   async deleteById(me: UserDbObject | null, id: string) {
     if (!me) throw new AuthenticationError("");
     const { deletedCount } = await this.collection.deleteOne({
@@ -186,6 +233,13 @@ export class StoryService {
     return true;
   }
 
+  /**
+   * Add or remove the queueable by id
+   * @param me the creator of that story
+   * @param id
+   * @param addingUser
+   * @param isRemoving
+   */
   async addOrRemoveQueueable(
     me: UserDbObject | null,
     id: string,
@@ -208,8 +262,12 @@ export class StoryService {
     return true;
   }
 
-  // Presence API
-
+  /**
+   * Notify that the user is still in story
+   * @param messageService
+   * @param user
+   * @param storyId
+   */
   async pingPresence(
     messageService: MessageService,
     user: UserDbObject,
@@ -262,6 +320,10 @@ export class StoryService {
     }
   }
 
+  /**
+   * Get all user currently in a room
+   * @param _id
+   */
   async getPresences(_id: string): Promise<string[]> {
     const minRange = Date.now() - CONFIG.activityTimeout;
     return this.context.redis.zrevrangebyscore(
@@ -271,7 +333,6 @@ export class StoryService {
     );
   }
 
-  // Util
   /**
    * Get a user's permission to a story
    * @param user the user in question, possibly null

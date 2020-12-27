@@ -8,12 +8,13 @@ import { PUBSUB_CHANNELS } from "../../lib/constant";
 
 import type { Resolvers } from "../../types/index";
 import { QueueAction } from "../../types/graphql.gen";
+import { StoryService } from "../../services/story";
 
 const resolvers: Resolvers = {
   Query: {
     async queue(parent, { id }, { services, user }) {
       const story = await services.Story.findById(id.split(":")[0]);
-      if (!story || !services.Story.getPermission(story, user?._id).isViewable)
+      if (!story || !StoryService.getPermission(user, story).isViewable)
         return null;
       return { id, items: [] };
     },
@@ -30,8 +31,7 @@ const resolvers: Resolvers = {
 
       if (!story.isLive) throw new ForbiddenError("Story is not live");
 
-      // Check permission
-      if (!services.Story.getPermission(story, user._id).isQueueable)
+      if (!StoryService.getPermission(user, story).isQueueable)
         throw new ForbiddenError("You are not allowed to add to this queue");
 
       switch (action) {

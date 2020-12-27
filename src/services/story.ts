@@ -8,17 +8,14 @@ import { MessageType, UserDbObject } from "../types/index";
 
 import type { ServiceContext } from "./types";
 import type { StoryDbObject, NullablePartial } from "../types/index";
-import type { MessageService } from "./message";
 import { NowPlayingWorker } from "./nowPlayingWorker";
+import { MessageService } from "./message";
 
 export class StoryService {
   private collection = this.context.db.collection<StoryDbObject>("stories");
   private loader: DataLoader<string, StoryDbObject | null>;
 
-  constructor(
-    private context: ServiceContext,
-    private messageService: MessageService
-  ) {
+  constructor(private context: ServiceContext) {
     this.loader = new DataLoader(
       async (keys) => {
         const stories = await this.collection
@@ -33,7 +30,7 @@ export class StoryService {
             ) || null
         );
       },
-      { cache: !context.isWs }
+      { cache: false }
     );
   }
 
@@ -77,8 +74,11 @@ export class StoryService {
     return true;
   }
 
-  async create({ text, isPublic }: Pick<StoryDbObject, "text" | "isPublic">) {
-    if (!this.context.user) throw new AuthenticationError("");
+  async create(
+    me: UserDbObject | null,
+    { text, isPublic }: Pick<StoryDbObject, "text" | "isPublic">
+  ) {
+    if (!me) throw new AuthenticationError("");
 
     const createdAt = new Date();
 
@@ -86,7 +86,7 @@ export class StoryService {
 
     // Unlive all other stories
     await this.collection.updateMany(
-      { isLive: true, creatorId: this.context.user._id },
+      { isLive: true, creatorId: me._id },
       { $set: { isLive: false } }
     );
 
@@ -95,7 +95,7 @@ export class StoryService {
     } = await this.collection.insertOne({
       text,
       isPublic,
-      creatorId: this.context.user._id,
+      creatorId: me._id,
       createdAt,
       isLive: true,
       viewable: [],
@@ -142,6 +142,7 @@ export class StoryService {
   // Manage API
 
   async updateById(
+    me: UserDbObject | null,
     id: string,
     {
       text,
@@ -151,11 +152,11 @@ export class StoryService {
       isLive,
     }: NullablePartial<StoryDbObject>
   ): Promise<StoryDbObject> {
-    if (!this.context.user) throw new AuthenticationError("");
+    if (!me) throw new AuthenticationError("");
     const { value: story } = await this.collection.findOneAndUpdate(
       {
         _id: new ObjectID(id),
-        creatorId: this.context.user._id,
+        creatorId: me._id,
       },
       {
         $set: {
@@ -175,35 +176,34 @@ export class StoryService {
     return story;
   }
 
-  async deleteById(id: string) {
-    if (!this.context.user) throw new AuthenticationError("");
+  async deleteById(me: UserDbObject | null, id: string) {
+    if (!me) throw new AuthenticationError("");
     const { deletedCount } = await this.collection.deleteOne({
       _id: new ObjectID(id),
-      creatorId: this.context.user._id,
+      creatorId: me._id,
     });
     if (!deletedCount) throw new ForbiddenError("Cannot delete story");
     // remove from cache
     this.loader.clear(id);
     // delete associated
     await Promise.all([
-      deleteCloudinaryImagesByPrefix(
-        `users/${this.context.user._id}/stories/${id}`
-      ),
+      deleteCloudinaryImagesByPrefix(`users/${me._id}/stories/${id}`),
       deleteByPattern(this.context.redis, `${REDIS_KEY.story(id)}:*`),
     ]);
     return true;
   }
 
   async addOrRemoveQueueable(
+    me: UserDbObject | null,
     id: string,
     addingUser: UserDbObject,
     isRemoving: boolean
   ) {
-    if (!this.context.user) throw new AuthenticationError("");
+    if (!me) throw new AuthenticationError("");
     const { value: story } = await this.collection.findOneAndUpdate(
       {
         _id: new ObjectID(id),
-        creatorId: this.context.user._id,
+        creatorId: me._id,
       },
       isRemoving
         ? { $pull: { queueable: addingUser._id } }
@@ -217,13 +217,20 @@ export class StoryService {
 
   // Presence API
 
-  async pingPresence(storyId: string, userId: string): Promise<void> {
+  async pingPresence(
+    messageService: MessageService,
+    user: UserDbObject,
+    storyId: string
+  ): Promise<void> {
     const story = await this.findById(storyId);
-    if (!story || !this.getPermission(story, userId).isViewable) return;
+    if (!story || !StoryService.getPermission(user, story).isViewable)
+      throw new ForbiddenError("Cannot ping to this story");
 
     // update lastCreatorActivityAt
-    if (userId === story.creatorId) {
-      await this.updateById(storyId, { lastCreatorActivityAt: new Date() });
+    if (user?._id === story.creatorId) {
+      await this.updateById(user, storyId, {
+        lastCreatorActivityAt: new Date(),
+      });
     }
 
     const now = Date.now();
@@ -231,7 +238,7 @@ export class StoryService {
     const lastTimestamp: number = parseInt(
       await this.context.redis.zscore(
         REDIS_KEY.storyUserStatus(storyId),
-        userId
+        user._id
       ),
       10
     );
@@ -243,15 +250,15 @@ export class StoryService {
     await this.context.redis.zadd(
       REDIS_KEY.storyUserStatus(storyId),
       now,
-      userId
+      user._id
     );
 
     if (justJoined) {
       // notify that user just joined via message
-      this.messageService.add(`story:${storyId}`, {
+      messageService.add(`story:${storyId}`, {
         text: storyId,
         type: MessageType.Join,
-        creatorId: userId,
+        creatorId: user._id,
       });
 
       // Notify story user update via subscription
@@ -272,19 +279,23 @@ export class StoryService {
   }
 
   // Util
-
-  getPermission(
-    story: StoryDbObject,
-    userId: string | undefined
+  /**
+   * Get a user's permission to a story
+   * @param user the user in question, possibly null
+   * @param story
+   */
+  static getPermission(
+    user: UserDbObject | null,
+    story: StoryDbObject
   ): { isViewable: boolean; isQueueable: boolean } {
     return {
       isViewable:
         story.isPublic ||
-        story.creatorId === userId ||
-        (!!userId && !!story.viewable.includes(userId)),
+        story.creatorId === user?._id ||
+        (!!user?._id && !!story.viewable.includes(user._id)),
       isQueueable: Boolean(
-        !!userId &&
-          (story.creatorId === userId || story.queueable.includes(userId))
+        !!user?._id &&
+          (story.creatorId === user._id || story.queueable.includes(user._id))
       ),
     };
   }

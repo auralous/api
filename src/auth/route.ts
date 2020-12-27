@@ -1,9 +1,6 @@
 import nc from "next-connect";
-import {
-  UserService,
-  SpotifyAuthService,
-  YoutubeAuthService,
-} from "../services/index";
+import { UserService } from "../services/user";
+import { SpotifyAuthService, YoutubeAuthService } from "../services/music";
 import { PlatformName } from "../types/index";
 
 import type { Db } from "mongodb";
@@ -62,8 +59,8 @@ export function createApp(
     const userService = new UserService(serviceContext);
     const authService =
       oauth.provider === PlatformName.Youtube
-        ? new YoutubeAuthService(serviceContext, userService)
-        : new SpotifyAuthService(serviceContext, userService);
+        ? new YoutubeAuthService()
+        : new SpotifyAuthService();
 
     return res
       .writeHead(200, undefined, { "content-type": "application/json" })
@@ -71,7 +68,10 @@ export function createApp(
         JSON.stringify({
           platform: oauth.provider,
           id: oauth.id,
-          accessToken: await authService.getAccessToken(),
+          accessToken: await authService.getAccessToken(
+            req.user || null,
+            userService
+          ),
           expiredAt: oauth.expiredAt,
         })
       );

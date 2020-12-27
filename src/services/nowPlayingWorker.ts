@@ -1,4 +1,3 @@
-import { Services } from "../services/index";
 import { PUBSUB_CHANNELS, REDIS_KEY } from "../lib/constant";
 
 import type { Db } from "mongodb";
@@ -9,10 +8,18 @@ import {
   NowPlayingItemDbObject,
   MessageType,
 } from "../types/index";
+import { QueueService } from "./queue";
+import { NowPlayingService } from "./nowPlaying";
+import { TrackService } from "./track";
+import { MessageService } from "./message";
 
 export class NowPlayingWorker {
   private timers = new Map<string, NodeJS.Timeout>();
-  private services: Services;
+
+  private nowPlayingService: NowPlayingService;
+  private queueService: QueueService;
+  private trackService: TrackService;
+  private messageService: MessageService;
 
   static requestResolve(pubsub: PubSub, id: string) {
     return pubsub.pub.publish(
@@ -38,15 +45,11 @@ export class NowPlayingWorker {
       if (action === "resolve") this.resolve(storyId);
       else if (action === "skip") this.skip(storyId);
     });
-    this.services = new Services({
-      user: null,
-      db,
-      redis,
-      pubsub: this.pubsub,
-      // isWs means no cache
-      isWs: true,
-    });
     this.init(db);
+    this.nowPlayingService = new NowPlayingService({ db, redis, pubsub });
+    this.queueService = new QueueService({ db, redis, pubsub });
+    this.trackService = new TrackService({ db, redis, pubsub });
+    this.messageService = new MessageService({ db, redis, pubsub });
   }
 
   private async init(db: Db) {
@@ -65,10 +68,7 @@ export class NowPlayingWorker {
 
   private setNowPlayingById(id: string, queueItem: NowPlayingItemDbObject) {
     return this.redis
-      .set(
-        REDIS_KEY.nowPlaying(id),
-        this.services.Queue.stringifyItem(queueItem)
-      )
+      .set(REDIS_KEY.nowPlaying(id), QueueService.stringifyQueue(queueItem))
       .then(Boolean);
   }
 
@@ -81,7 +81,7 @@ export class NowPlayingWorker {
   }
 
   private async skip(storyId: string): Promise<boolean> {
-    const lastPlaying = await this.services.NowPlaying.findById(storyId);
+    const lastPlaying = await this.nowPlayingService.findById(storyId);
     if (!lastPlaying) return false;
     // Make it end right now
     lastPlaying.endedAt = new Date();
@@ -100,7 +100,7 @@ export class NowPlayingWorker {
     // Now timestamp
     const now = new Date();
 
-    const prevCurrentTrack = await this.services.NowPlaying.findById(
+    const prevCurrentTrack = await this.nowPlayingService.findById(
       storyId,
       true
     );
@@ -120,10 +120,10 @@ export class NowPlayingWorker {
 
     let currentTrack: NowPlayingItemDbObject | null = null;
 
-    const firstTrackInQueue = await this.services.Queue.shiftItem(queueId);
+    const firstTrackInQueue = await this.queueService.shiftItem(queueId);
 
     if (firstTrackInQueue) {
-      const detailNextTrack = await this.services.Track.findOrCreate(
+      const detailNextTrack = await this.trackService.findOrCreate(
         firstTrackInQueue.trackId
       );
 
@@ -143,11 +143,11 @@ export class NowPlayingWorker {
     if (currentTrack) {
       // Push previous nowPlaying to played queue
       if (prevCurrentTrack)
-        await this.services.Queue.pushItems(playedQueueId, prevCurrentTrack);
+        await this.queueService.pushItems(playedQueueId, prevCurrentTrack);
       // Save currentTrack
       await this.setNowPlayingById(storyId, currentTrack);
       // Send message
-      await this.services.Message.add(`story:${storyId}`, {
+      await this.messageService.add(`story:${storyId}`, {
         creatorId: currentTrack.creatorId,
         type: MessageType.Play,
         text: currentTrack.trackId,
@@ -159,8 +159,8 @@ export class NowPlayingWorker {
     }
 
     // Publish to subscription
-    this.services.NowPlaying.notifyUpdate(storyId, currentTrack);
-    this.services.NowPlaying.notifyReactionUpdate(storyId, undefined);
+    this.nowPlayingService.notifyNowPlayingChange(storyId, currentTrack);
+    this.nowPlayingService.notifyReactionUpdate(storyId, undefined);
 
     return currentTrack;
   }

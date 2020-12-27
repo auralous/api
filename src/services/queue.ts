@@ -29,20 +29,26 @@ export class QueueService {
     });
   }
 
-  stringifyItem(item: QueueItemDbObject): string {
+  static stringifyQueue(item: QueueItemDbObject): string {
     return queueItemStringify(item);
   }
 
-  parseItem(str: string): QueueItemDbObject | NowPlayingItemDbObject {
+  static parseQueue(str: string): QueueItemDbObject | NowPlayingItemDbObject {
     return JSON.parse(str, (key, value) =>
       key === "playedAt" || key === "endedAt" ? new Date(value) : value
     );
   }
 
-  randomItemId(): string {
+  static randomItemId(): string {
     return nanoid(4);
   }
 
+  /**
+   * Find queue items by id
+   * @param id storyId
+   * @param start
+   * @param stop
+   */
   async findById(
     id: string,
     start = 0,
@@ -50,7 +56,7 @@ export class QueueService {
   ): Promise<QueueItemDbObject[]> {
     return this.context.redis
       .lrange(REDIS_KEY.queue(id), start, stop)
-      .then((res) => res.map(this.parseItem));
+      .then((res) => res.map(QueueService.parseQueue));
   }
 
   async lengthById(id: string): Promise<number> {
@@ -61,7 +67,7 @@ export class QueueService {
     const str = await this.context.redis.lpop(REDIS_KEY.queue(id));
     if (!str) return null;
     this.notifyUpdate(id);
-    return this.parseItem(str);
+    return QueueService.parseQueue(str);
   }
 
   async pushItems(
@@ -73,12 +79,12 @@ export class QueueService {
     const queueItems: QueueItemDbObject[] = items.map((item) => {
       return {
         ...item,
-        id: item.id || this.randomItemId(),
+        id: item.id || QueueService.randomItemId(),
       };
     });
     const count = await this.context.redis.rpush(
       REDIS_KEY.queue(id),
-      ...queueItems.map(this.stringifyItem)
+      ...queueItems.map(QueueService.stringifyQueue)
     );
     if (count) this.notifyUpdate(id);
     return count;

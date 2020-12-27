@@ -3,6 +3,7 @@ import { PUBSUB_CHANNELS, REDIS_KEY } from "../../lib/constant";
 import { MessageType } from "../../types";
 
 import type { Resolvers } from "../../types";
+import { StoryService } from "../../services/story";
 
 const resolvers: Resolvers = {
   Subscription: {
@@ -25,7 +26,7 @@ const resolvers: Resolvers = {
       const start = stop - limit + 1;
       // id is storyId
       const story = await services.Story.findById(REDIS_KEY.message(id).id);
-      if (!story || !services.Story.getPermission(story, user?._id).isViewable)
+      if (!story || !StoryService.getPermission(user, story).isViewable)
         return null;
       return services.Message.findById(id, start, stop);
     },
@@ -34,10 +35,9 @@ const resolvers: Resolvers = {
     async addMessage(parents, { id, text }, { user, services }) {
       if (!user) throw new AuthenticationError("");
 
-      // id is storyId
       const story = await services.Story.findById(REDIS_KEY.message(id).id);
 
-      if (!story || !services.Story.getPermission(story, user._id).isViewable)
+      if (!story || !StoryService.getPermission(user, story).isViewable)
         throw new ForbiddenError(
           "You are not allowed to send message to this channel"
         );

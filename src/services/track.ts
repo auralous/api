@@ -4,7 +4,7 @@ import fetch from "node-fetch";
 import { URL } from "url";
 import { SpotifyService, YoutubeService } from "./music";
 import { CONFIG, REDIS_KEY } from "../lib/constant";
-import { PlatformName } from "../types/index";
+import { PlatformName, UserDbObject } from "../types/index";
 
 import type { ServiceContext } from "./types";
 import type {
@@ -69,7 +69,7 @@ export class TrackService {
           keys.map((key) => this.context.redis.get(key))
         ).then((results) => results.map((r) => (r ? JSON.parse(r) : null)));
       },
-      { cache: !context.isWs }
+      { cache: false }
     );
   }
 
@@ -81,23 +81,27 @@ export class TrackService {
 
   get spotify() {
     if (this._spotify) return this._spotify;
-    return (this._spotify = new SpotifyService(
-      this.context.user?.oauth || null
-    ));
+    return (this._spotify = new SpotifyService());
   }
 
   private find(id: string) {
     return this.loader.load(REDIS_KEY.track(id));
   }
 
-  async findByUri(uri: URL): Promise<TrackDbObject | TrackDbObject[] | null> {
+  async findByUri(
+    uri: URL,
+    me?: UserDbObject | null
+  ): Promise<TrackDbObject | TrackDbObject[] | null> {
     let externalId: null | string = null;
     for (const platform of Object.values(PlatformName)) {
       const platformService = this[platform];
       if ((externalId = platformService.getPlaylistIdFromUri(uri.href)))
-        return platformService.getTracksByPlaylistId(externalId);
+        return platformService.getTracksByPlaylistId(
+          externalId,
+          (me?.oauth.provider === platform && me.oauth.accessToken) || undefined
+        );
       else if ((externalId = platformService.getTrackIdFromUri(uri.href)))
-        return this.findOrCreate(`${platform}:${externalId}`);
+        return this.findOrCreate(`${platform}:${externalId}`, me);
     }
     return null;
   }
@@ -108,11 +112,17 @@ export class TrackService {
     await this.context.redis.set(REDIS_KEY.track(id), stringifyTrack(track));
   }
 
-  async findOrCreate(id: string): Promise<TrackDbObject | null> {
+  async findOrCreate(
+    id: string,
+    me?: UserDbObject | null
+  ): Promise<TrackDbObject | null> {
     let track = await this.find(id);
     if (!track) {
       const [platform, externalId] = id.split(":");
-      track = await this[platform as PlatformName]?.getTrack(externalId);
+      track = await this[platform as PlatformName]?.getTrack(
+        externalId,
+        (me?.oauth.provider === platform && me.oauth.accessToken) || undefined
+      );
       if (!track) return null;
       await this.save(id, track);
     }
@@ -154,8 +164,15 @@ export class TrackService {
     return cache;
   }
 
-  search(platform: PlatformName, query: string): Promise<TrackDbObject[]> {
-    return this[platform].searchTracks(query);
+  search(
+    platform: PlatformName,
+    query: string,
+    me?: UserDbObject | null
+  ): Promise<TrackDbObject[]> {
+    return this[platform].searchTracks(
+      query,
+      (me?.oauth.provider === platform && me.oauth.accessToken) || undefined
+    );
   }
 
   // Artists
@@ -171,11 +188,17 @@ export class TrackService {
     await this.context.redis.set(keyId, stringifyArtist(artist));
   }
 
-  async findOrCreateArtist(id: string): Promise<ArtistDbObject | null> {
+  async findOrCreateArtist(
+    id: string,
+    me?: UserDbObject | null
+  ): Promise<ArtistDbObject | null> {
     let artist = await this.findArtist(id);
     if (!artist) {
       const [platform, externalId] = id.split(":");
-      artist = await this[platform as PlatformName]?.getArtist(externalId);
+      artist = await this[platform as PlatformName]?.getArtist(
+        externalId,
+        (me?.oauth.provider === platform && me.oauth.accessToken) || undefined
+      );
       if (!artist) return null;
       await this.saveArtist(id, artist);
     }

@@ -2,7 +2,7 @@ import { AuthenticationError, ForbiddenError } from "../error/index";
 import { PUBSUB_CHANNELS, REDIS_KEY } from "../lib/constant";
 import { NowPlayingWorker } from "./nowPlayingWorker";
 import {
-  NowPlayingReaction,
+  NowPlayingReactionItem,
   NowPlayingReactionType,
   StoryDbObject,
 } from "../types/index";
@@ -75,12 +75,10 @@ export class NowPlayingService {
 
   // NowPlaying Reaction
   // A redis set whose items are `{userId}|{reactionType}`
-  async notifyReactionUpdate(id: string, currQueueItemId: string | undefined) {
+  private async notifyReactionUpdate(id: string) {
     this.context.pubsub.publish(PUBSUB_CHANNELS.nowPlayingReactionsUpdated, {
-      nowPlayingReactionsUpdated: await this._getReactionsCountAndMine(
-        id,
-        currQueueItemId
-      ),
+      nowPlayingReactionsUpdated: await this.getAllReactions(id),
+      id,
     });
   }
 
@@ -97,7 +95,7 @@ export class NowPlayingService {
   ) {
     if (!me) throw new AuthenticationError("");
 
-    if (!story || StoryService.getPermission(me, story).isViewable)
+    if (!story || !StoryService.getPermission(me, story).isViewable)
       throw new ForbiddenError("");
 
     const currItem = await this.findById(String(story._id));
@@ -112,37 +110,15 @@ export class NowPlayingService {
 
     if (result) {
       // Only publish if a reaction is added
-      this.notifyReactionUpdate(String(story._id), currItem.id);
+      this.notifyReactionUpdate(String(story._id));
     }
   }
 
-  async _getReactionsCountAndMine(
-    id: string,
-    currQueueItemId: string | undefined
-  ) {
-    const reactions: NowPlayingReaction = {
-      id,
-      mine: null,
-      [NowPlayingReactionType.Heart]: 0,
-      [NowPlayingReactionType.Cry]: 0,
-      [NowPlayingReactionType.Joy]: 0,
-      [NowPlayingReactionType.Fire]: 0,
-    };
-    if (currQueueItemId) {
-      const allReactions = await this.getAllReactions(id, currQueueItemId);
-      for (const eachReaction of allReactions) {
-        reactions[eachReaction.reaction] += 1;
-      }
-    }
-    return reactions;
-  }
-
-  async getAllReactions(
-    id: string,
-    currQueueItemId: string
-  ): Promise<{ userId: string; reaction: NowPlayingReactionType }[]> {
+  async getAllReactions(id: string): Promise<NowPlayingReactionItem[]> {
+    const currentTrack = await this.findById(id);
+    if (!currentTrack) return [];
     const o = await this.context.redis.hgetall(
-      REDIS_KEY.nowPlayingReaction(id, currQueueItemId)
+      REDIS_KEY.nowPlayingReaction(id, currentTrack.id)
     );
     return Object.entries(o).map(([userId, reaction]) => ({
       userId,

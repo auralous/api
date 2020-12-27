@@ -183,13 +183,7 @@ export class StoryService {
   async updateById(
     me: UserDbObject | null,
     id: string,
-    {
-      text,
-      image,
-      queueable,
-      lastCreatorActivityAt,
-      isLive,
-    }: NullablePartial<StoryDbObject>
+    { text, image, queueable, isLive }: NullablePartial<StoryDbObject>
   ): Promise<StoryDbObject> {
     if (!me) throw new AuthenticationError("");
     const { value: story } = await this.collection.findOneAndUpdate(
@@ -202,7 +196,6 @@ export class StoryService {
           ...(text && { text }),
           ...(image !== undefined && { image }),
           ...(queueable && { queueable }),
-          ...(lastCreatorActivityAt && { lastCreatorActivityAt }),
           ...(typeof isLive === "boolean" && { isLive }),
         },
       },
@@ -277,11 +270,12 @@ export class StoryService {
     if (!story || !StoryService.getPermission(user, story).isViewable)
       throw new ForbiddenError("Cannot ping to this story");
 
-    // update lastCreatorActivityAt
+    // update lastCreatorActivityAt since the pinging user is create
     if (user?._id === story.creatorId) {
-      await this.updateById(user, storyId, {
-        lastCreatorActivityAt: new Date(),
-      });
+      await this.collection.updateOne(
+        { _id: new ObjectID(storyId), creatorId: user._id },
+        { $set: { lastCreatorActivityAt: new Date() } }
+      );
     }
 
     const now = Date.now();

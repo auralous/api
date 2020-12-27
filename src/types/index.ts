@@ -3,7 +3,7 @@ export * from "./db";
 export {
   Resolvers,
   PlatformName,
-  NowPlayingReaction,
+  NowPlayingReactionItem,
   NowPlayingReactionType,
   MessageType,
 } from "./graphql.gen";

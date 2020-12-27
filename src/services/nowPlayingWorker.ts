@@ -160,7 +160,6 @@ export class NowPlayingWorker {
 
     // Publish to subscription
     this.nowPlayingService.notifyNowPlayingChange(storyId, currentTrack);
-    this.nowPlayingService.notifyReactionUpdate(storyId, undefined);
 
     return currentTrack;
   }

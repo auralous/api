@@ -12,11 +12,7 @@ const resolvers: Resolvers = {
       };
     },
     async nowPlayingReactions(parent, { id }, { services }) {
-      const currentTrack = await services.NowPlaying.findById(id);
-      return services.NowPlaying._getReactionsCountAndMine(
-        id,
-        currentTrack?.id
-      );
+      return services.NowPlaying.getAllReactions(id);
     },
   },
   Mutation: {
@@ -48,7 +44,7 @@ const resolvers: Resolvers = {
       subscribe(parent, { id }, { pubsub }) {
         return pubsub.on(
           PUBSUB_CHANNELS.nowPlayingReactionsUpdated,
-          (payload) => payload.nowPlayingReactionsUpdated.id === id
+          (payload) => payload.id === id
         );
       },
     },

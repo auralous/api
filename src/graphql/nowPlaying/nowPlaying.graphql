@@ -6,7 +6,7 @@ enum NowPlayingReactionType {
 }
 type Query {
   nowPlaying(id: ID!): NowPlaying
-  nowPlayingReactions(id: ID!): NowPlayingReaction
+  nowPlayingReactions(id: ID!): [NowPlayingReactionItem!]
 }
 type Mutation {
   reactNowPlaying(id: ID!, reaction: NowPlayingReactionType!): Boolean
@@ -14,7 +14,7 @@ type Mutation {
 }
 type Subscription {
   nowPlayingUpdated(id: ID!): NowPlaying
-  nowPlayingReactionsUpdated(id: ID!): NowPlayingReaction
+  nowPlayingReactionsUpdated(id: ID!): [NowPlayingReactionItem!]
 }
 type NowPlayingQueueItem {
   id: ID!
@@ -27,11 +27,7 @@ type NowPlaying {
   id: ID!
   currentTrack: NowPlayingQueueItem
 }
-type NowPlayingReaction {
-  id: ID!
-  mine: NowPlayingReactionType
-  heart: Int!
-  cry: Int!
-  joy: Int!
-  fire: Int!
+type NowPlayingReactionItem {
+  userId: String!
+  reaction: NowPlayingReactionType!
 }

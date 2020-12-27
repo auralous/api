@@ -13,7 +13,7 @@ export class FollowService {
    */
   findFollows(userId: string) {
     return this.collection
-      .find({ following: userId })
+      .find({ following: userId, unfollowedAt: null })
       .sort({ $natural: -1 })
       .toArray();
   }
@@ -24,7 +24,7 @@ export class FollowService {
    */
   findFollowings(userId: string) {
     return this.collection
-      .find({ follower: userId })
+      .find({ follower: userId, unfollowedAt: null })
       .sort({ $natural: -1 })
       .toArray();
   }
@@ -35,8 +35,8 @@ export class FollowService {
    */
   async getFollowStat(userId: string) {
     const [followerCount, followingCount] = await Promise.all([
-      this.collection.countDocuments({ following: userId }),
-      this.collection.countDocuments({ follower: userId }),
+      this.collection.countDocuments({ following: userId, unfollowedAt: null }),
+      this.collection.countDocuments({ follower: userId, unfollowedAt: null }),
     ]);
     return { followerCount, followingCount };
   }

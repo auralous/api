@@ -80,5 +80,5 @@ export interface FollowDbObject {
   follower: string;
   following: string;
   followedAt: Date;
-  unfollowedAt?: Date | null;
+  unfollowedAt: Date | null;
 }

@@ -8,8 +8,13 @@ import { StoryService } from "../../services/story";
 const resolvers: Resolvers = {
   Subscription: {
     messageAdded: {
-      subscribe(parent, { id }, { pubsub }) {
-        // FIXME: This allows nonmember to subscribe
+      async subscribe(parent, { id }, { pubsub, services, user }) {
+        const story = await services.Story.findById(REDIS_KEY.message(id).id);
+        if (!story || !StoryService.getPermission(user, story).isViewable)
+          throw new ForbiddenError(
+            "You are not allowed to subscribe to this channel"
+          );
+
         return pubsub.on(
           PUBSUB_CHANNELS.messageAdded,
           (payload) => payload.id === id

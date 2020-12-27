@@ -22,6 +22,7 @@ import { QueueService } from "./services/queue";
 import { StoryService } from "./services/story";
 import { TrackService } from "./services/track";
 import { UserService } from "./services/user";
+import { FollowService } from "./services/follow";
 
 const EXPECTED_ERR_CODES = ["PERSISTED_QUERY_NOT_FOUND"];
 
@@ -44,6 +45,7 @@ export function buildGraphQLServer(
         Story: new StoryService(serviceContext),
         Track: new TrackService(serviceContext),
         User: new UserService(serviceContext),
+        Follow: new FollowService(serviceContext),
       },
     };
   }

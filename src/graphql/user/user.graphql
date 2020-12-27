@@ -1,10 +1,15 @@
 type Query {
   me: User
   user(username: String, id: ID): User
+  userStat(id: ID!): UserStat
+  userFollowers(id: ID!): [String!]!
+  userFollowings(id: ID!): [String!]!
 }
 
 type Mutation {
   me(name: String, username: String, bio: String, profilePicture: Upload): User
+  followUser(id: ID!): Boolean!
+  unfollowUser(id: ID!): Boolean!
   deleteMe: Boolean!
 }
 
@@ -13,4 +18,10 @@ type User {
   username: String!
   bio: String
   profilePicture: String!
+}
+
+type UserStat {
+  id: ID!
+  followerCount: Int!
+  followingCount: Int!
 }

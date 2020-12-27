@@ -18,6 +18,22 @@ const resolvers: Resolvers = {
       if (user) setCacheControl?.(CONFIG.userMaxAge);
       return user;
     },
+    async userFollowers(parent, { id }, { services }) {
+      return (await services.Follow.findFollows(id)).map(
+        (followEntry) => followEntry.follower
+      );
+    },
+    async userFollowings(parent, { id }, { services }) {
+      return (await services.Follow.findFollowings(id)).map(
+        (followEntry) => followEntry.following
+      );
+    },
+    userStat(parent, { id }, { services }) {
+      return services.Follow.getFollowStat(id).then((stat) => ({
+        id,
+        ...stat,
+      }));
+    },
   },
   Mutation: {
     async me(
@@ -45,6 +61,12 @@ const resolvers: Resolvers = {
         }
       }
       return deleted;
+    },
+    async followUser(parent, { id }, { services, user }) {
+      return services.Follow.follow(user, await services.User.findById(id));
+    },
+    async unfollowUser(parent, { id }, { services, user }) {
+      return services.Follow.unfollow(user, id);
     },
   },
   User: {

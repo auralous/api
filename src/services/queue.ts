@@ -68,10 +68,18 @@ export class QueueService {
       .then((res) => res.map(QueueService.parseQueue));
   }
 
+  /**
+   * Get length of queue
+   * @param id
+   */
   async lengthById(id: string): Promise<number> {
     return this.context.redis.llen(REDIS_KEY.queue(id));
   }
 
+  /**
+   * Shift an queue item (take out the first one)
+   * @param id
+   */
   async shiftItem(id: string): Promise<QueueItemDbObject | null> {
     const str = await this.context.redis.lpop(REDIS_KEY.queue(id));
     if (!str) return null;
@@ -79,6 +87,11 @@ export class QueueService {
     return QueueService.parseQueue(str);
   }
 
+  /**
+   * Push a queue item to the end
+   * @param id
+   * @param items
+   */
   async pushItems(
     id: string,
     ...items: (Omit<QueueItemDbObject, "id"> & {
@@ -99,6 +112,12 @@ export class QueueService {
     return count;
   }
 
+  /**
+   * Reorder queue items
+   * @param id
+   * @param origin
+   * @param dest
+   */
   async reorderItems(id: string, origin: number, dest: number) {
     // FIXME: Need better performant strategy
     const allItems = await this.context.redis.lrange(
@@ -115,6 +134,11 @@ export class QueueService {
     return count;
   }
 
+  /**
+   * Remove a queue item
+   * @param id
+   * @param pos
+   */
   async removeItem(id: string, pos: number): Promise<number> {
     // redis does not have remove item from list by index
     const DEL_VAL = "";
@@ -128,10 +152,21 @@ export class QueueService {
     return count;
   }
 
+  /**
+   * Delete a queue item
+   * @param id
+   */
   async deleteById(id: string) {
     return this.context.redis.del(REDIS_KEY.queue(id));
   }
 
+  /**
+   * Execute a queue action
+   * Usually a public API to GraphQL
+   * @param me
+   * @param story
+   * @param param2
+   */
   async executeQueueAction(
     me: UserDbObject | null,
     story: StoryDbObject,

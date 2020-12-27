@@ -33,15 +33,21 @@ export class UserService {
     );
   }
 
+  /**
+   * Find a user by id
+   * @param id
+   */
   findById(id: string) {
     return this.loader.load(id);
   }
 
+  /**
+   * Find a user by username
+   * @param username
+   */
   async findByUsername(username: string) {
     const user = await this.collection.findOne({ username });
-    // save to cache
     if (!user) return null;
-    this.loader.clear(user._id).prime(user._id, user);
     return user;
   }
 
@@ -126,10 +132,6 @@ export class UserService {
       },
       { returnOriginal: false }
     );
-    // Update to cache
-    if (user) {
-      this.loader.clear(user._id).prime(user._id, user);
-    }
     return user || null;
   }
 
@@ -169,8 +171,6 @@ export class UserService {
       { _id: me._id },
       { $set: { oauth: me.oauth } }
     );
-
-    this.loader.clear(me._id).prime(me._id, me);
     return me;
   }
 }

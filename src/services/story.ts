@@ -69,7 +69,6 @@ export class StoryService {
       { returnOriginal: false }
     );
     if (!value) return false;
-    this.loader.clear(storyId).prime(storyId, value);
     this.notifyUpdate(value);
     return true;
   }
@@ -102,8 +101,6 @@ export class StoryService {
       queueable: [],
       lastCreatorActivityAt: createdAt,
     });
-    const idStr = story._id.toHexString();
-    this.loader.clear(idStr).prime(idStr, story);
     return story;
   }
 
@@ -170,8 +167,6 @@ export class StoryService {
       { returnOriginal: false }
     );
     if (!story) throw new ForbiddenError("Cannot update story");
-    // save to cache
-    this.loader.clear(id).prime(id, story);
     this.notifyUpdate(story);
     return story;
   }
@@ -183,8 +178,6 @@ export class StoryService {
       creatorId: me._id,
     });
     if (!deletedCount) throw new ForbiddenError("Cannot delete story");
-    // remove from cache
-    this.loader.clear(id);
     // delete associated
     await Promise.all([
       deleteCloudinaryImagesByPrefix(`users/${me._id}/stories/${id}`),

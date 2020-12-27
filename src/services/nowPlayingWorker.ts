@@ -21,6 +21,10 @@ export class NowPlayingWorker {
   private trackService: TrackService;
   private messageService: MessageService;
 
+  static start(db: Db, redis: Redis.Cluster, pubsub: PubSub) {
+    return new NowPlayingWorker(db, redis, pubsub);
+  }
+
   static requestResolve(pubsub: PubSub, id: string) {
     return pubsub.pub.publish(
       PUBSUB_CHANNELS.nowPlayingWorker,
@@ -72,11 +76,7 @@ export class NowPlayingWorker {
       .then(Boolean);
   }
 
-  static start(db: Db, redis: Redis.Cluster, pubsub: PubSub) {
-    return new NowPlayingWorker(db, redis, pubsub);
-  }
-
-  schedule(storyId: string, ms: number) {
+  private schedule(storyId: string, ms: number) {
     this.timers.set(storyId, setTimeout(this.resolve, ms, storyId));
   }
 

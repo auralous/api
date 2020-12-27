@@ -1,6 +1,7 @@
 import { ForbiddenError, UserInputError } from "../../error";
 import { PUBSUB_CHANNELS } from "../../lib/constant";
 import { defaultAvatar } from "../../lib/defaultAvatar";
+import { StoryService } from "../../services/story";
 
 import type { Resolvers, StoryDbObject } from "../../types/index";
 
@@ -8,8 +9,7 @@ const resolvers: Resolvers = {
   Query: {
     story(parent, { id }, { services, user }) {
       return services.Story.findById(id).then((s) => {
-        if (!s || !services.Story.getPermission(s, user?._id).isViewable)
-          return null;
+        if (!s || !StoryService.getPermission(user, s).isViewable) return null;
         return s;
       });
     },
@@ -23,19 +23,19 @@ const resolvers: Resolvers = {
         stories = await services.Story.findByCreatorId(creatorId, limit, next);
       }
       return stories.filter(
-        (s) => services.Story.getPermission(s, user?._id).isViewable
+        (s) => StoryService.getPermission(user, s).isViewable
       );
     },
     async storyUsers(parent, { id }, { services, user }) {
       const story = await services.Story.findById(id);
-      if (!story || !services.Story.getPermission(story, user?._id).isViewable)
+      if (!story || !StoryService.getPermission(user, story).isViewable)
         return null;
       return services.Story.getPresences(id);
     },
   },
   Mutation: {
-    createStory(parent, { text, isPublic }, { services }) {
-      return services.Story.create({
+    createStory(parent, { text, isPublic }, { services, user }) {
+      return services.Story.create(user, {
         text,
         isPublic,
       });
@@ -47,24 +47,29 @@ const resolvers: Resolvers = {
         throw new ForbiddenError("Story cannot be updated");
       return services.Story.unliveStory(id);
     },
-    async deleteStory(parent, { id }, { services }) {
-      await services.Story.deleteById(id);
+    async deleteStory(parent, { id }, { services, user }) {
+      await services.Story.deleteById(user, id);
       return id;
     },
     pingStory(parent, { id }, { services, user }) {
       if (!user) return false;
-      services.Story.pingPresence(id, user._id);
+      services.Story.pingPresence(services.Message, user, id);
       return true;
     },
     async changeStoryQueueable(
       parent,
       { id, userId, isRemoving },
-      { services }
+      { services, user }
     ) {
       const addingUser = await services.User.findById(userId);
       if (!addingUser)
         throw new UserInputError("User does not exist", ["userId"]);
-      return services.Story.addOrRemoveQueueable(id, addingUser, isRemoving);
+      return services.Story.addOrRemoveQueueable(
+        user,
+        id,
+        addingUser,
+        isRemoving
+      );
     },
   },
   Subscription: {
@@ -80,7 +85,7 @@ const resolvers: Resolvers = {
       async subscribe(parent, { id }, { pubsub, services, user }) {
         const story = await services.Story.findById(id);
         if (!story) throw new UserInputError("Story not found", ["id"]);
-        if (!services.Story.getPermission(story, user?._id).isViewable)
+        if (!StoryService.getPermission(user, story).isViewable)
           throw new ForbiddenError("Story cannot be subscribed");
         return pubsub.on(
           PUBSUB_CHANNELS.storyUpdated,

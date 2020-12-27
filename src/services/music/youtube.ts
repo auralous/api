@@ -2,16 +2,11 @@ import { google, Auth } from "googleapis";
 import fetch from "node-fetch";
 import { isDefined } from "../../lib/utils";
 import { MAX_TRACK_DURATION } from "../../lib/constant";
-import { PlatformName } from "../../types/index";
+import { PlatformName, UserDbObject } from "../../types/index";
 
-import type { ServiceContext } from "../types";
 import type { TrackService } from "../track";
 import type { UserService } from "../user";
-import type {
-  ArtistDbObject,
-  TrackDbObject,
-  UserOauthProvider,
-} from "../../types/index";
+import type { ArtistDbObject, TrackDbObject } from "../../types/index";
 
 function parseDurationToMs(str: string) {
   // https://developers.google.com/youtube/v3/docs/videos#contentDetails.duration
@@ -93,7 +88,10 @@ export class YoutubeService {
   });
   constructor(private findOrCreate: TrackService["findOrCreate"]) {}
 
-  // Lib
+  /**
+   * Get YouTube track
+   * @param externalId
+   */
   async getTrack(externalId: string): Promise<TrackDbObject | null> {
     const { data: json } = await this.youtube.videos.list({
       part: ["contentDetails", "snippet", "status"],
@@ -123,12 +121,20 @@ export class YoutubeService {
     };
   }
 
+  /**
+   * Get YouTube track by uri
+   * @param uri
+   */
   getTrackIdFromUri(uri: string): string | null {
     const regExp = /^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#&?]*).*/;
     const match = uri.match(regExp);
     return match?.[7]?.length === 11 ? match[7] : null;
   }
 
+  /**
+   * Get playlistId from uri
+   * @param uri
+   */
   getPlaylistIdFromUri(uri: string): string | null {
     if (!uri.includes("youtube")) return null;
     const regExp = /^.*((v\/)|(\/u\/\w\/)|(\/playlist\?)|(watch\?))?list?=?([^#&?]*).*/;
@@ -136,6 +142,10 @@ export class YoutubeService {
     return match?.[6] || null;
   }
 
+  /**
+   * Get YouTube tracks by playlist
+   * @param id
+   */
   async getTracksByPlaylistId(id: string): Promise<TrackDbObject[]> {
     const tracks: TrackDbObject[] = [];
     let trackData = await this.youtube.playlistItems.list({
@@ -167,6 +177,10 @@ export class YoutubeService {
     return tracks;
   }
 
+  /**
+   * Search YouTube track
+   * @param searchQuery
+   */
   async searchTracks(searchQuery: string): Promise<TrackDbObject[]> {
     // Using unofficial YTMusic API
     const filterParams = {
@@ -217,6 +231,10 @@ export class YoutubeService {
     );
   }
 
+  /**
+   * Get YouTube artist
+   * @param externalId
+   */
   async getArtist(externalId: string): Promise<ArtistDbObject | null> {
     const { data: json } = await this.youtube.channels.list({
       id: [externalId],
@@ -238,30 +256,25 @@ export class YoutubeService {
 }
 
 export class YoutubeAuthService {
-  private auth: UserOauthProvider | null;
-
   private oauth2Client = new google.auth.OAuth2(
     process.env.GOOGLE_CLIENT_KEY,
     process.env.GOOGLE_CLIENT_SECRET,
     `${process.env.API_URI}/auth/google/callback`
   );
 
-  constructor(context: ServiceContext, private userService: UserService) {
-    if (context.user?.oauth.provider !== PlatformName.Youtube) this.auth = null;
-    else {
-      this.auth = context.user.oauth;
-      this.oauth2Client.setCredentials({
-        access_token: this.auth.accessToken,
-        refresh_token: this.auth.refreshToken,
-      });
-    }
-  }
+  async getAccessToken(
+    me: UserDbObject,
+    userService: UserService
+  ): Promise<string | null> {
+    if (me.oauth.provider !== PlatformName.Youtube) return null;
 
-  async getAccessToken(): Promise<string | null> {
-    if (!this.auth) return null;
+    this.oauth2Client.setCredentials({
+      access_token: me.oauth.accessToken,
+      refresh_token: me.oauth.refreshToken,
+    });
 
     const refreshHandler = (tokens: Auth.Credentials) => {
-      this.userService.updateMeOauth({
+      userService.updateMeOauth(me, {
         accessToken: tokens.access_token,
         refreshToken: tokens.refresh_token,
         ...(tokens.expiry_date && {

@@ -8,17 +8,14 @@ import { MessageType, UserDbObject } from "../types/index";
 
 import type { ServiceContext } from "./types";
 import type { StoryDbObject, NullablePartial } from "../types/index";
-import type { MessageService } from "./message";
 import { NowPlayingWorker } from "./nowPlayingWorker";
+import { MessageService } from "./message";
 
 export class StoryService {
   private collection = this.context.db.collection<StoryDbObject>("stories");
   private loader: DataLoader<string, StoryDbObject | null>;
 
-  constructor(
-    private context: ServiceContext,
-    private messageService: MessageService
-  ) {
+  constructor(private context: ServiceContext) {
     this.loader = new DataLoader(
       async (keys) => {
         const stories = await this.collection
@@ -33,18 +30,30 @@ export class StoryService {
             ) || null
         );
       },
-      { cache: !context.isWs }
+      { cache: false }
     );
   }
 
-  notifyUpdate(story: StoryDbObject) {
+  /**
+   * Notify the story has changed
+   * Possibly because a new queueable, viewable, or isLive
+   * @param story
+   */
+  private notifyUpdate(story: StoryDbObject) {
     this.context.pubsub.publish(PUBSUB_CHANNELS.storyUpdated, {
       id: story._id.toHexString(),
       storyUpdated: story,
     });
   }
 
-  // Return the story itself but switch it to "published if applicable"
+  /**
+   * Check a story to see if it needs to be unlived
+   * Sometimes, the creator does not unlive a story manually
+   * We define a inactivity duration to unlive the story (CONFIG.storyLiveTimeout)
+   * This is often run everytime a story is accessed (either by itself or as part of a collection)
+   * Return the story itself for convenience passing into callbacks
+   * @param story
+   */
   private checkStoryStatus(story: StoryDbObject): StoryDbObject {
     if (
       story.isLive &&
@@ -59,6 +68,12 @@ export class StoryService {
     return story;
   }
 
+  /**
+   * Unlive a story (aka archieved)
+   * An unlived stories can be replayed at any time
+   * but no new songs can be added to it
+   * @param storyId
+   */
   async unliveStory(storyId: string): Promise<boolean> {
     // WARN: this does not check auth
     // Delete queue. See QueueService#deleteById
@@ -72,13 +87,20 @@ export class StoryService {
       { returnOriginal: false }
     );
     if (!value) return false;
-    this.loader.clear(storyId).prime(storyId, value);
     this.notifyUpdate(value);
     return true;
   }
 
-  async create({ text, isPublic }: Pick<StoryDbObject, "text" | "isPublic">) {
-    if (!this.context.user) throw new AuthenticationError("");
+  /**
+   * Create a story
+   * @param me
+   * @param param1 data of the new story
+   */
+  async create(
+    me: UserDbObject | null,
+    { text, isPublic }: Pick<StoryDbObject, "text" | "isPublic">
+  ) {
+    if (!me) throw new AuthenticationError("");
 
     const createdAt = new Date();
 
@@ -86,7 +108,7 @@ export class StoryService {
 
     // Unlive all other stories
     await this.collection.updateMany(
-      { isLive: true, creatorId: this.context.user._id },
+      { isLive: true, creatorId: me._id },
       { $set: { isLive: false } }
     );
 
@@ -95,22 +117,30 @@ export class StoryService {
     } = await this.collection.insertOne({
       text,
       isPublic,
-      creatorId: this.context.user._id,
+      creatorId: me._id,
       createdAt,
       isLive: true,
       viewable: [],
       queueable: [],
       lastCreatorActivityAt: createdAt,
     });
-    const idStr = story._id.toHexString();
-    this.loader.clear(idStr).prime(idStr, story);
     return story;
   }
 
+  /**
+   * Find a story by id
+   * @param id
+   */
   findById(id: string) {
     return this.loader.load(id);
   }
 
+  /**
+   * Find stories created by a user
+   * @param creatorId
+   * @param limit
+   * @param next
+   */
   async findByCreatorId(
     creatorId: string,
     limit?: number,
@@ -124,6 +154,11 @@ export class StoryService {
       .then((stories) => stories.map((s) => this.checkStoryStatus(s)));
   }
 
+  /**
+   * Find all public stories
+   * @param limit
+   * @param next
+   */
   async findForFeedPublic(
     limit: number,
     next?: string | null
@@ -139,9 +174,14 @@ export class StoryService {
       .then((stories) => stories.map((s) => this.checkStoryStatus(s)));
   }
 
-  // Manage API
-
+  /**
+   * Update a story by id
+   * @param me the creator of this story
+   * @param id
+   * @param param2
+   */
   async updateById(
+    me: UserDbObject | null,
     id: string,
     {
       text,
@@ -151,11 +191,11 @@ export class StoryService {
       isLive,
     }: NullablePartial<StoryDbObject>
   ): Promise<StoryDbObject> {
-    if (!this.context.user) throw new AuthenticationError("");
+    if (!me) throw new AuthenticationError("");
     const { value: story } = await this.collection.findOneAndUpdate(
       {
         _id: new ObjectID(id),
-        creatorId: this.context.user._id,
+        creatorId: me._id,
       },
       {
         $set: {
@@ -169,41 +209,48 @@ export class StoryService {
       { returnOriginal: false }
     );
     if (!story) throw new ForbiddenError("Cannot update story");
-    // save to cache
-    this.loader.clear(id).prime(id, story);
     this.notifyUpdate(story);
     return story;
   }
 
-  async deleteById(id: string) {
-    if (!this.context.user) throw new AuthenticationError("");
+  /**
+   * Delete a story by id
+   * @param me the creator of that story
+   * @param id
+   */
+  async deleteById(me: UserDbObject | null, id: string) {
+    if (!me) throw new AuthenticationError("");
     const { deletedCount } = await this.collection.deleteOne({
       _id: new ObjectID(id),
-      creatorId: this.context.user._id,
+      creatorId: me._id,
     });
     if (!deletedCount) throw new ForbiddenError("Cannot delete story");
-    // remove from cache
-    this.loader.clear(id);
     // delete associated
     await Promise.all([
-      deleteCloudinaryImagesByPrefix(
-        `users/${this.context.user._id}/stories/${id}`
-      ),
+      deleteCloudinaryImagesByPrefix(`users/${me._id}/stories/${id}`),
       deleteByPattern(this.context.redis, `${REDIS_KEY.story(id)}:*`),
     ]);
     return true;
   }
 
+  /**
+   * Add or remove the queueable by id
+   * @param me the creator of that story
+   * @param id
+   * @param addingUser
+   * @param isRemoving
+   */
   async addOrRemoveQueueable(
+    me: UserDbObject | null,
     id: string,
     addingUser: UserDbObject,
     isRemoving: boolean
   ) {
-    if (!this.context.user) throw new AuthenticationError("");
+    if (!me) throw new AuthenticationError("");
     const { value: story } = await this.collection.findOneAndUpdate(
       {
         _id: new ObjectID(id),
-        creatorId: this.context.user._id,
+        creatorId: me._id,
       },
       isRemoving
         ? { $pull: { queueable: addingUser._id } }
@@ -215,15 +262,26 @@ export class StoryService {
     return true;
   }
 
-  // Presence API
-
-  async pingPresence(storyId: string, userId: string): Promise<void> {
+  /**
+   * Notify that the user is still in story
+   * @param messageService
+   * @param user
+   * @param storyId
+   */
+  async pingPresence(
+    messageService: MessageService,
+    user: UserDbObject,
+    storyId: string
+  ): Promise<void> {
     const story = await this.findById(storyId);
-    if (!story || !this.getPermission(story, userId).isViewable) return;
+    if (!story || !StoryService.getPermission(user, story).isViewable)
+      throw new ForbiddenError("Cannot ping to this story");
 
     // update lastCreatorActivityAt
-    if (userId === story.creatorId) {
-      await this.updateById(storyId, { lastCreatorActivityAt: new Date() });
+    if (user?._id === story.creatorId) {
+      await this.updateById(user, storyId, {
+        lastCreatorActivityAt: new Date(),
+      });
     }
 
     const now = Date.now();
@@ -231,7 +289,7 @@ export class StoryService {
     const lastTimestamp: number = parseInt(
       await this.context.redis.zscore(
         REDIS_KEY.storyUserStatus(storyId),
-        userId
+        user._id
       ),
       10
     );
@@ -243,15 +301,15 @@ export class StoryService {
     await this.context.redis.zadd(
       REDIS_KEY.storyUserStatus(storyId),
       now,
-      userId
+      user._id
     );
 
     if (justJoined) {
       // notify that user just joined via message
-      this.messageService.add(`story:${storyId}`, {
+      messageService.add(`story:${storyId}`, {
         text: storyId,
         type: MessageType.Join,
-        creatorId: userId,
+        creatorId: user._id,
       });
 
       // Notify story user update via subscription
@@ -262,6 +320,10 @@ export class StoryService {
     }
   }
 
+  /**
+   * Get all user currently in a room
+   * @param _id
+   */
   async getPresences(_id: string): Promise<string[]> {
     const minRange = Date.now() - CONFIG.activityTimeout;
     return this.context.redis.zrevrangebyscore(
@@ -271,20 +333,23 @@ export class StoryService {
     );
   }
 
-  // Util
-
-  getPermission(
-    story: StoryDbObject,
-    userId: string | undefined
+  /**
+   * Get a user's permission to a story
+   * @param user the user in question, possibly null
+   * @param story
+   */
+  static getPermission(
+    user: UserDbObject | null,
+    story: StoryDbObject
   ): { isViewable: boolean; isQueueable: boolean } {
     return {
       isViewable:
         story.isPublic ||
-        story.creatorId === userId ||
-        (!!userId && !!story.viewable.includes(userId)),
+        story.creatorId === user?._id ||
+        (!!user?._id && !!story.viewable.includes(user._id)),
       isQueueable: Boolean(
-        !!userId &&
-          (story.creatorId === userId || story.queueable.includes(userId))
+        !!user?._id &&
+          (story.creatorId === user._id || story.queueable.includes(user._id))
       ),
     };
   }

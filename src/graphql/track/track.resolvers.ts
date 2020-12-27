@@ -21,10 +21,13 @@ const resolvers: Resolvers = {
     async searchTrack(
       parent,
       { platform, query },
-      { services, setCacheControl }
+      { services, setCacheControl, user }
     ) {
       try {
-        const trackOrTracks = await services.Track.findByUri(new URL(query));
+        const trackOrTracks = await services.Track.findByUri(
+          new URL(query),
+          user
+        );
         if (!trackOrTracks) return [];
         if (Array.isArray(trackOrTracks)) {
           setCacheControl?.(CONFIG.searchPlaylistMaxAge);
@@ -35,14 +38,16 @@ const resolvers: Resolvers = {
       } catch (e) {
         // It is not a URL
         setCacheControl?.(CONFIG.searchMaxAge);
-        return services.Track.search(platform, query);
+        return services.Track.search(platform, query, user);
       }
     },
   },
   Track: {
-    artists({ artistIds }, args, { services }) {
+    artists({ artistIds }, args, { services, user }) {
       return Promise.all(
-        artistIds.map((artistId) => services.Track.findOrCreateArtist(artistId))
+        artistIds.map((artistId) =>
+          services.Track.findOrCreateArtist(artistId, user)
+        )
       ).then((r) => r.filter(isDefined));
     },
   },

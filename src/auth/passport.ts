@@ -3,7 +3,7 @@ import { Profile, Passport } from "passport";
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 // @ts-ignore
 import { Strategy as SpotifyStrategy } from "passport-spotify";
-import { UserService } from "../services/index";
+import { UserService } from "../services/user";
 import { PlatformName } from "../types/index";
 
 import type { Db } from "mongodb";
@@ -23,7 +23,7 @@ export function createPassport(db: Db, redis: IORedis.Cluster, pubsub: PubSub) {
         ? PlatformName.Youtube
         : (profile.provider as PlatformName);
 
-    const userService = new UserService({ user: null, db, redis, pubsub });
+    const userService = new UserService({ db, redis, pubsub });
 
     const id = profile.id; // id from oauth provider
     const profilePicture = profile.photos?.[0]?.value || null;
@@ -49,7 +49,7 @@ export function createPassport(db: Db, redis: IORedis.Cluster, pubsub: PubSub) {
   });
 
   passport.deserializeUser((id: string, done) => {
-    const userService = new UserService({ user: null, db, redis, pubsub });
+    const userService = new UserService({ db, redis, pubsub });
     userService.findById(id).then((user) => done(null, user || null));
   });
 

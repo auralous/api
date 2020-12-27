@@ -29,23 +29,25 @@ export class UserService {
             null
         );
       },
-      { cache: !context.isWs }
+      { cache: false }
     );
   }
 
-  get me() {
-    return this.context.user;
-  }
-
+  /**
+   * Find a user by id
+   * @param id
+   */
   findById(id: string) {
     return this.loader.load(id);
   }
 
+  /**
+   * Find a user by username
+   * @param username
+   */
   async findByUsername(username: string) {
     const user = await this.collection.findOne({ username });
-    // save to cache
     if (!user) return null;
-    this.loader.clear(user._id).prime(user._id, user);
     return user;
   }
 
@@ -79,32 +81,34 @@ export class UserService {
     oauthQuery: Pick<UserDbObject["oauth"], "provider" | "id">,
     data: Pick<UserDbObject, "profilePicture" | "email" | "bio" | "oauth">
   ) {
-    // Beware of side effect
-    this.context.user = await this.collection.findOne({
+    let me = await this.collection.findOne({
       "oauth.provider": oauthQuery.provider,
       "oauth.id": oauthQuery.id,
     });
-    if (!this.context.user) {
+    if (!me) {
       // Create new user
       // Passport does not provide expiredAt value so we are assuming 30 min
       data.oauth.expiredAt =
         data.oauth.expiredAt || new Date(Date.now() + 30 * 60 * 1000);
-      this.context.user = await this.create(data);
+      me = await this.create(data);
       // @ts-expect-error: isNew is a special field to check if user is newly registered
-      this.context.user.isNew = true;
+      me.isNew = true;
     } else {
       // If user exists, update OAuth tokens
-      await this.updateMeOauth(data.oauth);
+      await this.updateMeOauth(me, data.oauth);
     }
-    return this.context.user;
+    return me;
   }
 
-  async updateMe({
-    username: rawUsername,
-    bio,
-    profilePicture,
-  }: NullablePartial<UserDbObject>) {
-    if (!this.context.user) throw new AuthenticationError("");
+  async updateMe(
+    me: UserDbObject | null,
+    {
+      username: rawUsername,
+      bio,
+      profilePicture,
+    }: NullablePartial<UserDbObject>
+  ) {
+    if (!me) throw new AuthenticationError("");
     const username = rawUsername
       ? slug(rawUsername, {
           lower: true,
@@ -114,11 +118,11 @@ export class UserService {
       : null;
     if (username) {
       const checkUser = await this.findByUsername(username);
-      if (checkUser && checkUser._id !== this.context.user._id)
+      if (checkUser && checkUser._id !== me._id)
         throw new UserInputError("This username has been taken", ["username"]);
     }
     const { value: user } = await this.collection.findOneAndUpdate(
-      { _id: this.context.user._id },
+      { _id: me._id },
       {
         $set: {
           ...(username && { username }),
@@ -128,51 +132,45 @@ export class UserService {
       },
       { returnOriginal: false }
     );
-    // Update to cache
-    if (user) {
-      this.loader.clear(user._id).prime(user._id, user);
-      Object.assign(this.context.user, user);
-    }
     return user || null;
   }
 
-  async deleteMe() {
-    if (!this.context.user) throw new AuthenticationError("");
+  async deleteMe(me: UserDbObject | null) {
+    if (!me) throw new AuthenticationError("");
     const { deletedCount } = await this.collection.deleteOne({
-      _id: this.context.user._id,
+      _id: me._id,
     });
     if (!deletedCount)
       throw new ForbiddenError("Cannot deactivate your account");
-    await deleteCloudinaryImagesByPrefix(`users/${this.context.user._id}`);
+    await deleteCloudinaryImagesByPrefix(`users/${me._id}`);
     return true;
   }
 
-  async updateMeOauth({
-    expiredAt,
-    accessToken,
-    refreshToken,
-  }: {
-    expiredAt?: Date | null;
-    accessToken?: string | null;
-    refreshToken?: string | null;
-  }) {
-    if (!this.context.user) return null;
+  async updateMeOauth(
+    me: UserDbObject | null,
+    {
+      expiredAt,
+      accessToken,
+      refreshToken,
+    }: {
+      expiredAt?: Date | null;
+      accessToken?: string | null;
+      refreshToken?: string | null;
+    }
+  ) {
+    if (!me) return null;
 
-    this.context.user.oauth = {
-      ...this.context.user.oauth,
+    me.oauth = {
+      ...me.oauth,
       ...(accessToken !== undefined && { accessToken }),
       ...(refreshToken !== undefined && { refreshToken }),
       ...(expiredAt !== undefined && { expiredAt }),
     };
 
     await this.collection.updateOne(
-      { _id: this.context.user._id },
-      { $set: { oauth: this.context.user.oauth } }
+      { _id: me._id },
+      { $set: { oauth: me.oauth } }
     );
-
-    this.loader
-      .clear(this.context.user._id)
-      .prime(this.context.user._id, this.context.user);
-    return this.context.user;
+    return me;
   }
 }

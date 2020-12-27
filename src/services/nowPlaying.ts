@@ -1,20 +1,25 @@
 import { AuthenticationError, ForbiddenError } from "../error/index";
 import { PUBSUB_CHANNELS, REDIS_KEY } from "../lib/constant";
 import { NowPlayingWorker } from "./nowPlayingWorker";
-import { NowPlayingReaction, NowPlayingReactionType } from "../types/index";
+import {
+  NowPlayingReaction,
+  NowPlayingReactionType,
+  StoryDbObject,
+} from "../types/index";
 
-import type { QueueService } from "./queue";
-import type { StoryService } from "./story";
 import type { ServiceContext } from "./types";
-import type { NowPlayingItemDbObject } from "../types/index";
+import type { NowPlayingItemDbObject, UserDbObject } from "../types/index";
+import { QueueService } from "./queue";
+import { StoryService } from "./story";
 
 export class NowPlayingService {
-  constructor(
-    private context: ServiceContext,
-    private queueService: QueueService,
-    private storyService: StoryService
-  ) {}
+  constructor(private context: ServiceContext) {}
 
+  /**
+   * Find the nowPlaying by story id
+   * @param id the story id
+   * @param showPlayed should show played nowPlaying (those with endedAt > now)
+   */
   async findById(
     id: string,
     showPlayed?: boolean
@@ -23,7 +28,7 @@ export class NowPlayingService {
       .get(REDIS_KEY.nowPlaying(id))
       .then((npStr) =>
         npStr
-          ? (this.queueService.parseItem(npStr) as NowPlayingItemDbObject)
+          ? (QueueService.parseQueue(npStr) as NowPlayingItemDbObject)
           : null
       );
     if (!currTrack) return null;
@@ -31,7 +36,15 @@ export class NowPlayingService {
     return currTrack;
   }
 
-  async notifyUpdate(id: string, currentTrack: NowPlayingItemDbObject | null) {
+  /**
+   * Notify a change in nowPlaying
+   * @param id the story id
+   * @param currentTrack
+   */
+  async notifyNowPlayingChange(
+    id: string,
+    currentTrack: NowPlayingItemDbObject | null
+  ) {
     this.context.pubsub.publish(PUBSUB_CHANNELS.nowPlayingUpdated, {
       nowPlayingUpdated: {
         id,
@@ -40,18 +53,24 @@ export class NowPlayingService {
     });
   }
 
-  async skipCurrentTrack(id: string): Promise<boolean> {
-    if (!this.context.user) throw new AuthenticationError("");
-    const story = await this.storyService.findById(id);
+  /**
+   * Skip current track
+   * @param me The story creator or queue item owner
+   * @param story
+   */
+  async skipCurrentTrack(
+    me: UserDbObject | null,
+    story: StoryDbObject | null
+  ): Promise<boolean> {
+    if (!me) throw new AuthenticationError("");
     if (!story) throw new ForbiddenError("Story does not exist");
-    const currentTrack = await this.findById(id);
+    const currentTrack = await this.findById(String(story._id));
     if (!currentTrack) return false;
-    if (
-      story.creatorId !== this.context.user._id &&
-      currentTrack.creatorId !== this.context.user._id
-    )
+    if (story.creatorId !== me._id && currentTrack.creatorId !== me._id)
       throw new AuthenticationError("You are not allowed to make changes");
-    return Boolean(NowPlayingWorker.requestSkip(this.context.pubsub, id));
+    return Boolean(
+      NowPlayingWorker.requestSkip(this.context.pubsub, String(story._id))
+    );
   }
 
   // NowPlaying Reaction
@@ -65,22 +84,35 @@ export class NowPlayingService {
     });
   }
 
-  async reactNowPlaying(id: string, reaction: NowPlayingReactionType) {
-    if (!this.context.user) throw new AuthenticationError("");
+  /**
+   * React to a nowPlaying
+   * @param me
+   * @param story
+   * @param reaction
+   */
+  async reactNowPlaying(
+    me: UserDbObject | null,
+    story: StoryDbObject | null,
+    reaction: NowPlayingReactionType
+  ) {
+    if (!me) throw new AuthenticationError("");
 
-    const currItem = await this.findById(id);
+    if (!story || StoryService.getPermission(me, story).isViewable)
+      throw new ForbiddenError("");
+
+    const currItem = await this.findById(String(story._id));
     if (!currItem) return null;
 
     // If the reaction already eists, the below returns 0 / does nothing
     const result = await this.context.redis.hset(
-      REDIS_KEY.nowPlayingReaction(id, currItem.id),
-      this.context.user._id,
+      REDIS_KEY.nowPlayingReaction(String(story._id), currItem.id),
+      me._id,
       reaction
     );
 
     if (result) {
       // Only publish if a reaction is added
-      this.notifyReactionUpdate(id, currItem.id);
+      this.notifyReactionUpdate(String(story._id), currItem.id);
     }
   }
 
@@ -100,8 +132,6 @@ export class NowPlayingService {
       const allReactions = await this.getAllReactions(id, currQueueItemId);
       for (const eachReaction of allReactions) {
         reactions[eachReaction.reaction] += 1;
-        if (eachReaction.userId === this.context.user?._id)
-          reactions.mine = eachReaction.reaction;
       }
     }
     return reactions;

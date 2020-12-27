@@ -32,16 +32,16 @@ const resolvers: Resolvers = {
             { publicId: `users/${user._id}/profilePicture` }
           )
         : undefined;
-      return services.User.updateMe({ username, bio, profilePicture });
+      return services.User.updateMe(user, { username, bio, profilePicture });
     },
     async deleteMe(parent, args, { services, user }) {
       if (!user) throw new AuthenticationError("");
-      const deleted = await services.User.deleteMe();
+      const deleted = await services.User.deleteMe(user);
       if (deleted) {
         // delete every story
         const allStories = await services.Story.findByCreatorId(user._id);
         for (const story of allStories) {
-          await services.Story.deleteById(story._id.toHexString());
+          await services.Story.deleteById(user, story._id.toHexString());
         }
       }
       return deleted;

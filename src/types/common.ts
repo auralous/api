@@ -4,8 +4,13 @@ import type Redis from "ioredis";
 import type { Session } from "next-session/dist/types";
 import type { UserDbObject } from "./db";
 import type { PubSub } from "../lib/pubsub";
-import type { Services } from "../services/index";
 import type { PlatformName } from "./graphql.gen";
+import { UserService } from "../services/user";
+import { QueueService } from "../services/queue";
+import { TrackService } from "../services/track";
+import { MessageService } from "../services/message";
+import { StoryService } from "../services/story";
+import { NowPlayingService } from "../services/nowPlaying";
 
 type SetCachControl = (maxAge: number, scope?: "PRIVATE" | "PUBLIC") => void;
 
@@ -21,8 +26,15 @@ export type MyGQLContext = {
   redis: Redis.Cluster;
   pubsub: PubSub;
   user: UserDbObject | null;
-  services: Services;
   setCacheControl?: SetCachControl;
+  services: {
+    User: UserService;
+    Queue: QueueService;
+    Track: TrackService;
+    Message: MessageService;
+    Story: StoryService;
+    NowPlaying: NowPlayingService;
+  };
 };
 
 export type OdesliResponse =

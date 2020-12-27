@@ -1,14 +1,9 @@
 import fetch from "node-fetch";
 import { isDefined } from "../../lib/utils";
-import { PlatformName } from "../../types/index";
+import { PlatformName, UserDbObject } from "../../types/index";
 
 import type { UserService } from "../user";
-import type { ServiceContext } from "../types";
-import type {
-  UserOauthProvider,
-  TrackDbObject,
-  ArtistDbObject,
-} from "../../types/index";
+import type { TrackDbObject, ArtistDbObject } from "../../types/index";
 /// <reference path="spotify-api" />
 
 // For implicit auth
@@ -64,38 +59,38 @@ function parseTrack(result: SpotifyApi.TrackObjectFull): TrackDbObject {
 
 export class SpotifyService {
   private BASE_URL = "https://api.spotify.com/v1";
-  private userTokenPromise: Promise<string | null> | null;
 
-  static async checkToken(
-    authInfo: Pick<UserOauthProvider, "accessToken" | "expiredAt">
-  ): Promise<boolean> {
-    if (!authInfo.accessToken) return false;
-    if (authInfo.expiredAt && authInfo.expiredAt.getTime() < Date.now())
-      return false;
+  static async checkToken(accessToken?: string): Promise<boolean> {
+    if (!accessToken) return false;
     // Use a private API (but it's quick) to fetch token validity
     return fetch(
       `https://api.spotify.com/v1/melody/v1/check_scope?scope=web-playback`,
-      { headers: { Authorization: `Bearer ${authInfo.accessToken}` } }
+      { headers: { Authorization: `Bearer ${accessToken}` } }
     ).then(
       (res) => res.status === 200,
       () => false
     );
   }
 
-  constructor(auth?: UserOauthProvider | null) {
-    if (auth?.provider !== PlatformName.Spotify) this.userTokenPromise = null;
-    else {
-      this.userTokenPromise = SpotifyService.checkToken(auth).then((isValid) =>
-        isValid ? (auth.accessToken as string) : null
-      );
-    }
+  static async userTokenOrOurs(userAccessToken?: string) {
+    return (
+      ((await SpotifyService.checkToken(userAccessToken)) && userAccessToken) ||
+      (await getTokenViaClientCredential())
+    );
   }
 
-  // Lib
-  async getTrack(externalId: string): Promise<TrackDbObject | null> {
+  /**
+   * Get Spotify track
+   * @param externalId
+   * @param userAccessToken optional user access token
+   */
+  async getTrack(
+    externalId: string,
+    userAccessToken?: string
+  ): Promise<TrackDbObject | null> {
     // We may offload some of the work using user's token
-    const accessToken =
-      (await this.userTokenPromise) || (await getTokenViaClientCredential());
+    const accessToken = await SpotifyService.userTokenOrOurs(userAccessToken);
+
     const json: SpotifyApi.TrackObjectFull | null = await fetch(
       `${this.BASE_URL}/tracks/${externalId}`,
       {
@@ -125,9 +120,17 @@ export class SpotifyService {
     return match?.[1] || null;
   }
 
-  async getTracksByPlaylistId(playlistId: string): Promise<TrackDbObject[]> {
-    const accessToken =
-      (await this.userTokenPromise) || (await getTokenViaClientCredential());
+  /**
+   * get Sporify tracks by playlist id
+   * @param playlistId
+   * @param userAccessToken optional user access token
+   */
+  async getTracksByPlaylistId(
+    playlistId: string,
+    userAccessToken?: string
+  ): Promise<TrackDbObject[]> {
+    const accessToken = await SpotifyService.userTokenOrOurs(userAccessToken);
+
     const tracks: TrackDbObject[] = [];
     let trackData: SpotifyApi.PlaylistTrackResponse | null = await fetch(
       `${this.BASE_URL}/playlists/${playlistId}/tracks`,
@@ -160,10 +163,17 @@ export class SpotifyService {
     return tracks;
   }
 
-  async searchTracks(searchQuery: string): Promise<TrackDbObject[]> {
-    // We may offload some of the work using user's token
-    const accessToken =
-      (await this.userTokenPromise) || (await getTokenViaClientCredential());
+  /**
+   * search Spotify tracks
+   * @param searchQuery
+   * @param userAccessToken optional user access token
+   */
+  async searchTracks(
+    searchQuery: string,
+    userAccessToken?: string
+  ): Promise<TrackDbObject[]> {
+    const accessToken = await SpotifyService.userTokenOrOurs(userAccessToken);
+
     const SEARCH_MAX_RESULTS = 30;
     const json: SpotifyApi.SearchResponse | null = await fetch(
       `${this.BASE_URL}/search?query=${encodeURIComponent(searchQuery)}` +
@@ -178,10 +188,17 @@ export class SpotifyService {
     return json?.tracks?.items.map(parseTrack) || [];
   }
 
-  async getArtist(externalId: string): Promise<ArtistDbObject | null> {
-    // We may offload some of the work using user's token
-    const accessToken =
-      (await this.userTokenPromise) || (await getTokenViaClientCredential());
+  /**
+   * Get Spotify artist
+   * @param externalId
+   * @param userAccessToken optional user access token
+   */
+  async getArtist(
+    externalId: string,
+    userAccessToken?: string
+  ): Promise<ArtistDbObject | null> {
+    const accessToken = await SpotifyService.userTokenOrOurs(userAccessToken);
+
     const json: SpotifyApi.ArtistObjectFull | null = await fetch(
       `${this.BASE_URL}/artists/${externalId}`,
       {
@@ -206,20 +223,19 @@ export class SpotifyService {
 }
 
 export class SpotifyAuthService {
-  private auth: UserOauthProvider | null;
-  constructor(context: ServiceContext, private userService: UserService) {
-    if (context.user?.oauth.provider !== PlatformName.Spotify) this.auth = null;
-    else this.auth = context.user.oauth;
+  async getAccessToken(
+    me: UserDbObject,
+    userService: UserService
+  ): Promise<string | null> {
+    if (me.oauth.provider !== PlatformName.Spotify) return null;
+    if (await SpotifyService.checkToken(me.oauth.accessToken || undefined))
+      return me.oauth.accessToken as string;
+    return this.refreshAccessToken(me, userService);
   }
-  async getAccessToken(): Promise<string | null> {
-    if (!this.auth) return null;
-    if (await SpotifyService.checkToken(this.auth))
-      return this.auth.accessToken as string;
-    return this.refreshAccessToken();
-  }
-  private async refreshAccessToken(): Promise<string | null> {
-    // no refresh token, we're done for
-    if (!this.auth?.refreshToken) return null;
+  private async refreshAccessToken(
+    me: UserDbObject,
+    userService: UserService
+  ): Promise<string | null> {
     const refreshResponse = await fetch(
       "https://accounts.spotify.com/api/token",
       {
@@ -228,7 +244,7 @@ export class SpotifyAuthService {
           "content-type": "application/x-www-form-urlencoded",
           Authorization: AuthorizationHeader,
         },
-        body: `grant_type=refresh_token&refresh_token=${this.auth.refreshToken}`,
+        body: `grant_type=refresh_token&refresh_token=${me.oauth.refreshToken}`,
       }
     );
     if (refreshResponse.status !== 200)
@@ -236,7 +252,7 @@ export class SpotifyAuthService {
       return null;
     const json = await refreshResponse.json();
     // Update tokens
-    await this.userService.updateMeOauth({
+    await userService.updateMeOauth(me, {
       refreshToken: json.refresh_token,
       accessToken: json.access_token,
       expiredAt: new Date(Date.now() + json.expires_in * 1000),

@@ -7,7 +7,6 @@ import * as Sentry from "@sentry/node";
 import schema from "./graphql/schema";
 import { applySession } from "./middleware/session";
 import { StereoGraphQLError } from "./error/index";
-import { Services } from "./services/index";
 
 import type { Db } from "mongodb";
 import type IORedis from "ioredis";
@@ -17,6 +16,12 @@ import type {
   ExtendedIncomingMessage,
   MyGQLContext,
 } from "./types/index";
+import { MessageService } from "./services/message";
+import { NowPlayingService } from "./services/nowPlaying";
+import { QueueService } from "./services/queue";
+import { StoryService } from "./services/story";
+import { TrackService } from "./services/track";
+import { UserService } from "./services/user";
 
 const EXPECTED_ERR_CODES = ["PERSISTED_QUERY_NOT_FOUND"];
 
@@ -25,16 +30,21 @@ export function buildGraphQLServer(
   redis: IORedis.Cluster,
   pubsub: PubSub
 ) {
-  function buildContext(
-    user: UserDbObject | null,
-    isWs?: boolean
-  ): MyGQLContext {
+  function buildContext(user: UserDbObject | null): MyGQLContext {
+    const serviceContext = { redis, db, pubsub };
     return {
       user,
       redis,
       db,
       pubsub,
-      services: new Services({ db, redis, pubsub, user, isWs }),
+      services: {
+        Message: new MessageService(serviceContext),
+        NowPlaying: new NowPlayingService(serviceContext),
+        Queue: new QueueService(serviceContext),
+        Story: new StoryService(serviceContext),
+        Track: new TrackService(serviceContext),
+        User: new UserService(serviceContext),
+      },
     };
   }
   const GQL = new Benzene({
@@ -88,8 +98,7 @@ export function buildGraphQLServer(
       const user = _id
         ? await db.collection<UserDbObject>("users").findOne({ _id })
         : null;
-      // Since context only run once, cache will likely to be invalid
-      const ctx = buildContext(user, true);
+      const ctx = buildContext(user);
       // setCacheControl is irrelavant in ws
       ctx.setCacheControl = () => undefined;
       return ctx;

@@ -11,6 +11,7 @@ import { TrackService } from "../services/track";
 import { MessageService } from "../services/message";
 import { StoryService } from "../services/story";
 import { NowPlayingService } from "../services/nowPlaying";
+import { FollowService } from "../services/follow";
 
 type SetCachControl = (maxAge: number, scope?: "PRIVATE" | "PUBLIC") => void;
 
@@ -34,6 +35,7 @@ export type MyGQLContext = {
     Message: MessageService;
     Story: StoryService;
     NowPlaying: NowPlayingService;
+    Follow: FollowService;
   };
 };
 

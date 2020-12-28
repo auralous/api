@@ -74,3 +74,11 @@ export interface MessageDbObject {
   text?: string;
   type: MessageType;
 }
+
+export interface FollowDbObject {
+  _id: ObjectID;
+  follower: string;
+  following: string;
+  followedAt: Date;
+  unfollowedAt: Date | null;
+}

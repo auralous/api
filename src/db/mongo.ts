@@ -1,6 +1,6 @@
 import { MongoClient, Db } from "mongodb";
 
-import type { UserDbObject, StoryDbObject } from "../types/index";
+import { UserDbObject, StoryDbObject, FollowDbObject } from "../types/index";
 
 function applyIndex(db: Db) {
   // user
@@ -11,6 +11,11 @@ function applyIndex(db: Db) {
   db.collection<StoryDbObject>("stories").createIndexes([
     { key: { creatorId: 1 } },
     { key: { _id: 1, creatorId: 1 } },
+  ]);
+  // follow
+  db.collection<FollowDbObject>("follows").createIndexes([
+    { key: { follower: 1 } },
+    { key: { following: 1 } },
   ]);
 }
 

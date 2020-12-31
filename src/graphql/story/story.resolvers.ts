@@ -96,8 +96,31 @@ const resolvers: Resolvers = {
   },
   Story: {
     id: ({ _id }) => String(_id),
-    image({ image, _id }) {
-      return image || defaultAvatar("story", String(_id));
+    async image({ isLive, image, _id }, args, { services, user }) {
+      if (image) return image;
+
+      let trackIdForImage: string | undefined;
+      if (isLive) {
+        const np = await services.NowPlaying.findById(String(_id), true);
+        trackIdForImage = np?.trackId;
+      } else {
+        const [firstTrackItem] = await services.Queue.findById(
+          `${String(_id)}:played`,
+          0,
+          0
+        );
+        trackIdForImage = firstTrackItem?.trackId;
+      }
+
+      let img: string | undefined;
+      if (trackIdForImage) {
+        const firstTrack = await services.Track.findOrCreate(
+          trackIdForImage,
+          user
+        );
+        img = firstTrack?.image;
+      }
+      return img || defaultAvatar("story", String(_id));
     },
   },
 };

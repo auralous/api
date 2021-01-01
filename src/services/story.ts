@@ -267,8 +267,12 @@ export class StoryService {
     storyId: string
   ): Promise<void> {
     const story = await this.findById(storyId);
+
     if (!story || !StoryService.getPermission(user, story).isViewable)
       throw new ForbiddenError("Cannot ping to this story");
+
+    // story presence does not apply to unlive story
+    if (!story.isLive) return;
 
     // update lastCreatorActivityAt since the pinging user is create
     if (user?._id === story.creatorId) {

@@ -19,6 +19,7 @@ import type { StoryDbObject, NullablePartial } from "../types/index";
 import { NowPlayingWorker } from "./nowPlayingWorker";
 import { MessageService } from "./message";
 import { NotificationService } from "./notification";
+import { UserService } from "./user";
 
 export class StoryService {
   private collection = this.context.db.collection<StoryDbObject>("stories");
@@ -388,14 +389,21 @@ export class StoryService {
 
     const promises: Promise<unknown>[] = [];
 
+    const userService = new UserService(this.context);
+
     invitedIds.forEach((invitedId) => {
       promises.push(
-        notificationService.add({
-          userId: invitedId,
-          storyId,
-          inviterId: me._id,
-          type: "invite",
-        } as Extract<NotificationDbObject, { type: "invite" }>)
+        userService.findById(invitedId).then((user) =>
+          user
+            ? // TODO: We need a way to throttle this
+              notificationService.add({
+                userId: invitedId,
+                storyId,
+                inviterId: me._id,
+                type: "invite",
+              } as Extract<NotificationDbObject, { type: "invite" }>)
+            : undefined
+        )
       );
     });
 

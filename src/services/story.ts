@@ -1,25 +1,16 @@
 import DataLoader from "dataloader";
 import { ObjectID } from "mongodb";
-import {
-  AuthenticationError,
-  ForbiddenError,
-  UserInputError,
-} from "../error/index";
+import { AuthenticationError, ForbiddenError } from "../error/index";
 import { deleteByPattern } from "../db/redis";
 import { PUBSUB_CHANNELS, REDIS_KEY, CONFIG } from "../lib/constant";
 import { deleteCloudinaryImagesByPrefix } from "../lib/cloudinary";
-import {
-  MessageType,
-  NotificationDbObject,
-  UserDbObject,
-} from "../types/index";
+import { MessageType, UserDbObject } from "../types/index";
 
 import type { ServiceContext } from "./types";
 import type { StoryDbObject, NullablePartial } from "../types/index";
 import { NowPlayingWorker } from "./nowPlayingWorker";
 import { MessageService } from "./message";
 import { NotificationService } from "./notification";
-import { UserService } from "./user";
 
 export class StoryService {
   private collection = this.context.db.collection<StoryDbObject>("stories");
@@ -134,6 +125,11 @@ export class StoryService {
       queueable: [],
       lastCreatorActivityAt: createdAt,
     });
+
+    const notificationService = new NotificationService(this.context);
+
+    notificationService.notifyFollowersOfNewStory(story);
+
     return story;
   }
 
@@ -374,39 +370,5 @@ export class StoryService {
           (story.creatorId === user._id || story.queueable.includes(user._id))
       ),
     };
-  }
-
-  async sendStoryInvites(
-    notificationService: NotificationService,
-    me: UserDbObject | null,
-    storyId: string,
-    invitedIds: string[]
-  ) {
-    if (!me) throw new AuthenticationError("");
-
-    const story = await this.findById(storyId);
-    if (!story) throw new UserInputError("Story does not exist", ["storyId"]);
-
-    const promises: Promise<unknown>[] = [];
-
-    const userService = new UserService(this.context);
-
-    invitedIds.forEach((invitedId) => {
-      promises.push(
-        userService.findById(invitedId).then((user) =>
-          user
-            ? // TODO: We need a way to throttle this
-              notificationService.add({
-                userId: invitedId,
-                storyId,
-                inviterId: me._id,
-                type: "invite",
-              } as Extract<NotificationDbObject, { type: "invite" }>)
-            : undefined
-        )
-      );
-    });
-
-    await Promise.all(promises);
   }
 }

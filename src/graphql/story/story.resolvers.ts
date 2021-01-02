@@ -76,12 +76,10 @@ const resolvers: Resolvers = {
       );
     },
     async sendStoryInvites(parent, { id, invitedIds }, { services, user }) {
-      await services.Story.sendStoryInvites(
-        services.Notification,
-        user,
-        id,
-        invitedIds
-      );
+      const story = await services.Story.findById(id);
+      if (!story) throw new UserInputError("Story does not exist", ["storyId"]);
+
+      await services.Notification.addInvitesToStory(user, story, invitedIds);
 
       return true;
     },

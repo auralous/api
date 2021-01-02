@@ -19,6 +19,14 @@ type NotificationFollow implements Notification {
   followerId: String!
 }
 
+type NotificationNewStory implements Notification {
+  id: ID!
+  hasRead: Boolean!
+  createdAt: DateTime!
+  storyId: String!
+  creatorId: String!
+}
+
 type Query {
   notifications(next: String, limit: Int!): [Notification!]!
 }

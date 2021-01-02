@@ -77,7 +77,7 @@ export class FollowService {
     ) {
       // Should only create notification if follow happens after 1 day since last
       const notificationService = new NotificationService(this.context);
-      await notificationService.add({
+      notificationService.add({
         type: "follow",
         followerId: me._id,
         userId: followingUser._id,

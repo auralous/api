@@ -1,7 +1,13 @@
-import { ObjectID } from "mongodb";
+import { ObjectID, WithId } from "mongodb";
 import { AuthenticationError } from "../error";
-import type { NotificationDbObject, UserDbObject } from "../types";
+import type {
+  NotificationDbObject,
+  StoryDbObject,
+  UserDbObject,
+} from "../types";
+import { FollowService } from "./follow";
 import type { ServiceContext } from "./types";
+import { UserService } from "./user";
 
 export class NotificationService {
   private collection = this.context.db.collection<NotificationDbObject>(
@@ -42,7 +48,9 @@ export class NotificationService {
       .then((result) => result.modifiedCount);
   }
 
-  add(notification: Omit<NotificationDbObject, "createdAt" | "hasRead">) {
+  add(
+    notification: Omit<NotificationDbObject, "createdAt" | "hasRead" | "_id">
+  ) {
     return this.collection
       .insertOne({
         ...notification,
@@ -50,5 +58,55 @@ export class NotificationService {
         hasRead: false,
       })
       .then((result) => result.ops[0]);
+  }
+
+  async addInvitesToStory(
+    me: UserDbObject | null,
+    story: StoryDbObject,
+    invitedIds: string[]
+  ) {
+    if (!me) throw new AuthenticationError("");
+
+    const promises: Promise<WithId<NotificationDbObject> | null>[] = [];
+
+    const userService = new UserService(this.context);
+
+    invitedIds.forEach((invitedId) => {
+      promises.push(
+        userService.findById(invitedId).then((user) =>
+          user
+            ? // TODO: We need a way to throttle this
+              this.add({
+                userId: invitedId,
+                storyId: String(story._id),
+                inviterId: me._id,
+                type: "invite",
+              } as Omit<Extract<NotificationDbObject, { type: "invite" }>, "createdAt" | "hasRead" | "_id">)
+            : null
+        )
+      );
+    });
+
+    await Promise.all(promises);
+  }
+
+  async notifyFollowersOfNewStory(story: StoryDbObject) {
+    const followService = new FollowService(this.context);
+    const follows = await followService.findFollows(story.creatorId);
+
+    const promises: Promise<WithId<NotificationDbObject> | null>[] = [];
+
+    follows.forEach((follow) => {
+      promises.push(
+        this.add({
+          userId: follow.follower,
+          creatorId: story.creatorId,
+          storyId: String(story._id),
+          type: "new-story",
+        } as Omit<Extract<NotificationDbObject, { type: "new-story" }>, "createdAt" | "hasRead" | "_id">)
+      );
+    });
+
+    await Promise.all(promises);
   }
 }

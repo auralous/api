@@ -101,6 +101,13 @@ interface NotificationDbObjectFollow extends NotificationDbObjectBase {
   type: "follow";
 }
 
+interface NotificationDbObjectNewStory extends NotificationDbObjectBase {
+  storyId: string;
+  creatorId: string;
+  type: "new-story";
+}
+
 export type NotificationDbObject =
   | NotificationDbObjectInvite
-  | NotificationDbObjectFollow;
+  | NotificationDbObjectFollow
+  | NotificationDbObjectNewStory;

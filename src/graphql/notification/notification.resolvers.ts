@@ -5,6 +5,7 @@ const resolvers: Resolvers = {
     __resolveType(obj) {
       if (obj.type === "follow") return "NotificationFollow";
       else if (obj.type === "invite") return "NotificationInvite";
+      else if (obj.type === "new-story") return "NotificationNewStory";
       return null;
     },
   },
@@ -12,6 +13,9 @@ const resolvers: Resolvers = {
     id: (obj) => String(((obj as unknown) as NotificationDbObject)._id),
   },
   NotificationInvite: {
+    id: (obj) => String(((obj as unknown) as NotificationDbObject)._id),
+  },
+  NotificationNewStory: {
     id: (obj) => String(((obj as unknown) as NotificationDbObject)._id),
   },
   Query: {

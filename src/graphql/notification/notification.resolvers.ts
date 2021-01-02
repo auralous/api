@@ -20,6 +20,11 @@ const resolvers: Resolvers = {
       return services.Notification.findMine(user, limit, next);
     },
   },
+  Mutation: {
+    readNotifications(parent, { ids }, { services, user }) {
+      return services.Notification.markRead(user, ids);
+    },
+  },
 };
 
 export default resolvers;

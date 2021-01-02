@@ -22,3 +22,7 @@ type NotificationFollow implements Notification {
 type Query {
   notifications(next: String, limit: Int!): [Notification!]!
 }
+
+type Mutation {
+  readNotifications(ids: [ID!]!): Int!
+}

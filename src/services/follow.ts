@@ -1,5 +1,6 @@
 import { AuthenticationError, UserInputError } from "../error";
-import { FollowDbObject, UserDbObject } from "../types";
+import { FollowDbObject, NotificationDbObject, UserDbObject } from "../types";
+import { NotificationService } from "./notification";
 import { ServiceContext } from "./types";
 
 export class FollowService {
@@ -50,21 +51,39 @@ export class FollowService {
     if (!me) throw new AuthenticationError("");
     if (!followingUser)
       throw new UserInputError("User does not exist to follow", ["id"]);
-    await this.collection.findOneAndUpdate(
-      {
-        follower: me._id,
-        following: followingUser._id,
-      },
-      {
-        $set: {
+
+    const newFollow = await this.collection
+      .findOneAndUpdate(
+        {
           follower: me._id,
           following: followingUser._id,
-          followedAt: new Date(),
-          unfollowedAt: null,
         },
-      },
-      { upsert: true }
-    );
+        {
+          $set: {
+            follower: me._id,
+            following: followingUser._id,
+            followedAt: new Date(),
+            unfollowedAt: null,
+          },
+        },
+        { upsert: true, returnOriginal: false }
+      )
+      .then((result) => result.value);
+
+    if (
+      newFollow &&
+      (!newFollow.unfollowedAt ||
+        Date.now() - newFollow.unfollowedAt.getTime() > 24 * 60 * 60 * 1000)
+    ) {
+      // Should only create notification if follow happens after 1 day since last
+      const notificationService = new NotificationService(this.context);
+      await notificationService.add({
+        type: "follow",
+        followerId: me._id,
+        userId: followingUser._id,
+      } as Extract<NotificationDbObject, { type: "follow" }>);
+    }
+
     return true;
   }
 

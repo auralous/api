@@ -8,6 +8,15 @@ import schema from "./graphql/schema";
 import { applySession } from "./middleware/session";
 import { StereoGraphQLError } from "./error/index";
 
+import { MessageService } from "./services/message";
+import { NowPlayingService } from "./services/nowPlaying";
+import { QueueService } from "./services/queue";
+import { StoryService } from "./services/story";
+import { TrackService } from "./services/track";
+import { UserService } from "./services/user";
+import { FollowService } from "./services/follow";
+import { NotificationService } from "./services/notification";
+
 import type { Db } from "mongodb";
 import type IORedis from "ioredis";
 import type { PubSub } from "./lib/pubsub";
@@ -16,13 +25,6 @@ import type {
   ExtendedIncomingMessage,
   MyGQLContext,
 } from "./types/index";
-import { MessageService } from "./services/message";
-import { NowPlayingService } from "./services/nowPlaying";
-import { QueueService } from "./services/queue";
-import { StoryService } from "./services/story";
-import { TrackService } from "./services/track";
-import { UserService } from "./services/user";
-import { FollowService } from "./services/follow";
 
 const EXPECTED_ERR_CODES = ["PERSISTED_QUERY_NOT_FOUND"];
 
@@ -46,6 +48,7 @@ export function buildGraphQLServer(
         Track: new TrackService(serviceContext),
         User: new UserService(serviceContext),
         Follow: new FollowService(serviceContext),
+        Notification: new NotificationService(serviceContext),
       },
     };
   }

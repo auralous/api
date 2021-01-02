@@ -10,6 +10,8 @@ generates:
         Artist: ./db#ArtistDbObject
         Story: ./db#StoryDbObject
         QueueItem: ./db#QueueItemDbObject
+        Notification: ./db#NotificationDbObject
+        Message: ./db#MessageDbObject
       noSchemaStitching: true
     plugins:
       - typescript

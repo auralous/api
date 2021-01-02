@@ -75,6 +75,16 @@ const resolvers: Resolvers = {
         isRemoving
       );
     },
+    async sendStoryInvites(parent, { id, invitedIds }, { services, user }) {
+      await services.Story.sendStoryInvites(
+        services.Notification,
+        user,
+        id,
+        invitedIds
+      );
+
+      return true;
+    },
   },
   Subscription: {
     storyUsersUpdated: {

@@ -41,4 +41,14 @@ export class NotificationService {
       )
       .then((result) => result.modifiedCount);
   }
+
+  add(notification: Omit<NotificationDbObject, "createdAt" | "hasRead">) {
+    return this.collection
+      .insertOne({
+        ...notification,
+        createdAt: new Date(),
+        hasRead: false,
+      })
+      .then((result) => result.ops[0]);
+  }
 }

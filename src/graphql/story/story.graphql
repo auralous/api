@@ -11,6 +11,7 @@ type Mutation {
   changeStoryQueueable(id: ID!, userId: String!, isRemoving: Boolean!): Boolean!
   unliveStory(id: ID!): Boolean!
   pingStory(id: ID!): Boolean!
+  sendStoryInvites(id: ID!, invitedIds: [String!]!): Boolean!
 }
 
 type Subscription {

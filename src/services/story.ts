@@ -155,6 +155,20 @@ export class StoryService {
   }
 
   /**
+   * Find first live story by creatorId
+   * @param creatorId
+   */
+  async findLiveByCreatorId(creatorId: string) {
+    return this.collection
+      .findOne({ creatorId, isLive: true })
+      .then((story) => {
+        if (!story) return null;
+        story = this.checkStoryStatus(story);
+        return story.isLive ? story : null;
+      });
+  }
+
+  /**
    * Find all public stories
    * @param limit
    * @param next

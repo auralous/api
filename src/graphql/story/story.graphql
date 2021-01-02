@@ -2,6 +2,7 @@ type Query {
   story(id: ID!): Story
   storyUsers(id: ID!): [String!]
   stories(id: ID!, next: String, limit: Int!): [Story!]!
+  storyLive(creatorId: String): Story
 }
 
 type Mutation {

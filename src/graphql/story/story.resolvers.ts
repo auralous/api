@@ -32,6 +32,10 @@ const resolvers: Resolvers = {
         return null;
       return services.Story.getPresences(id);
     },
+    async storyLive(parent, { creatorId }, { services }) {
+      if (!creatorId) return null;
+      return services.Story.findLiveByCreatorId(creatorId);
+    },
   },
   Mutation: {
     createStory(parent, { text, isPublic }, { services, user }) {

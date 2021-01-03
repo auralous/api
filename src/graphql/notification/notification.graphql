@@ -1,0 +1,40 @@
+interface Notification {
+  id: ID!
+  hasRead: Boolean!
+  createdAt: DateTime!
+}
+
+type NotificationInvite implements Notification {
+  id: ID!
+  hasRead: Boolean!
+  createdAt: DateTime!
+  inviterId: String!
+  storyId: String!
+}
+
+type NotificationFollow implements Notification {
+  id: ID!
+  hasRead: Boolean!
+  createdAt: DateTime!
+  followerId: String!
+}
+
+type NotificationNewStory implements Notification {
+  id: ID!
+  hasRead: Boolean!
+  createdAt: DateTime!
+  storyId: String!
+  creatorId: String!
+}
+
+type Query {
+  notifications(next: String, limit: Int!): [Notification!]!
+}
+
+type Mutation {
+  readNotifications(ids: [ID!]!): Int!
+}
+
+type Subscription {
+  notificationAdded: Notification!
+}

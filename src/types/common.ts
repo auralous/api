@@ -5,13 +5,14 @@ import type { Session } from "next-session/dist/types";
 import type { UserDbObject } from "./db";
 import type { PubSub } from "../lib/pubsub";
 import type { PlatformName } from "./graphql.gen";
-import { UserService } from "../services/user";
-import { QueueService } from "../services/queue";
-import { TrackService } from "../services/track";
-import { MessageService } from "../services/message";
-import { StoryService } from "../services/story";
-import { NowPlayingService } from "../services/nowPlaying";
-import { FollowService } from "../services/follow";
+import type { UserService } from "../services/user";
+import type { QueueService } from "../services/queue";
+import type { TrackService } from "../services/track";
+import type { MessageService } from "../services/message";
+import type { StoryService } from "../services/story";
+import type { NowPlayingService } from "../services/nowPlaying";
+import type { FollowService } from "../services/follow";
+import type { NotificationService } from "../services/notification";
 
 type SetCachControl = (maxAge: number, scope?: "PRIVATE" | "PUBLIC") => void;
 
@@ -36,6 +37,7 @@ export type MyGQLContext = {
     Story: StoryService;
     NowPlaying: NowPlayingService;
     Follow: FollowService;
+    Notification: NotificationService;
   };
 };
 

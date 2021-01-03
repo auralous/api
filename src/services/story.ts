@@ -10,6 +10,7 @@ import type { ServiceContext } from "./types";
 import type { StoryDbObject, NullablePartial } from "../types/index";
 import { NowPlayingWorker } from "./nowPlayingWorker";
 import { MessageService } from "./message";
+import { NotificationService } from "./notification";
 
 export class StoryService {
   private collection = this.context.db.collection<StoryDbObject>("stories");
@@ -124,6 +125,11 @@ export class StoryService {
       queueable: [],
       lastCreatorActivityAt: createdAt,
     });
+
+    const notificationService = new NotificationService(this.context);
+
+    notificationService.notifyFollowersOfNewStory(story);
+
     return story;
   }
 
@@ -152,6 +158,20 @@ export class StoryService {
       .limit(limit || 99999)
       .toArray()
       .then((stories) => stories.map((s) => this.checkStoryStatus(s)));
+  }
+
+  /**
+   * Find first live story by creatorId
+   * @param creatorId
+   */
+  async findLiveByCreatorId(creatorId: string) {
+    return this.collection
+      .findOne({ creatorId, isLive: true })
+      .then((story) => {
+        if (!story) return null;
+        story = this.checkStoryStatus(story);
+        return story.isLive ? story : null;
+      });
   }
 
   /**

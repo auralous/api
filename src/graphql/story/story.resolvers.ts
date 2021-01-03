@@ -32,6 +32,10 @@ const resolvers: Resolvers = {
         return null;
       return services.Story.getPresences(id);
     },
+    async storyLive(parent, { creatorId }, { services }) {
+      if (!creatorId) return null;
+      return services.Story.findLiveByCreatorId(creatorId);
+    },
   },
   Mutation: {
     createStory(parent, { text, isPublic }, { services, user }) {
@@ -70,6 +74,14 @@ const resolvers: Resolvers = {
         addingUser,
         isRemoving
       );
+    },
+    async sendStoryInvites(parent, { id, invitedIds }, { services, user }) {
+      const story = await services.Story.findById(id);
+      if (!story) throw new UserInputError("Story does not exist", ["storyId"]);
+
+      await services.Notification.addInvitesToStory(user, story, invitedIds);
+
+      return true;
     },
   },
   Subscription: {

@@ -82,3 +82,32 @@ export interface FollowDbObject {
   followedAt: Date;
   unfollowedAt: Date | null;
 }
+
+interface NotificationDbObjectBase {
+  _id: ObjectID;
+  userId: string;
+  createdAt: Date;
+  hasRead: boolean;
+}
+
+interface NotificationDbObjectInvite extends NotificationDbObjectBase {
+  inviterId: string;
+  storyId: string;
+  type: "invite";
+}
+
+interface NotificationDbObjectFollow extends NotificationDbObjectBase {
+  followerId: string;
+  type: "follow";
+}
+
+interface NotificationDbObjectNewStory extends NotificationDbObjectBase {
+  storyId: string;
+  creatorId: string;
+  type: "new-story";
+}
+
+export type NotificationDbObject =
+  | NotificationDbObjectInvite
+  | NotificationDbObjectFollow
+  | NotificationDbObjectNewStory;

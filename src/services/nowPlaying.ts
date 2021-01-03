@@ -1,14 +1,15 @@
 import { AuthenticationError, ForbiddenError } from "../error/index";
 import { PUBSUB_CHANNELS, REDIS_KEY } from "../lib/constant";
 import { NowPlayingWorker } from "./nowPlayingWorker";
-import {
-  NowPlayingReactionItem,
-  NowPlayingReactionType,
-  StoryDbObject,
-} from "../types/index";
 
 import type { ServiceContext } from "./types";
-import type { NowPlayingItemDbObject, UserDbObject } from "../types/index";
+import type {
+  NowPlayingItemDbObject,
+  UserDbObject,
+  NowPlayingReactionType,
+  NowPlayingReactionItem,
+  StoryDbObject,
+} from "../types/index";
 import { QueueService } from "./queue";
 import { StoryService } from "./story";
 

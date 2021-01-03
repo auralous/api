@@ -1,6 +1,4 @@
 import type { IncomingMessage } from "http";
-import type { Db } from "mongodb";
-import type Redis from "ioredis";
 import type { Session } from "next-session/dist/types";
 import type { UserDbObject } from "./db";
 import type { PubSub } from "../lib/pubsub";
@@ -24,8 +22,6 @@ export type ExtendedIncomingMessage = IncomingMessage & {
 };
 
 export type MyGQLContext = {
-  db: Db;
-  redis: Redis.Cluster;
   pubsub: PubSub;
   user: UserDbObject | null;
   setCacheControl?: SetCachControl;

@@ -7,10 +7,11 @@ import {
   UserInputError,
 } from "../error/index";
 import { deleteCloudinaryImagesByPrefix } from "../lib/cloudinary";
+import { CONFIG } from "../lib/constant";
 
 import type { ServiceContext } from "./types";
-import { UserDbObject, NullablePartial } from "../types/index";
-import { CONFIG } from "../lib/constant";
+import type { UserDbObject, NullablePartial } from "../types/index";
+import { StoryService } from "./story";
 
 export class UserService {
   private collection = this.context.db.collection<UserDbObject>("users");
@@ -142,6 +143,14 @@ export class UserService {
     });
     if (!deletedCount)
       throw new ForbiddenError("Cannot deactivate your account");
+
+    // delete every story
+    const storyService = new StoryService(this.context);
+    const allStories = await storyService.findByCreatorId(me._id);
+    for (const story of allStories) {
+      await storyService.deleteById(me, story._id.toHexString());
+    }
+
     await deleteCloudinaryImagesByPrefix(`users/${me._id}`);
     return true;
   }

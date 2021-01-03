@@ -1,14 +1,16 @@
-import { ObjectID, WithId } from "mongodb";
+import { ObjectID } from "mongodb";
+import { FollowService } from "./follow";
+import { UserService } from "./user";
 import { AuthenticationError } from "../error";
 import { PUBSUB_CHANNELS } from "../lib/constant";
+
+import type { WithId } from "mongodb";
 import type {
   NotificationDbObject,
   StoryDbObject,
   UserDbObject,
 } from "../types";
-import { FollowService } from "./follow";
 import type { ServiceContext } from "./types";
-import { UserService } from "./user";
 
 export class NotificationService {
   private collection = this.context.db.collection<NotificationDbObject>(

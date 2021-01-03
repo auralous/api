@@ -52,15 +52,7 @@ const resolvers: Resolvers = {
     },
     async deleteMe(parent, args, { services, user }) {
       if (!user) throw new AuthenticationError("");
-      const deleted = await services.User.deleteMe(user);
-      if (deleted) {
-        // delete every story
-        const allStories = await services.Story.findByCreatorId(user._id);
-        for (const story of allStories) {
-          await services.Story.deleteById(user, story._id.toHexString());
-        }
-      }
-      return deleted;
+      return services.User.deleteMe(user);
     },
     async followUser(parent, { id }, { services, user }) {
       return services.Follow.follow(user, await services.User.findById(id));

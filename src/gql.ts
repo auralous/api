@@ -33,25 +33,18 @@ export function buildGraphQLServer(
   redis: IORedis.Cluster,
   pubsub: PubSub
 ) {
-  function buildContext(user: UserDbObject | null): MyGQLContext {
-    const serviceContext = { redis, db, pubsub };
-    return {
-      user,
-      redis,
-      db,
-      pubsub,
-      services: {
-        Message: new MessageService(serviceContext),
-        NowPlaying: new NowPlayingService(serviceContext),
-        Queue: new QueueService(serviceContext),
-        Story: new StoryService(serviceContext),
-        Track: new TrackService(serviceContext),
-        User: new UserService(serviceContext),
-        Follow: new FollowService(serviceContext),
-        Notification: new NotificationService(serviceContext),
-      },
-    };
-  }
+  const serviceContext = { redis, db, pubsub };
+  const services = {
+    Message: new MessageService(serviceContext),
+    NowPlaying: new NowPlayingService(serviceContext),
+    Queue: new QueueService(serviceContext),
+    Story: new StoryService(serviceContext),
+    Track: new TrackService(serviceContext),
+    User: new UserService(serviceContext),
+    Follow: new FollowService(serviceContext),
+    Notification: new NotificationService(serviceContext),
+  };
+
   const GQL = new Benzene({
     schema,
     formatError: (err) => {
@@ -84,11 +77,12 @@ export function buildGraphQLServer(
   // http
 
   const httpHandle = httpHandler(GQL, {
-    context: (req: ExtendedIncomingMessage): MyGQLContext => {
-      const ctx = buildContext(req.user || null);
-      ctx.setCacheControl = req.setCacheControl;
-      return ctx;
-    },
+    context: (req: ExtendedIncomingMessage): MyGQLContext => ({
+      user: req.user || null,
+      pubsub,
+      services,
+      setCacheControl: req.setCacheControl,
+    }),
   });
 
   // ws
@@ -100,13 +94,13 @@ export function buildGraphQLServer(
     ): Promise<MyGQLContext> => {
       await applySession(request, {} as any);
       const _id = request.session?.passport?.user;
-      const user = _id
-        ? await db.collection<UserDbObject>("users").findOne({ _id })
-        : null;
-      const ctx = buildContext(user);
-      // setCacheControl is irrelavant in ws
-      ctx.setCacheControl = () => undefined;
-      return ctx;
+      return {
+        user: _id
+          ? await db.collection<UserDbObject>("users").findOne({ _id })
+          : null,
+        pubsub,
+        services,
+      };
     },
   });
 

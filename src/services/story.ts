@@ -277,15 +277,12 @@ export class StoryService {
 
   /**
    * Notify that the user is still in story
-   * @param messageService
    * @param user
    * @param storyId
    */
-  async pingPresence(
-    messageService: MessageService,
-    user: UserDbObject,
-    storyId: string
-  ): Promise<void> {
+  async pingPresence(user: UserDbObject, storyId: string): Promise<void> {
+    const messageService = new MessageService(this.context);
+
     const story = await this.findById(storyId);
 
     if (!story || !StoryService.getPermission(user, story).isViewable)

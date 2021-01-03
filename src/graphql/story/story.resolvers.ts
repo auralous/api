@@ -57,7 +57,7 @@ const resolvers: Resolvers = {
     },
     pingStory(parent, { id }, { services, user }) {
       if (!user) return false;
-      services.Story.pingPresence(services.Message, user, id);
+      services.Story.pingPresence(user, id);
       return true;
     },
     async changeStoryQueueable(

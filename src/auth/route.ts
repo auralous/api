@@ -1,20 +1,8 @@
 import nc from "next-connect";
-import { UserService } from "../services/user";
-import { SpotifyAuthService, YoutubeAuthService } from "../services/music";
-import { PlatformName } from "../types/index";
-
-import type { Db } from "mongodb";
-import type IORedis from "ioredis";
 import type Passport from "passport";
-import type { PubSub } from "../lib/pubsub";
 import type { ExtendedIncomingMessage } from "../types/index";
 
-export function createApp(
-  passport: Passport.Authenticator,
-  db: Db,
-  redis: IORedis.Cluster,
-  pubsub: PubSub
-) {
+export function createApp(passport: Passport.Authenticator) {
   const app = nc<ExtendedIncomingMessage>();
 
   function createRoute(provider: string, authOpts = {}) {
@@ -43,38 +31,6 @@ export function createApp(
     req.user = null;
     await req.session.destroy();
     res.writeHead(204).end();
-  });
-
-  app.get("/mAuth", async (req, res) => {
-    if (!req.user) return res.writeHead(204).end();
-
-    const serviceContext = {
-      user: req.user || null,
-      db,
-      redis,
-      pubsub,
-    };
-
-    const oauth = req.user.oauth;
-    const userService = new UserService(serviceContext);
-    const authService =
-      oauth.provider === PlatformName.Youtube
-        ? new YoutubeAuthService()
-        : new SpotifyAuthService();
-
-    return res
-      .writeHead(200, undefined, { "content-type": "application/json" })
-      .end(
-        JSON.stringify({
-          platform: oauth.provider,
-          id: oauth.id,
-          accessToken: await authService.getAccessToken(
-            req.user || null,
-            userService
-          ),
-          expiredAt: oauth.expiredAt,
-        })
-      );
   });
 
   createRoute("google", {

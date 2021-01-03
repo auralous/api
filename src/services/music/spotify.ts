@@ -3,7 +3,11 @@ import { isDefined } from "../../lib/utils";
 import { PlatformName, UserDbObject } from "../../types/index";
 
 import type { UserService } from "../user";
-import type { TrackDbObject, ArtistDbObject } from "../../types/index";
+import type {
+  TrackDbObject,
+  ArtistDbObject,
+  Playlist,
+} from "../../types/index";
 /// <reference path="spotify-api" />
 
 // For implicit auth
@@ -57,6 +61,19 @@ function parseTrack(result: SpotifyApi.TrackObjectFull): TrackDbObject {
   };
 }
 
+function parsePlaylist(
+  result: SpotifyApi.PlaylistObjectFull | SpotifyApi.PlaylistObjectSimplified
+): Playlist {
+  return {
+    id: `spotify:${result.id}`,
+    externalId: result.id,
+    image: result.images[0]?.url || "",
+    name: result.name,
+    platform: PlatformName.Spotify,
+    url: result.external_urls.spotify,
+  };
+}
+
 export class SpotifyService {
   private BASE_URL = "https://api.spotify.com/v1";
 
@@ -106,34 +123,19 @@ export class SpotifyService {
     return parseTrack(json);
   }
 
-  getTrackIdFromUri(uri: string): string | null {
-    const regExp = /^https:\/\/open.spotify.com\/track\/([a-zA-Z0-9]+)/;
-    const match = uri.match(regExp);
-    if (!match) return null;
-    return match?.[1] || null;
-  }
-
-  getPlaylistIdFromUri(uri: string): string | null {
-    const regExp = /^https:\/\/open.spotify.com\/playlist\/([a-zA-Z0-9]+)/;
-    const match = uri.match(regExp);
-    if (!match) return null;
-    return match?.[1] || null;
-  }
-
   /**
-   * get Sporify tracks by playlist id
-   * @param playlistId
-   * @param userAccessToken optional user access token
+   * Get Spotify playlist
+   * @param externalId
+   * @param userAccessToken
    */
-  async getTracksByPlaylistId(
-    playlistId: string,
+  async getPlaylist(
+    externalId: string,
     userAccessToken?: string
-  ): Promise<TrackDbObject[]> {
+  ): Promise<Playlist | null> {
     const accessToken = await SpotifyService.userTokenOrOurs(userAccessToken);
 
-    const tracks: TrackDbObject[] = [];
-    let trackData: SpotifyApi.PlaylistTrackResponse | null = await fetch(
-      `${this.BASE_URL}/playlists/${playlistId}/tracks`,
+    const json: SpotifyApi.PlaylistObjectFull | null = await fetch(
+      `${this.BASE_URL}/playlists/${externalId}?fields=id,external_urls,images,name`,
       {
         headers: {
           Authorization: `Authorization: Bearer ${accessToken}`,
@@ -141,25 +143,126 @@ export class SpotifyService {
         },
       }
     ).then((response) => (response.ok ? response.json() : null));
-    // eslint-disable-next-line no-constant-condition
-    while (true) {
-      if (!trackData) break;
-      tracks.push(
-        ...trackData.items
-          .map((trackItem) =>
-            !trackItem.is_local ? parseTrack(trackItem.track) : null
-          )
-          .filter(isDefined)
-      );
-      if (trackData.next)
-        trackData = await fetch(trackData.next, {
+
+    if (!json) return null;
+
+    return parsePlaylist(json);
+  }
+
+  /**
+   * Get current user's Spotify playlists
+   * @param me
+   */
+  async getMyPlaylists(me: UserDbObject): Promise<Playlist[]> {
+    const accessToken = me.oauth.accessToken;
+
+    let data: SpotifyApi.ListOfCurrentUsersPlaylistsResponse | undefined;
+
+    const playlists: Playlist[] = [];
+
+    do {
+      data = await fetch(data?.next || `${this.BASE_URL}/me/playlists`, {
+        headers: {
+          Authorization: `Authorization: Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+      }).then((response) => (response.ok ? response.json() : undefined));
+      if (!data) break;
+      playlists.push(...data.items.map(parsePlaylist));
+    } while (data?.next);
+
+    return playlists;
+  }
+
+  /**
+   * Insert tracks to Spotify playlist
+   * @param me
+   * @param externalId
+   * @param externalTrackIds
+   */
+  async insertPlaylistTracks(
+    me: UserDbObject,
+    externalId: string,
+    externalTrackIds: string[]
+  ): Promise<boolean> {
+    const accessToken = me.oauth.accessToken;
+
+    return fetch(`${this.BASE_URL}/playlists/${externalId}/tracks`, {
+      method: "POST",
+      headers: {
+        Authorization: `Authorization: Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        uris: externalTrackIds.map(
+          (externalTrackId) => `spotify:track:${externalTrackId}`
+        ),
+      }),
+    }).then((res) => res.ok);
+  }
+
+  /**
+   * Create Spotify playlist
+   * @param me
+   * @param name
+   * @param externalTrackIds
+   */
+  async createPlaylist(me: UserDbObject, name: string): Promise<Playlist> {
+    const accessToken = me.oauth.accessToken;
+
+    const data: SpotifyApi.CreatePlaylistResponse = await fetch(
+      `${this.BASE_URL}/users/${me.oauth.id}/playlists`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Authorization: Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ name }),
+      }
+    ).then((res) => (res.ok ? res.json() : null));
+
+    if (!data) throw new Error("Could not create Spotify playlist");
+
+    return parsePlaylist(data);
+  }
+
+  /**
+   * get Sporify tracks by playlist id
+   * @param playlistId
+   * @param userAccessToken optional user access token
+   */
+  async getPlaylistTracks(
+    externalId: string,
+    userAccessToken?: string
+  ): Promise<TrackDbObject[]> {
+    const accessToken = await SpotifyService.userTokenOrOurs(userAccessToken);
+
+    const tracks: TrackDbObject[] = [];
+
+    let trackData: SpotifyApi.PlaylistTrackResponse | undefined;
+
+    do {
+      trackData = await fetch(
+        trackData?.next || `${this.BASE_URL}/playlists/${externalId}/tracks`,
+        {
           headers: {
             Authorization: `Authorization: Bearer ${accessToken}`,
             "Content-Type": "application/json",
           },
-        }).then((response) => (response.ok ? response.json() : null));
-      else break;
-    }
+        }
+      ).then((response) => (response.ok ? response.json() : undefined));
+
+      if (trackData?.items)
+        tracks.push(
+          ...trackData.items
+            .map((trackItem) =>
+              !trackItem.is_local ? parseTrack(trackItem.track) : null
+            )
+            .filter(isDefined)
+        );
+    } while (trackData?.next);
+
     return tracks;
   }
 

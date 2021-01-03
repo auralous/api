@@ -2,14 +2,31 @@ import { AuthenticationError } from "../../error";
 import { uploadStreamToCloudinary } from "../../lib/cloudinary";
 import { defaultAvatar } from "../../lib/defaultAvatar";
 import { CONFIG } from "../../lib/constant";
+import { SpotifyAuthService, YoutubeAuthService } from "../../services/music";
+import { PlatformName } from "../../types/graphql.gen";
 
 import type { Resolvers, UserDbObject } from "../../types/index";
 
 const resolvers: Resolvers = {
   Query: {
-    me(parent, args, { user, setCacheControl }) {
+    async me(parent, args, { user, services, setCacheControl }) {
       setCacheControl?.(0, "PRIVATE");
-      return user;
+      if (!user) return null;
+
+      const authService =
+        user.oauth.provider === PlatformName.Youtube
+          ? new YoutubeAuthService()
+          : new SpotifyAuthService();
+
+      const accessToken = await authService.getAccessToken(user, services.User);
+
+      return {
+        user,
+        oauthId: user.oauth.id,
+        platform: user.oauth.provider,
+        accessToken,
+        expiredAt: user.oauth.expiredAt,
+      };
     },
     async user(parent, { username, id }, { services, setCacheControl }) {
       let user: UserDbObject | null = null;

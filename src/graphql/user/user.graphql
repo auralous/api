@@ -1,5 +1,5 @@
 type Query {
-  me: User
+  me: Me
   user(username: String, id: ID): User
   userStat(id: ID!): UserStat
   userFollowers(id: ID!): [String!]!
@@ -24,4 +24,12 @@ type UserStat {
   id: ID!
   followerCount: Int!
   followingCount: Int!
+}
+
+type Me {
+  user: User!
+  oauthId: String!
+  platform: PlatformName!
+  accessToken: String
+  expiredAt: DateTime
 }

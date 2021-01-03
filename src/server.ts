@@ -76,7 +76,7 @@ import type { ExtendedIncomingMessage } from "./types/index";
   app.use(passport.initialize()).use(passport.session());
 
   // auth subapp
-  app.use("/auth", createAppAuth(passport, db, redis, pubsub));
+  app.use("/auth", createAppAuth(passport));
 
   app.post(
     "/graphql",

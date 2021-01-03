@@ -6,7 +6,15 @@ enum PlatformName {
 type Query {
   track(id: ID!): Track
   crossTracks(id: ID!): CrossTracks
-  searchTrack(platform: PlatformName!, query: String!): [Track!]!
+  playlist(id: ID!): Playlist
+  myPlaylists: [Playlist!]
+  playlistTracks(id: ID!): [Track!]!
+  searchTrack(query: String!): [Track!]!
+}
+
+type Mutation {
+  addPlaylistTracks(id: ID!, trackIds: [String!]!): Boolean!
+  createPlaylist(name: String!, trackIds: [String!]!): Playlist!
 }
 
 type Track {
@@ -27,6 +35,15 @@ type CrossTracks {
 }
 
 type Artist {
+  id: ID!
+  platform: PlatformName!
+  externalId: ID!
+  name: String!
+  image: String!
+  url: String!
+}
+
+type Playlist {
   id: ID!
   platform: PlatformName!
   externalId: ID!

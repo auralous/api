@@ -1,4 +1,4 @@
-import { google, Auth } from "googleapis";
+import { google, Auth, youtube_v3 } from "googleapis";
 import fetch from "node-fetch";
 import { isDefined } from "../../lib/utils";
 import { MAX_TRACK_DURATION } from "../../lib/constant";
@@ -6,7 +6,11 @@ import { PlatformName, UserDbObject } from "../../types/index";
 
 import type { TrackService } from "../track";
 import type { UserService } from "../user";
-import type { ArtistDbObject, TrackDbObject } from "../../types/index";
+import type {
+  ArtistDbObject,
+  TrackDbObject,
+  Playlist,
+} from "../../types/index";
 
 function parseDurationToMs(str: string) {
   // https://developers.google.com/youtube/v3/docs/videos#contentDetails.duration
@@ -81,6 +85,17 @@ const INTERNAL_YTAPI = {
   baseUrl: "https://music.youtube.com/youtubei/v1",
 };
 
+function parsePlaylist(result: youtube_v3.Schema$Playlist): Playlist {
+  return {
+    id: `youtube:${result.id}`,
+    platform: PlatformName.Youtube,
+    externalId: result.id as string,
+    image: result.snippet?.thumbnails?.high?.url as string,
+    name: result.snippet?.title as string,
+    url: `https://www.youtube.com/playlist?list=${result.id}`,
+  };
+}
+
 export class YoutubeService {
   private youtube = google.youtube({
     version: "v3",
@@ -122,58 +137,131 @@ export class YoutubeService {
   }
 
   /**
-   * Get YouTube track by uri
-   * @param uri
+   * Get YouTube playlist
+   * @param externalId
+   * @param userAccessToken
    */
-  getTrackIdFromUri(uri: string): string | null {
-    const regExp = /^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#&?]*).*/;
-    const match = uri.match(regExp);
-    return match?.[7]?.length === 11 ? match[7] : null;
+  async getPlaylist(
+    externalId: string,
+    userAccessToken?: string
+  ): Promise<Playlist | null> {
+    const { data: json } = await this.youtube.playlists.list({
+      part: ["snippet"],
+      fields: "items(snippet(thumbnails,title))",
+      id: [externalId],
+      access_token: userAccessToken,
+    });
+
+    if (!json.items?.[0]) return null;
+
+    return parsePlaylist(json.items[0]);
   }
 
   /**
-   * Get playlistId from uri
-   * @param uri
+   * Get current user's YouTube playlists
+   * @param me
    */
-  getPlaylistIdFromUri(uri: string): string | null {
-    if (!uri.includes("youtube")) return null;
-    const regExp = /^.*((v\/)|(\/u\/\w\/)|(\/playlist\?)|(watch\?))?list?=?([^#&?]*).*/;
-    const match = uri.match(regExp);
-    return match?.[6] || null;
+  async getMyPlaylists(me: UserDbObject): Promise<Playlist[]> {
+    const playlists: Playlist[] = [];
+
+    let data: youtube_v3.Schema$PlaylistListResponse | undefined;
+
+    do {
+      data = (
+        await this.youtube.playlists.list({
+          part: ["id", "snippet"],
+          mine: true,
+          fields: "nextPageToken,items(id,snippet(title,thumbnails.high.url))",
+          access_token: me.oauth.accessToken || "",
+          pageToken: data?.nextPageToken || undefined,
+        })
+      ).data;
+      if (data.items) playlists.push(...data.items.map(parsePlaylist));
+    } while (data.nextPageToken);
+
+    return playlists;
+  }
+
+  /**
+   * Insert tracks to YouTube playlist
+   * @param me
+   * @param externalId
+   * @param externalTrackIds
+   */
+  async insertPlaylistTracks(
+    me: UserDbObject,
+    externalId: string,
+    externalTrackIds: string[]
+  ): Promise<boolean> {
+    for (const externalTrackId of externalTrackIds)
+      await this.youtube.playlistItems.insert({
+        part: ["snippet"],
+        requestBody: {
+          snippet: {
+            playlistId: externalId,
+            resourceId: {
+              kind: "youtube#video",
+              videoId: externalTrackId,
+            },
+          },
+        },
+        access_token: me.oauth.accessToken || undefined,
+      });
+    return true;
+  }
+
+  /**
+   * Create a YouTube playlist
+   * @param me
+   * @param name
+   * @param externalTrackIds
+   */
+  async createPlaylist(me: UserDbObject, name: string): Promise<Playlist> {
+    const { data } = await this.youtube.playlists.insert({
+      part: ["snippet"],
+      requestBody: { snippet: { title: name } },
+      access_token: me.oauth.accessToken || undefined,
+    });
+    return parsePlaylist(data);
   }
 
   /**
    * Get YouTube tracks by playlist
-   * @param id
+   * @param playlistId
    */
-  async getTracksByPlaylistId(id: string): Promise<TrackDbObject[]> {
+  async getPlaylistTracks(
+    externalId: string,
+    userAccessToken?: string
+  ): Promise<TrackDbObject[]> {
     const tracks: TrackDbObject[] = [];
-    let trackData = await this.youtube.playlistItems.list({
-      part: ["contentDetails"],
-      fields: "nextPageToken,items/contentDetails/videoId",
-      playlistId: id,
-    });
-    // eslint-disable-next-line
-    while (true) {
-      const trackItems = (
-        await Promise.all(
-          (trackData.data.items || []).map((trackItemData) =>
-            this.findOrCreate(
-              `youtube:${trackItemData.contentDetails?.videoId}`
-            )
-          )
-        )
-      ).filter(isDefined);
-      tracks.push(...trackItems);
-      if (trackData.data.nextPageToken)
-        trackData = await this.youtube.playlistItems.list({
+
+    let trackData: youtube_v3.Schema$PlaylistItemListResponse | undefined;
+
+    do {
+      trackData = (
+        await this.youtube.playlistItems.list({
           part: ["contentDetails"],
           fields: "nextPageToken,items/contentDetails/videoId",
-          playlistId: id,
-          pageToken: trackData.data.nextPageToken,
-        });
-      else break;
-    }
+          playlistId: externalId,
+          access_token: userAccessToken,
+          pageToken: trackData?.nextPageToken || undefined,
+        })
+      ).data;
+
+      // TODO: We prefer not to do this
+      tracks.push(
+        ...(
+          await Promise.all(
+            (trackData.items || []).map((trackItemData) =>
+              this.findOrCreate(
+                `youtube:${trackItemData.contentDetails?.videoId}`
+              )
+            )
+          )
+        ).filter(isDefined)
+      );
+    } while (trackData?.nextPageToken);
+
     return tracks;
   }
 

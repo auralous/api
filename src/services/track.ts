@@ -5,7 +5,6 @@ import { SpotifyService, YoutubeService } from "./music";
 import { CONFIG, REDIS_KEY } from "../lib/constant";
 import { PlatformName } from "../types/index";
 
-import type { URL } from "url";
 import type { ServiceContext } from "./types";
 import type {
   TrackDbObject,
@@ -13,6 +12,7 @@ import type {
   OdesliResponse,
   UserDbObject,
 } from "../types/index";
+import { AuthenticationError } from "../error";
 
 const stringifyTrack = fastJson({
   title: "Track",
@@ -87,24 +87,6 @@ export class TrackService {
 
   private find(id: string) {
     return this.loader.load(REDIS_KEY.track(id));
-  }
-
-  async findByUri(
-    uri: URL,
-    me?: UserDbObject | null
-  ): Promise<TrackDbObject | TrackDbObject[] | null> {
-    let externalId: null | string = null;
-    for (const platform of Object.values(PlatformName)) {
-      const platformService = this[platform];
-      if ((externalId = platformService.getPlaylistIdFromUri(uri.href)))
-        return platformService.getTracksByPlaylistId(
-          externalId,
-          (me?.oauth.provider === platform && me.oauth.accessToken) || undefined
-        );
-      else if ((externalId = platformService.getTrackIdFromUri(uri.href)))
-        return this.findOrCreate(`${platform}:${externalId}`, me);
-    }
-    return null;
   }
 
   async save(id: string, track: TrackDbObject) {
@@ -196,7 +178,7 @@ export class TrackService {
     let artist = await this.findArtist(id);
     if (!artist) {
       const [platform, externalId] = id.split(":");
-      artist = await this[platform as PlatformName]?.getArtist(
+      artist = await this[platform as PlatformName].getArtist(
         externalId,
         (me?.oauth.provider === platform && me.oauth.accessToken) || undefined
       );
@@ -204,5 +186,55 @@ export class TrackService {
       await this.saveArtist(id, artist);
     }
     return artist;
+  }
+
+  // Playlist
+  async findPlaylist(id: string, me?: UserDbObject | null) {
+    const [platform, externalId] = id.split(":");
+    return this[platform as PlatformName].getPlaylist(
+      externalId,
+      (me?.oauth.provider === platform && me.oauth.accessToken) || undefined
+    );
+  }
+
+  async findPlaylistTracks(id: string, me?: UserDbObject | null) {
+    const [platform, externalId] = id.split(":");
+    return this[platform as PlatformName].getPlaylistTracks(
+      externalId,
+      (me?.oauth.provider === platform && me.oauth.accessToken) || undefined
+    );
+  }
+
+  async findMyPlaylist(me?: UserDbObject | null) {
+    if (!me) throw new AuthenticationError("");
+    return this[me.oauth.provider].getMyPlaylists(me);
+  }
+
+  async insertPlaylistTracks(
+    me: UserDbObject | null,
+    id: string,
+    tracksIds: string[]
+  ) {
+    if (!me) throw new AuthenticationError("");
+    const [platform, externalId] = id.split(":");
+    return this[platform as PlatformName].insertPlaylistTracks(
+      me,
+      externalId,
+      tracksIds.map((trackId) => trackId.split(":")[1])
+    );
+  }
+
+  async createPlaylist(
+    me: UserDbObject | null,
+    name: string,
+    tracksIds: string[]
+  ) {
+    if (!me) throw new AuthenticationError("");
+
+    const playlist = await this[me.oauth.provider].createPlaylist(me, name);
+
+    await this.insertPlaylistTracks(me, playlist.id, tracksIds);
+
+    return playlist;
   }
 }

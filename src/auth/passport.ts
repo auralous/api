@@ -44,13 +44,14 @@ export function createPassport(db: Db, redis: IORedis.Cluster, pubsub: PubSub) {
 
   const passport = new Passport();
 
+  // @ts-ignore
   passport.serializeUser((user: UserDbObject, done) => {
     done(null, user._id);
   });
 
   passport.deserializeUser((id: string, done) => {
     const userService = new UserService({ db, redis, pubsub });
-    userService.findById(id).then((user) => done(null, user || null));
+    userService.findById(id).then((user) => done(null, user || undefined));
   });
 
   passport.use(

@@ -51,10 +51,11 @@ export class NotificationService {
       .then((result) => result.modifiedCount);
   }
 
-  async add(
-    notification: Omit<NotificationDbObject, "createdAt" | "hasRead" | "_id">
+  async add<T extends NotificationDbObject>(
+    notification: Omit<T, "createdAt" | "hasRead" | "_id">
   ) {
     const newNotification = await this.collection
+      // @ts-ignore
       .insertOne({
         ...notification,
         createdAt: new Date(),
@@ -83,12 +84,12 @@ export class NotificationService {
         userService.findById(invitedId).then((user) =>
           user
             ? // TODO: We need a way to throttle this
-              this.add({
+              this.add<Extract<NotificationDbObject, { type: "invite" }>>({
                 userId: invitedId,
                 storyId: String(story._id),
                 inviterId: me._id,
                 type: "invite",
-              } as Omit<Extract<NotificationDbObject, { type: "invite" }>, "createdAt" | "hasRead" | "_id">)
+              })
             : null
         )
       );
@@ -105,12 +106,12 @@ export class NotificationService {
 
     follows.forEach((follow) => {
       promises.push(
-        this.add({
+        this.add<Extract<NotificationDbObject, { type: "new-story" }>>({
           userId: follow.follower,
           creatorId: story.creatorId,
           storyId: String(story._id),
           type: "new-story",
-        } as Omit<Extract<NotificationDbObject, { type: "new-story" }>, "createdAt" | "hasRead" | "_id">)
+        })
       );
     });
 

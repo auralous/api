@@ -1,5 +1,6 @@
 import { ObjectID, WithId } from "mongodb";
 import { AuthenticationError } from "../error";
+import { PUBSUB_CHANNELS } from "../lib/constant";
 import type {
   NotificationDbObject,
   StoryDbObject,
@@ -48,16 +49,20 @@ export class NotificationService {
       .then((result) => result.modifiedCount);
   }
 
-  add(
+  async add(
     notification: Omit<NotificationDbObject, "createdAt" | "hasRead" | "_id">
   ) {
-    return this.collection
+    const newNotification = await this.collection
       .insertOne({
         ...notification,
         createdAt: new Date(),
         hasRead: false,
       })
       .then((result) => result.ops[0]);
+    this.context.pubsub.publish(PUBSUB_CHANNELS.notificationAdded, {
+      notificationAdded: newNotification,
+    });
+    return newNotification;
   }
 
   async addInvitesToStory(

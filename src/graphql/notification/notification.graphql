@@ -34,3 +34,7 @@ type Query {
 type Mutation {
   readNotifications(ids: [ID!]!): Int!
 }
+
+type Subscription {
+  notificationAdded: Notification!
+}

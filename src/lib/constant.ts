@@ -48,4 +48,5 @@ export const PUBSUB_CHANNELS = {
   storyUsersUpdated: "STORY_USERS_UPDATED",
   messageAdded: "MESSAGE_ADDED",
   queueUpdated: "QUEUE_UPDATED",
+  notificationAdded: "NOTIFICATION_ADDED",
 };

@@ -8,20 +8,27 @@ Sentry.init({
 });
 import nc from "next-connect";
 import { createServer } from "http";
-import * as WebSocket from "ws";
 import { parse as parseQS } from "querystring";
+import * as WebSocket from "ws";
 import cors from "cors";
 // @ts-ignore
 import { graphqlUploadExpress } from "graphql-upload";
 import { createPassport, createAppAuth } from "./auth/index";
 import { buildGraphQLServer } from "./gql";
-import { session } from "./middleware/session";
+import { applySession, session } from "./middleware/session";
 import { createMongoClient, createRedisClient } from "./db/index";
 import { NowPlayingWorker } from "./services/nowPlayingWorker";
 import { PubSub } from "./lib/pubsub";
 
 import type { RequestListener } from "http";
-import type { ExtendedIncomingMessage } from "./types/index";
+import type { ExtendedIncomingMessage, UserDbObject } from "./types/index";
+import { parseGraphQLBody } from "@benzene/http";
+
+const rawBody = (req: ExtendedIncomingMessage, done: (body: any) => void) => {
+  let body = "";
+  req.on("data", (chunk) => (body += chunk));
+  req.on("end", () => done(body));
+};
 
 (async () => {
   const redis = createRedisClient();
@@ -29,7 +36,7 @@ import type { ExtendedIncomingMessage } from "./types/index";
   const { client: mongoClient, db } = await createMongoClient();
   const passport = createPassport(db, redis, pubsub);
 
-  const { httpHandle, wsHandle } = buildGraphQLServer(db, redis, pubsub);
+  const { graphqlHTTP, graphqlWS } = buildGraphQLServer(db, redis, pubsub);
 
   // app
   const app = nc<ExtendedIncomingMessage>();
@@ -103,7 +110,28 @@ import type { ExtendedIncomingMessage } from "./types/index";
     next();
   });
 
-  app.all("/graphql", httpHandle);
+  app.all("/graphql", (req, res) => {
+    rawBody(req, (rawBody) => {
+      const cType = req.headers["content-type"];
+      const idx = req.url!.indexOf("?");
+      graphqlHTTP(
+        {
+          headers: { "content-type": cType },
+          method: req.method!,
+          body: parseGraphQLBody(rawBody, cType) || undefined,
+          query:
+            idx !== -1
+              ? (parseQS(req.url!.substring(idx + 1)) as Record<string, string>)
+              : undefined,
+        },
+        { user: req.user || null, setCacheControl: req.setCacheControl }
+      ).then((result) =>
+        res
+          .writeHead(result.status, result.headers)
+          .end(JSON.stringify(result.payload))
+      );
+    });
+  });
 
   // http
   const port = parseInt(process.env.PORT as string, 10) || 4000;
@@ -117,7 +145,15 @@ import type { ExtendedIncomingMessage } from "./types/index";
     path: "/graphql",
   });
 
-  wss.on("connection", wsHandle);
+  wss.on("connection", async (socket, request: ExtendedIncomingMessage) => {
+    await applySession(request, {} as any);
+    const _id = request.session?.passport?.user;
+    graphqlWS(socket as any, {
+      user: _id
+        ? await db.collection<UserDbObject>("users").findOne({ _id })
+        : null,
+    });
+  });
 
   // ping-pong
   wss.on("connection", (socket: ExtendedWebSocket) => {

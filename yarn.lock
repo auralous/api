@@ -451,27 +451,27 @@
     lodash "^4.17.19"
     to-fast-properties "^2.0.0"
 
-"@benzene/core@^0.3.0":
-  version "0.3.0"
-  resolved "https://registry.yarnpkg.com/@benzene/core/-/core-0.3.0.tgz#886e82ffa153cf7ea565e3e2b26f13bf2d338c1f"
-  integrity sha512-IygozHi1KaCDOVZ6pZiwzC7I9Sv4RTfsfzl8XhLEWIRnoZZJkn2Y5rWy/kyNOChOq7lLYoxuhRnTsPELEle2tw==
+"@benzene/core@^0.4.2":
+  version "0.4.2"
+  resolved "https://registry.yarnpkg.com/@benzene/core/-/core-0.4.2.tgz#b382fbbef106f5b0afd025accc9a115403fba173"
+  integrity sha512-U0eMF3wztHYS8Vz/uXFOUydwbmTwS283V1Y6tFZLyrfaXaBlktXJgvIm/sDuDxchL9zLz51LbhfP0bSdnOg5iQ==
   dependencies:
     "@hoangvvo/graphql-jit" "^0.6.1"
     tiny-lru "^7.0.6"
 
-"@benzene/server@^0.2.0":
-  version "0.2.0"
-  resolved "https://registry.yarnpkg.com/@benzene/server/-/server-0.2.0.tgz#a7ccf5a7b3e458f0cc1620abc1ae36ec15c1efda"
-  integrity sha512-PxM/15Pq8G36Mt3f97sDI+rSbV4HbDftpd+TfXt1foJB9UFIZ03CNIFoxuDVQ40+uWNUvplvTdgFJF1LyAb5SQ==
+"@benzene/http@^0.0.3":
+  version "0.0.3"
+  resolved "https://registry.yarnpkg.com/@benzene/http/-/http-0.0.3.tgz#74f0fe899c046b6ea7d162a184224188769e490a"
+  integrity sha512-SL6P3tdcBOXjyL8ol9UdHM/NbKy4dBL8TOizT5oyxTJdwuFAenU1GvE7C1FRiMaEqb00BmDsECc0iHYwXzILsw==
   dependencies:
-    "@benzene/core" "^0.3.0"
+    "@benzene/core" "^0.4.2"
 
-"@benzene/ws@^0.3.0":
-  version "0.3.0"
-  resolved "https://registry.yarnpkg.com/@benzene/ws/-/ws-0.3.0.tgz#01f6f18a19a5a89ec5fff54a51ec4579a6a32e20"
-  integrity sha512-Bm0VftR/m67FVGszKX+MhaVwm61QZSYKpicIWlkbJW9oUSd0xlyR+azuFDcv3/A5CoD9UAqtbDz3alkic/2CtQ==
+"@benzene/ws@^0.4.3":
+  version "0.4.3"
+  resolved "https://registry.yarnpkg.com/@benzene/ws/-/ws-0.4.3.tgz#3bfd9b9a12f80dd137381aa009f9a33851d284db"
+  integrity sha512-TOHRuxz+BJWRLizLDIUxJZWv/uN2q0ds+Pc1TUPdtAzBKupHk+y22ofHgqsfaE006W5J43NodEzMS/T9X2Vr6w==
   dependencies:
-    "@benzene/core" "^0.3.0"
+    "@benzene/core" "^0.4.2"
 
 "@endemolshinegroup/cosmiconfig-typescript-loader@3.0.2":
   version "3.0.2"

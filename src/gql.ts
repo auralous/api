@@ -1,11 +1,9 @@
-import crypto from "crypto";
-import { Benzene, httpHandler, persistedQueryPresets } from "@benzene/server";
-import { wsHandler } from "@benzene/ws";
+import { Benzene, makeHandler } from "@benzene/http";
+import { makeHandler as makeWSHandler } from "@benzene/ws";
 import { formatError } from "graphql";
 import * as Sentry from "@sentry/node";
 
 import schema from "./graphql/schema";
-import { applySession } from "./middleware/session";
 import { StereoGraphQLError } from "./error/index";
 
 import { MessageService } from "./services/message";
@@ -20,11 +18,7 @@ import { NotificationService } from "./services/notification";
 import type { Db } from "mongodb";
 import type IORedis from "ioredis";
 import type { PubSub } from "./lib/pubsub";
-import type {
-  UserDbObject,
-  ExtendedIncomingMessage,
-  MyGQLContext,
-} from "./types/index";
+import type { MyGQLContext } from "./types/index";
 
 const EXPECTED_ERR_CODES = ["PERSISTED_QUERY_NOT_FOUND"];
 
@@ -45,9 +39,15 @@ export function buildGraphQLServer(
     Notification: new NotificationService(serviceContext),
   };
 
-  const GQL = new Benzene({
+  const GQL = new Benzene<
+    MyGQLContext,
+    {
+      setCacheControl?: MyGQLContext["setCacheControl"];
+      user: MyGQLContext["user"];
+    }
+  >({
     schema,
-    formatError: (err) => {
+    formatErrorFn: (err) => {
       if (
         err.extensions?.code &&
         EXPECTED_ERR_CODES.includes(err.extensions.code)
@@ -68,41 +68,20 @@ export function buildGraphQLServer(
       // graphql error
       else return formatError(err);
     },
-    persisted: persistedQueryPresets.automatic({
-      sha256: (query) =>
-        crypto.createHash("sha256").update(query).digest("hex"),
+    contextFn: ({ extra: { user, setCacheControl } }) => ({
+      user,
+      pubsub,
+      services,
+      setCacheControl,
     }),
   });
 
   // http
 
-  const httpHandle = httpHandler(GQL, {
-    context: (req: ExtendedIncomingMessage): MyGQLContext => ({
-      user: req.user || null,
-      pubsub,
-      services,
-      setCacheControl: req.setCacheControl,
-    }),
-  });
+  const graphqlHTTP = makeHandler(GQL);
 
   // ws
+  const graphqlWS = makeWSHandler(GQL);
 
-  const wsHandle = wsHandler(GQL, {
-    context: async (
-      socket,
-      request: ExtendedIncomingMessage
-    ): Promise<MyGQLContext> => {
-      await applySession(request, {} as any);
-      const _id = request.session?.passport?.user;
-      return {
-        user: _id
-          ? await db.collection<UserDbObject>("users").findOne({ _id })
-          : null,
-        pubsub,
-        services,
-      };
-    },
-  });
-
-  return { httpHandle, wsHandle };
+  return { graphqlHTTP, graphqlWS };
 }

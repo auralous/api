@@ -1,6 +1,7 @@
 import { Benzene, makeHandler } from "@benzene/http";
 import { makeHandler as makeWSHandler } from "@benzene/ws";
 import { formatError } from "graphql";
+import fastJson from "fast-json-stringify";
 import * as Sentry from "@sentry/node";
 
 import schema from "./graphql/schema";
@@ -83,5 +84,49 @@ export function buildGraphQLServer(
   // ws
   const graphqlWS = makeWSHandler(GQL);
 
-  return { graphqlHTTP, graphqlWS };
+  // json stringify
+  const stringify = fastJson({
+    title: "GraphQL Response Schema",
+    type: "object",
+    properties: {
+      data: {
+        type: "object",
+        additionalProperties: true,
+        nullable: true,
+      },
+      errors: {
+        type: "array",
+        items: {
+          type: "object",
+          required: ["message"],
+          properties: {
+            message: { type: "string" },
+            locations: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  line: { type: "integer" },
+                  column: { type: "integer" },
+                },
+              },
+            },
+            path: {
+              type: "array",
+              items: { type: "string" },
+            },
+            extensions: {
+              type: "object",
+              properties: {
+                code: { type: "string" },
+              },
+              additionalProperties: true,
+            },
+          },
+        },
+      },
+    },
+  });
+
+  return { graphqlHTTP, graphqlWS, stringify };
 }

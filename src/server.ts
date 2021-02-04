@@ -11,6 +11,7 @@ import { createServer } from "http";
 import { parse as parseQS } from "querystring";
 import * as WebSocket from "ws";
 import cors from "cors";
+import { parseGraphQLBody } from "@benzene/http";
 // @ts-ignore
 import { graphqlUploadExpress } from "graphql-upload";
 import { createPassport, createAppAuth } from "./auth/index";
@@ -21,10 +22,17 @@ import { NowPlayingWorker } from "./services/nowPlayingWorker";
 import { PubSub } from "./lib/pubsub";
 
 import type { RequestListener } from "http";
-import type { ExtendedIncomingMessage, UserDbObject } from "./types/index";
-import { parseGraphQLBody } from "@benzene/http";
+import type {
+  ExtendedIncomingMessage,
+  ExtendedWebSocket,
+  UserDbObject,
+} from "./types/index";
+import type { HTTPRequest } from "@benzene/http/dist/types";
 
-const rawBody = (req: ExtendedIncomingMessage, done: (body: any) => void) => {
+const rawBody = (
+  req: ExtendedIncomingMessage,
+  done: (body: string) => void
+) => {
   let body = "";
   req.on("data", (chunk) => (body += chunk));
   req.on("end", () => done(body));
@@ -33,10 +41,24 @@ const rawBody = (req: ExtendedIncomingMessage, done: (body: any) => void) => {
 (async () => {
   const redis = createRedisClient();
   const pubsub = new PubSub();
+
+  console.log("Starting API server...");
+
+  console.log("Connecting to MongoDB database");
+
   const { client: mongoClient, db } = await createMongoClient();
+
+  console.log(`MongoDB isConnected is ${mongoClient.isConnected()}`);
+
+  console.log(`Redis status is ${redis.status}`);
+
   const passport = createPassport(db, redis, pubsub);
 
-  const { graphqlHTTP, graphqlWS } = buildGraphQLServer(db, redis, pubsub);
+  const {
+    graphqlHTTP,
+    graphqlWS,
+    stringify: graphqlStringify,
+  } = buildGraphQLServer(db, redis, pubsub);
 
   // app
   const app = nc<ExtendedIncomingMessage>();
@@ -112,23 +134,15 @@ const rawBody = (req: ExtendedIncomingMessage, done: (body: any) => void) => {
 
   app.all("/graphql", (req, res) => {
     rawBody(req, (rawBody) => {
-      const cType = req.headers["content-type"];
-      const idx = req.url!.indexOf("?");
-      graphqlHTTP(
-        {
-          headers: { "content-type": cType },
-          method: req.method!,
-          body: parseGraphQLBody(rawBody, cType) || undefined,
-          query:
-            idx !== -1
-              ? (parseQS(req.url!.substring(idx + 1)) as Record<string, string>)
-              : undefined,
-        },
-        { user: req.user || null, setCacheControl: req.setCacheControl }
-      ).then((result) =>
+      req.body =
+        parseGraphQLBody(rawBody, req.headers["content-type"]) || undefined;
+      graphqlHTTP(req as HTTPRequest, {
+        user: req.user || null,
+        setCacheControl: req.setCacheControl,
+      }).then((result) =>
         res
           .writeHead(result.status, result.headers)
-          .end(JSON.stringify(result.payload))
+          .end(graphqlStringify(result.payload))
       );
     });
   });
@@ -138,8 +152,6 @@ const rawBody = (req: ExtendedIncomingMessage, done: (body: any) => void) => {
   const server = createServer((app as unknown) as RequestListener);
 
   // subscription
-  type ExtendedWebSocket = WebSocket & { isAlive: boolean };
-
   const wss = new WebSocket.Server({
     server,
     path: "/graphql",
@@ -148,7 +160,7 @@ const rawBody = (req: ExtendedIncomingMessage, done: (body: any) => void) => {
   wss.on("connection", async (socket, request: ExtendedIncomingMessage) => {
     await applySession(request, {} as any);
     const _id = request.session?.passport?.user;
-    graphqlWS(socket as any, {
+    graphqlWS(socket, {
       user: _id
         ? await db.collection<UserDbObject>("users").findOne({ _id })
         : null,
@@ -171,23 +183,13 @@ const rawBody = (req: ExtendedIncomingMessage, done: (body: any) => void) => {
 
   wss.on("close", () => clearInterval(wssPingPong));
 
-  try {
-    console.log("Starting API server...");
+  NowPlayingWorker.start(db, redis, pubsub);
 
-    console.log("Connecting to MongoDB database");
-
-    console.log(`MongoDB isConnected is ${mongoClient.isConnected()}`);
-
-    console.log(`Redis status is ${redis.status}`);
-
-    NowPlayingWorker.start(db, redis, pubsub);
-
-    server.listen(port, () => {
-      console.log(`Server Ready at ${process.env.API_URI}`);
-    });
-  } catch (e) {
-    console.error(e);
-    console.error("Could not start server! Exiting...");
-    process.exit(1);
-  }
-})();
+  server.listen(port, () => {
+    console.log(`Server Ready at ${process.env.API_URI}`);
+  });
+})().catch((e) => {
+  console.error(e);
+  console.error("Could not start server! Exiting...");
+  process.exit(1);
+});

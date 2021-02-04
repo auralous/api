@@ -1,5 +1,6 @@
 import type { IncomingMessage } from "http";
 import type { Session } from "next-session/dist/types";
+import type WebSocket from "ws";
 import type { UserDbObject } from "./db";
 import type { PubSub } from "../lib/pubsub";
 import type { PlatformName } from "./graphql.gen";
@@ -19,7 +20,12 @@ export type ExtendedIncomingMessage = IncomingMessage & {
   user?: UserDbObject | null;
   setCacheControl?: SetCachControl;
   is: (type: string) => boolean;
+  query: Record<string, string | string[]>;
+  body: any;
+  method: string;
 };
+
+export type ExtendedWebSocket = WebSocket & { isAlive: boolean };
 
 export type MyGQLContext = {
   pubsub: PubSub;

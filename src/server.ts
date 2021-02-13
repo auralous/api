@@ -1,4 +1,25 @@
+import { parseGraphQLBody } from "@benzene/http";
+import type { HTTPRequest } from "@benzene/http/dist/types";
 import * as Sentry from "@sentry/node";
+import cors from "cors";
+// @ts-ignore
+import { graphqlUploadExpress } from "graphql-upload";
+import type { RequestListener } from "http";
+import { createServer } from "http";
+import nc from "next-connect";
+import { parse as parseQS } from "querystring";
+import * as WebSocket from "ws";
+import { createAppAuth, createPassport } from "./auth/index";
+import { createMongoClient, createRedisClient } from "./db/index";
+import { buildGraphQLServer } from "./gql";
+import { PubSub } from "./lib/pubsub";
+import { applySession, session } from "./middleware/session";
+import { NowPlayingWorker } from "./services/nowPlayingWorker";
+import type {
+  ExtendedIncomingMessage,
+  ExtendedWebSocket,
+  UserDbObject,
+} from "./types/index";
 Sentry.init({
   dsn: process.env.SENTRY_DSN,
   beforeSend: (event, hint) => {
@@ -6,28 +27,6 @@ Sentry.init({
     return event;
   },
 });
-import nc from "next-connect";
-import { createServer } from "http";
-import { parse as parseQS } from "querystring";
-import * as WebSocket from "ws";
-import cors from "cors";
-import { parseGraphQLBody } from "@benzene/http";
-// @ts-ignore
-import { graphqlUploadExpress } from "graphql-upload";
-import { createPassport, createAppAuth } from "./auth/index";
-import { buildGraphQLServer } from "./gql";
-import { applySession, session } from "./middleware/session";
-import { createMongoClient, createRedisClient } from "./db/index";
-import { NowPlayingWorker } from "./services/nowPlayingWorker";
-import { PubSub } from "./lib/pubsub";
-
-import type { RequestListener } from "http";
-import type {
-  ExtendedIncomingMessage,
-  ExtendedWebSocket,
-  UserDbObject,
-} from "./types/index";
-import type { HTTPRequest } from "@benzene/http/dist/types";
 
 const rawBody = (
   req: ExtendedIncomingMessage,
@@ -158,12 +157,15 @@ const rawBody = (
   });
 
   wss.on("connection", async (socket, request: ExtendedIncomingMessage) => {
-    await applySession(request, {} as any);
-    const _id = request.session?.passport?.user;
     graphqlWS(socket, {
-      user: _id
-        ? await db.collection<UserDbObject>("users").findOne({ _id })
-        : null,
+      user: null,
+      userPromise: applySession(request, {} as any)
+        .then(() => {
+          const _id = request.session?.passport?.user;
+          if (!_id) return null;
+          return db.collection<UserDbObject>("users").findOne({ _id });
+        })
+        .catch(() => null),
     });
   });
 

@@ -1,24 +1,21 @@
 import { Benzene, makeHandler } from "@benzene/http";
 import { makeHandler as makeWSHandler } from "@benzene/ws";
-import { formatError } from "graphql";
-import fastJson from "fast-json-stringify";
 import * as Sentry from "@sentry/node";
-
-import schema from "./graphql/schema";
+import fastJson from "fast-json-stringify";
+import { formatError } from "graphql";
+import type IORedis from "ioredis";
+import type { Db } from "mongodb";
 import { StereoGraphQLError } from "./error/index";
-
+import schema from "./graphql/schema";
+import type { PubSub } from "./lib/pubsub";
+import { FollowService } from "./services/follow";
 import { MessageService } from "./services/message";
+import { NotificationService } from "./services/notification";
 import { NowPlayingService } from "./services/nowPlaying";
 import { QueueService } from "./services/queue";
 import { StoryService } from "./services/story";
 import { TrackService } from "./services/track";
 import { UserService } from "./services/user";
-import { FollowService } from "./services/follow";
-import { NotificationService } from "./services/notification";
-
-import type { Db } from "mongodb";
-import type IORedis from "ioredis";
-import type { PubSub } from "./lib/pubsub";
 import type { MyGQLContext } from "./types/index";
 
 const EXPECTED_ERR_CODES = ["PERSISTED_QUERY_NOT_FOUND"];
@@ -45,6 +42,7 @@ export function buildGraphQLServer(
     {
       setCacheControl?: MyGQLContext["setCacheControl"];
       user: MyGQLContext["user"];
+      userPromise?: Promise<MyGQLContext["user"]>; // only in WS. need better workaround
     }
   >({
     schema,
@@ -69,8 +67,8 @@ export function buildGraphQLServer(
       // graphql error
       else return formatError(err);
     },
-    contextFn: ({ extra: { user, setCacheControl } }) => ({
-      user,
+    contextFn: async ({ extra: { user, userPromise, setCacheControl } }) => ({
+      user: user || (userPromise && (await userPromise)) || null,
       pubsub,
       services,
       setCacheControl,

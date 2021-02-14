@@ -1,17 +1,17 @@
 import type { IncomingMessage } from "http";
 import type { Session } from "next-session/dist/types";
 import type WebSocket from "ws";
-import type { UserDbObject } from "./db";
 import type { PubSub } from "../lib/pubsub";
-import type { PlatformName } from "./graphql.gen";
-import type { UserService } from "../services/user";
-import type { QueueService } from "../services/queue";
-import type { TrackService } from "../services/track";
-import type { MessageService } from "../services/message";
-import type { StoryService } from "../services/story";
-import type { NowPlayingService } from "../services/nowPlaying";
 import type { FollowService } from "../services/follow";
+import type { MessageService } from "../services/message";
 import type { NotificationService } from "../services/notification";
+import type { NowPlayingService } from "../services/nowPlaying";
+import type { QueueService } from "../services/queue";
+import type { StoryService } from "../services/story";
+import type { TrackService } from "../services/track";
+import type { UserService } from "../services/user";
+import type { UserDbObject } from "./db";
+import type { PlatformName } from "./graphql.gen";
 
 type SetCachControl = (maxAge: number, scope?: "PRIVATE" | "PUBLIC") => void;
 
@@ -20,9 +20,11 @@ export type ExtendedIncomingMessage = IncomingMessage & {
   user?: UserDbObject | null;
   setCacheControl?: SetCachControl;
   is: (type: string) => boolean;
-  query: Record<string, string | string[]>;
+  query: Record<string, string | string[]> | null;
   body: any;
+  url: string;
   method: string;
+  path: string;
 };
 
 export type ExtendedWebSocket = WebSocket & { isAlive: boolean };

@@ -158,8 +158,7 @@ const rawBody = (
 
   wss.on("connection", async (socket, request: ExtendedIncomingMessage) => {
     graphqlWS(socket, {
-      user: null,
-      userPromise: applySession(request, {} as any)
+      user: applySession(request, {} as any)
         .then(() => {
           const _id = request.session?.passport?.user;
           if (!_id) return null;

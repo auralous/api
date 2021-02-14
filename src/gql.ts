@@ -41,8 +41,7 @@ export function buildGraphQLServer(
     MyGQLContext,
     {
       setCacheControl?: MyGQLContext["setCacheControl"];
-      user: MyGQLContext["user"];
-      userPromise?: Promise<MyGQLContext["user"]>; // only in WS. need better workaround
+      user: MyGQLContext["user"] | Promise<MyGQLContext["user"]>; // promise only in WS. need better workaround
     }
   >({
     schema,
@@ -67,8 +66,8 @@ export function buildGraphQLServer(
       // graphql error
       else return formatError(err);
     },
-    contextFn: async ({ extra: { user, userPromise, setCacheControl } }) => ({
-      user: user || (userPromise && (await userPromise)) || null,
+    contextFn: async ({ extra: { user, setCacheControl } }) => ({
+      user: user ? ("then" in user ? await user : user) : null,
       pubsub,
       services,
       setCacheControl,

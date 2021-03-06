@@ -42,16 +42,25 @@ export function getUserFromRequest(
 ) {
   const token = getTokenFromCookie(req);
   if (!token) return null;
-  return decodeUserIdFromToken(token).then((userId) => {
-    if (userId)
-      return db.collection<UserDbObject>("users").findOne({ _id: userId });
-    // remove token
-    if (res) setTokenToCookie(res, null);
-    return null;
+  return decodeFromToken(token).then(async (payload) => {
+    if (!payload) {
+      // remove token
+      if (res) setTokenToCookie(res, null);
+      return null;
+    }
+    if (res && (payload.exp as number) - Date.now() / 1000 < 43200) {
+      // refresh jwt if remaining exp < 6 hours
+      await setTokenToCookie(
+        res,
+        await encodeUserIdToToken(payload.sub as string)
+      );
+    }
+    return db.collection<UserDbObject>("users").findOne({ _id: payload.sub });
   });
 }
 
 export async function initAuth() {
+  console.log(`Generate asymmetric secret key...`);
   secrets = await generateKeyPair("PS256");
 }
 
@@ -65,9 +74,9 @@ export async function encodeUserIdToToken(userId: string) {
     .sign(secrets.privateKey);
 }
 
-export async function decodeUserIdFromToken(jwt: string) {
+export async function decodeFromToken(jwt: string) {
   const result = await jwtVerify(jwt, secrets.publicKey, {
     issuer,
   }).catch(() => null);
-  return result?.payload.sub;
+  return result?.payload;
 }

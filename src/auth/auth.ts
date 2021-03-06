@@ -1,9 +1,9 @@
 import type { ServerResponse } from "http";
 import type IORedis from "ioredis";
+import parseJwk from "jose/jwk/parse";
 import SignJWT from "jose/jwt/sign";
 import jwtVerify from "jose/jwt/verify";
 import type { KeyLike } from "jose/types";
-import generateKeyPair from "jose/util/generate_key_pair";
 import type { Db } from "mongodb";
 import type { PubSub } from "../lib/pubsub";
 import { UserService } from "../services/user";
@@ -31,9 +31,15 @@ export async function doAuth(
     .end();
 }
 
-let secrets: { publicKey: KeyLike; privateKey: KeyLike };
-
 const issuer = "auralous:api";
+
+let privateKey: KeyLike;
+let publicKey: KeyLike;
+
+export async function initAuth() {
+  privateKey = await parseJwk(JSON.parse(process.env.JWK_PRIVATE as string));
+  publicKey = await parseJwk(JSON.parse(process.env.JWK_PUBLIC as string));
+}
 
 export function getUserFromRequest(
   req: ExtendedIncomingMessage,
@@ -59,11 +65,6 @@ export function getUserFromRequest(
   });
 }
 
-export async function initAuth() {
-  console.log(`Generate asymmetric secret key...`);
-  secrets = await generateKeyPair("PS256");
-}
-
 export async function encodeUserIdToToken(userId: string) {
   return new SignJWT({})
     .setProtectedHeader({ alg: "PS256" })
@@ -71,11 +72,11 @@ export async function encodeUserIdToToken(userId: string) {
     .setSubject(userId)
     .setIssuer(issuer)
     .setExpirationTime("24h")
-    .sign(secrets.privateKey);
+    .sign(privateKey);
 }
 
 export async function decodeFromToken(jwt: string) {
-  const result = await jwtVerify(jwt, secrets.publicKey, {
+  const result = await jwtVerify(jwt, publicKey, {
     issuer,
   }).catch(() => null);
   return result?.payload;

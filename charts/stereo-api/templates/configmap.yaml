@@ -9,3 +9,4 @@ data:
   spotify-client-id: "55450d96547c4674b5c64f4a02b0d7b5"
   sentry-dsn: "https://b27de600449345959575cc11ab0b1898@o342935.ingest.sentry.io/2421855"
   log-level: "info"
+  jwk-public: '{"kty":"RSA","e":"AQAB","use":"sig","kid":"ZgQjTI2TGphMEFO4BDLXcXYF0Xk2OkwA_sR0T-j7xLA","alg":"PS256","n":"hYFhMGYTjm2mXJJzTYsyXpeziOhoJcXgkiQX6Wc_KQcw72amleRIpftw3LBntn2xPL6YUDNjWEqP9mMArXuGqV0-wZyR4qb2rxsYwtZVwEY1LEKrDDzf478QUrPp3CRCAHmC9plQTuKz1mP2JVojSVrW_ZmX0SMZMR5EQWCNMxOaSr5wyaTx0iKYu5fKMWqMnwszWMTRUn9wpgg_L-S-BTAqZubakNGVmrKrhfKrwA0Yv1jp3Tn6gyzzftn3WlU0AsxSpIc6sFOKd2X2Q1oH88vQ-NXvjhEThZTqcFb-bHQDhYfMWbE0CeY5IeNhQUW3JYvXSr-L7MQXOZLg3pGvqw"}'

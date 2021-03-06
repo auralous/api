@@ -1,5 +1,4 @@
 import type { IncomingMessage } from "http";
-import type { Session } from "next-session/dist/types";
 import type WebSocket from "ws";
 import type { PubSub } from "../lib/pubsub";
 import type { FollowService } from "../services/follow";
@@ -16,7 +15,6 @@ import type { PlatformName } from "./graphql.gen";
 type SetCachControl = (maxAge: number, scope?: "PRIVATE" | "PUBLIC") => void;
 
 export type ExtendedIncomingMessage = IncomingMessage & {
-  session: Session & { userId?: string };
   setCacheControl?: SetCachControl;
   is: (type: string) => boolean;
   query: Record<string, string>;

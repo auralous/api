@@ -7,18 +7,13 @@ import type { RequestListener } from "http";
 import { createServer } from "http";
 import nc from "next-connect";
 import * as WebSocket from "ws";
-import { createAuthApp } from "./auth/index";
+import { createAuthApp, getUserFromRequest, initAuth } from "./auth/index";
 import { createMongoClient, createRedisClient } from "./db/index";
 import { buildGraphQLServer } from "./gql";
 import { parseQuery } from "./lib/http";
 import { PubSub } from "./lib/pubsub";
-import { applySession, session } from "./middleware/session";
 import { NowPlayingWorker } from "./services/nowPlayingWorker";
-import type {
-  ExtendedIncomingMessage,
-  ExtendedWebSocket,
-  UserDbObject,
-} from "./types/index";
+import type { ExtendedIncomingMessage, ExtendedWebSocket } from "./types/index";
 Sentry.init({
   dsn: process.env.SENTRY_DSN,
   beforeSend: (event, hint) => {
@@ -37,15 +32,6 @@ const rawBody = (
 };
 
 (async () => {
-  const getUserFromSession = (req: ExtendedIncomingMessage) =>
-    applySession(req, {} as any)
-      .then(() => {
-        const _id = req.session?.userId;
-        if (!_id) return null;
-        return db.collection<UserDbObject>("users").findOne({ _id });
-      })
-      .catch(() => null);
-
   const redis = createRedisClient();
   const pubsub = new PubSub();
 
@@ -58,6 +44,10 @@ const rawBody = (
   console.log(`MongoDB isConnected is ${mongoClient.isConnected()}`);
 
   console.log(`Redis status is ${redis.status}`);
+
+  console.log(`Generate symmetric secret key`);
+
+  await initAuth();
 
   const {
     graphqlHTTP,
@@ -98,8 +88,6 @@ const rawBody = (
     next();
   });
 
-  app.use(session);
-
   // auth subapp
   app.use("/auth", createAuthApp(db, redis, pubsub));
 
@@ -139,7 +127,7 @@ const rawBody = (
           query: req.query,
         },
         {
-          user: getUserFromSession(req),
+          user: getUserFromRequest(req, db, res),
           setCacheControl: req.setCacheControl,
         }
       ).then((result) =>
@@ -162,7 +150,7 @@ const rawBody = (
 
   wss.on("connection", async (socket, req: ExtendedIncomingMessage) => {
     graphqlWS(socket, {
-      user: getUserFromSession(req),
+      user: getUserFromRequest(req, db),
     });
   });
 

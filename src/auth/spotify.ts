@@ -34,7 +34,7 @@ export function createSpotifyAuthApp(
 
       res.writeHead(307, { Location: url }).end();
     })
-    .get("/spotify/callback", async (req, res) => {
+    .get("/callback", async (req, res) => {
       if (!req.query.code) throw new Error("Denied");
 
       const jsonToken = await SpotifyAuthService.getTokens(req.query.code);
@@ -42,7 +42,6 @@ export function createSpotifyAuthApp(
 
       await doAuth(
         { db, redis, pubsub },
-        req,
         res,
         {
           id: json.id,

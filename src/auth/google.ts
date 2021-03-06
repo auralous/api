@@ -47,7 +47,6 @@ export function createGoogleAuthApp(
 
       await doAuth(
         { db, redis, pubsub },
-        req,
         res,
         {
           id: gUser.sub,

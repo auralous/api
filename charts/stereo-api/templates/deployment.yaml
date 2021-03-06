@@ -106,6 +106,17 @@ spec:
                 configMapKeyRef:
                   key: log-level
                   name: {{ .Release.Name }}-configmap
+            # JWK
+            - name: JWK_PRIVATE
+              valueFrom:
+                secretKeyRef:
+                  key: jwk-private
+                  name: {{ .Release.Name }}-secret
+            - name: JWK_PUBLIC
+              valueFrom:
+                configMapKeyRef:
+                  key: jwk-public
+                  name: {{ .Release.Name }}-configmap
           ports:
             - name: http
               containerPort: {{ .Values.service.targetPort }}

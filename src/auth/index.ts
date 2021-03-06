@@ -1,2 +1,2 @@
-export { createPassport } from "./passport";
-export { createApp as createAppAuth } from "./route";
+export { getUserFromRequest, initAuth } from "./auth";
+export { createAuthApp } from "./route";

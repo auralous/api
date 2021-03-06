@@ -1,59 +1,26 @@
+import type IORedis from "ioredis";
+import type { Db } from "mongodb";
 import nc from "next-connect";
-import type Passport from "passport";
-import type { ExtendedIncomingMessage } from "../types/index";
+import type { PubSub } from "../lib/pubsub";
+import { ExtendedIncomingMessage } from "../types/index";
+import { setTokenToCookie } from "./cookie";
+import { createGoogleAuthApp } from "./google";
+import { createSpotifyAuthApp } from "./spotify";
 
-export function createApp(passport: Passport.Authenticator) {
-  const app = nc<ExtendedIncomingMessage>();
-
-  function createRoute(provider: string, authOpts = {}) {
-    app.get(`/${provider}`, passport.authenticate(provider, authOpts));
-    app.get(
-      `/${provider}/callback`,
-      passport.authenticate(provider),
-      (req, res) => {
-        const redirect = (location: string) =>
-          res.writeHead(302, { Location: location }).end();
-        if (req.user)
-          redirect(
-            `${process.env.APP_URI}/auth/callback${
-              // @ts-expect-error: isNew is a special field to check if user is newly registered
-              req.user.isNew ? "?isNew=1" : ""
-            }`
-          );
-        else redirect(`${process.env.APP_URI}/auth/callback?error=unknown`);
-      }
-    );
-  }
-
-  app.post("/logout", async (req, res) => {
-    // req.logout();
-    // req.logout is unreliable https://github.com/jaredhanson/passport-facebook/issues/202#issuecomment-297737486
-    req.user = null;
-    await req.session.destroy();
-    res.writeHead(204).end();
-  });
-
-  createRoute("google", {
-    scope: [
-      "profile",
-      "email",
-      "https://www.googleapis.com/auth/youtube.readonly",
-      "https://www.googleapis.com/auth/youtubepartner",
-    ],
-    prompt: "consent",
-    accessType: "offline",
-  });
-  createRoute("spotify", {
-    scope: [
-      "user-read-email",
-      "user-read-private",
-      "playlist-read-private",
-      "playlist-modify-public",
-      "playlist-modify-private",
-      "user-read-currently-playing",
-      "streaming",
-    ],
-  });
-
-  return app;
+export function createAuthApp(db: Db, redis: IORedis.Cluster, pubsub: PubSub) {
+  return nc<ExtendedIncomingMessage>({
+    onError(err, req, res) {
+      res
+        .writeHead(307, {
+          Location: `${process.env.APP_URI}/auth/callback?error=unknown`,
+        })
+        .end();
+    },
+  })
+    .use("/spotify", createSpotifyAuthApp(db, redis, pubsub))
+    .use("/google", createGoogleAuthApp(db, redis, pubsub))
+    .post("/logout", (req, res) => {
+      setTokenToCookie(res, null);
+      res.writeHead(204).end();
+    });
 }

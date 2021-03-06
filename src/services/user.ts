@@ -8,10 +8,9 @@ import {
 } from "../error/index";
 import { deleteCloudinaryImagesByPrefix } from "../lib/cloudinary";
 import { CONFIG } from "../lib/constant";
-
-import type { ServiceContext } from "./types";
-import type { UserDbObject, NullablePartial } from "../types/index";
+import type { NullablePartial, UserDbObject } from "../types/index";
 import { StoryService } from "./story";
+import type { ServiceContext } from "./types";
 
 export class UserService {
   private collection = this.context.db.collection<UserDbObject>("users");
@@ -78,25 +77,23 @@ export class UserService {
     return user;
   }
 
-  async findOrCreate(
-    oauthQuery: Pick<UserDbObject["oauth"], "provider" | "id">,
-    data: Pick<UserDbObject, "profilePicture" | "email" | "bio" | "oauth">
+  async authOrCreate(
+    oauth: UserDbObject["oauth"],
+    data: Pick<UserDbObject, "profilePicture" | "email" | "bio">
   ) {
     let me = await this.collection.findOne({
-      "oauth.provider": oauthQuery.provider,
-      "oauth.id": oauthQuery.id,
+      "oauth.provider": oauth.provider,
+      "oauth.id": oauth.id,
     });
     if (!me) {
-      // Create new user
-      // Passport does not provide expiredAt value so we are assuming 30 min
-      data.oauth.expiredAt =
-        data.oauth.expiredAt || new Date(Date.now() + 30 * 60 * 1000);
-      me = await this.create(data);
+      oauth.expiredAt =
+        oauth.expiredAt || new Date(Date.now() + 30 * 60 * 1000);
+      me = await this.create({ ...data, oauth });
       // @ts-expect-error: isNew is a special field to check if user is newly registered
       me.isNew = true;
     } else {
       // If user exists, update OAuth tokens
-      await this.updateMeOauth(me, data.oauth);
+      await this.updateMeOauth(me, oauth);
     }
     return me;
   }

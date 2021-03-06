@@ -1,2 +1,1 @@
-export { createPassport } from "./passport";
-export { createApp as createAppAuth } from "./route";
+export { createAuthApp } from "./route";

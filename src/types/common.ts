@@ -16,12 +16,10 @@ import type { PlatformName } from "./graphql.gen";
 type SetCachControl = (maxAge: number, scope?: "PRIVATE" | "PUBLIC") => void;
 
 export type ExtendedIncomingMessage = IncomingMessage & {
-  session: Session;
-  user?: UserDbObject | null;
+  session: Session & { userId?: string };
   setCacheControl?: SetCachControl;
   is: (type: string) => boolean;
-  query: Record<string, string | string[]> | null;
-  body: any;
+  query: Record<string, string>;
   url: string;
   method: string;
   path: string;

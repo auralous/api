@@ -1,13 +1,13 @@
 import fetch from "node-fetch";
 import { isDefined } from "../../lib/utils";
-import { PlatformName, UserDbObject } from "../../types/index";
-
-import type { UserService } from "../user";
 import type {
-  TrackDbObject,
   ArtistDbObject,
   Playlist,
+  TrackDbObject,
 } from "../../types/index";
+import { PlatformName, UserDbObject } from "../../types/index";
+import type { UserService } from "../user";
+
 /// <reference path="spotify-api" />
 
 // For implicit auth
@@ -16,12 +16,6 @@ const cache: {
   expireAt?: Date;
 } = {};
 
-const AuthorizationHeader =
-  "Basic " +
-  Buffer.from(
-    `${process.env.SPOTIFY_CLIENT_ID}:${process.env.SPOTIFY_CLIENT_SECRET}`
-  ).toString("base64");
-
 function getTokenViaClientCredential(): string | Promise<string> {
   if (cache?.accessToken && cache?.expireAt && cache?.expireAt > new Date()) {
     return cache.accessToken;
@@ -29,7 +23,7 @@ function getTokenViaClientCredential(): string | Promise<string> {
   return fetch(`https://accounts.spotify.com/api/token`, {
     method: "POST",
     headers: {
-      Authorization: AuthorizationHeader,
+      Authorization: SpotifyAuthService.ClientAuthorizationHeader,
       "Content-Type": "application/x-www-form-urlencoded",
     },
     body: "grant_type=client_credentials",
@@ -326,6 +320,45 @@ export class SpotifyService {
 }
 
 export class SpotifyAuthService {
+  static ClientAuthorizationHeader =
+    "Basic " +
+    Buffer.from(
+      `${process.env.SPOTIFY_CLIENT_ID}:${process.env.SPOTIFY_CLIENT_SECRET}`
+    ).toString("base64");
+
+  static apiAuthCallback = `${process.env.API_URI}/auth/spotify/callback`;
+
+  static getTokens(
+    authCode: string
+  ): Promise<{
+    access_token: string;
+    expires_in: number;
+    refresh_token: string;
+  }> {
+    return fetch(`https://accounts.spotify.com/api/token`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        Authorization: SpotifyAuthService.ClientAuthorizationHeader,
+      },
+      body: `grant_type=authorization_code&code=${authCode}&redirect_uri=${encodeURIComponent(
+        SpotifyAuthService.apiAuthCallback
+      )}`,
+    }).then((res) => res.json());
+  }
+
+  static getUser(
+    accessToken: string
+  ): Promise<SpotifyApi.CurrentUsersProfileResponse> {
+    return fetch(`https://api.spotify.com/v1/me`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    })
+      .then((res) => res.json())
+      .then((json) =>
+        json.error ? Promise.reject(new Error(json.error.message)) : json
+      );
+  }
+
   async getAccessToken(
     me: UserDbObject,
     userService: UserService
@@ -335,6 +368,7 @@ export class SpotifyAuthService {
       return me.oauth.accessToken as string;
     return this.refreshAccessToken(me, userService);
   }
+
   private async refreshAccessToken(
     me: UserDbObject,
     userService: UserService
@@ -345,7 +379,7 @@ export class SpotifyAuthService {
         method: "POST",
         headers: {
           "content-type": "application/x-www-form-urlencoded",
-          Authorization: AuthorizationHeader,
+          Authorization: SpotifyAuthService.ClientAuthorizationHeader,
         },
         body: `grant_type=refresh_token&refresh_token=${me.oauth.refreshToken}`,
       }

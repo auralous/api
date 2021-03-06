@@ -1,5 +1,4 @@
 import { parseGraphQLBody } from "@benzene/http";
-import type { HTTPRequest } from "@benzene/http/dist/types";
 import * as Sentry from "@sentry/node";
 import cors from "cors";
 // @ts-ignore
@@ -7,11 +6,11 @@ import { graphqlUploadExpress } from "graphql-upload";
 import type { RequestListener } from "http";
 import { createServer } from "http";
 import nc from "next-connect";
-import { parse as parseQS } from "querystring";
 import * as WebSocket from "ws";
-import { createAppAuth, createPassport } from "./auth/index";
+import { createAuthApp } from "./auth/index";
 import { createMongoClient, createRedisClient } from "./db/index";
 import { buildGraphQLServer } from "./gql";
+import { parseQuery } from "./lib/http";
 import { PubSub } from "./lib/pubsub";
 import { applySession, session } from "./middleware/session";
 import { NowPlayingWorker } from "./services/nowPlayingWorker";
@@ -38,6 +37,15 @@ const rawBody = (
 };
 
 (async () => {
+  const getUserFromSession = (req: ExtendedIncomingMessage) =>
+    applySession(req, {} as any)
+      .then(() => {
+        const _id = req.session?.userId;
+        if (!_id) return null;
+        return db.collection<UserDbObject>("users").findOne({ _id });
+      })
+      .catch(() => null);
+
   const redis = createRedisClient();
   const pubsub = new PubSub();
 
@@ -50,8 +58,6 @@ const rawBody = (
   console.log(`MongoDB isConnected is ${mongoClient.isConnected()}`);
 
   console.log(`Redis status is ${redis.status}`);
-
-  const passport = createPassport(db, redis, pubsub);
 
   const {
     graphqlHTTP,
@@ -77,17 +83,6 @@ const rawBody = (
       );
   });
 
-  // compat parse url, passport not work properly without this
-  app.use((req, res, next) => {
-    const idx = req.url.indexOf("?");
-    req.query =
-      idx !== -1
-        ? (parseQS(req.url.substring(idx + 1)) as Record<string, string>)
-        : null;
-    req.path = idx !== -1 ? req.url.substring(0, idx) : req.url;
-    next();
-  });
-
   // cors for dev
   if (process.env.NODE_ENV !== "production")
     app.use(
@@ -98,13 +93,15 @@ const rawBody = (
       })
     );
 
+  app.use((req, res, next) => {
+    req.query = parseQuery(req);
+    next();
+  });
+
   app.use(session);
 
-  // passport
-  app.use(passport.initialize()).use(passport.session());
-
   // auth subapp
-  app.use("/auth", createAppAuth(passport));
+  app.use("/auth", createAuthApp(db, redis, pubsub));
 
   app.post(
     "/graphql",
@@ -133,12 +130,19 @@ const rawBody = (
 
   app.all("/graphql", (req, res) => {
     rawBody(req, (rawBody) => {
-      req.body =
-        parseGraphQLBody(rawBody, req.headers["content-type"]) || undefined;
-      graphqlHTTP(req as HTTPRequest, {
-        user: req.user || null,
-        setCacheControl: req.setCacheControl,
-      }).then((result) =>
+      graphqlHTTP(
+        {
+          headers: req.headers as Record<string, string>,
+          method: req.method,
+          body:
+            parseGraphQLBody(rawBody, req.headers["content-type"]) || undefined,
+          query: req.query,
+        },
+        {
+          user: getUserFromSession(req),
+          setCacheControl: req.setCacheControl,
+        }
+      ).then((result) =>
         res
           .writeHead(result.status, result.headers)
           .end(graphqlStringify(result.payload))
@@ -156,15 +160,9 @@ const rawBody = (
     path: "/graphql",
   });
 
-  wss.on("connection", async (socket, request: ExtendedIncomingMessage) => {
+  wss.on("connection", async (socket, req: ExtendedIncomingMessage) => {
     graphqlWS(socket, {
-      user: applySession(request, {} as any)
-        .then(() => {
-          const _id = request.session?.passport?.user;
-          if (!_id) return null;
-          return db.collection<UserDbObject>("users").findOne({ _id });
-        })
-        .catch(() => null),
+      user: getUserFromSession(req),
     });
   });
 

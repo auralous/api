@@ -1,20 +1,19 @@
-import { PUBSUB_CHANNELS, REDIS_KEY } from "../lib/constant";
-
-import type { Db } from "mongodb";
 import type Redis from "ioredis";
+import type { Db } from "mongodb";
+import { PUBSUB_CHANNELS, REDIS_KEY } from "../lib/constant";
 import type { PubSub } from "../lib/pubsub";
 import {
-  StoryDbObject,
-  NowPlayingItemDbObject,
   MessageType,
+  NowPlayingItemDbObject,
+  StoryDbObject,
 } from "../types/index";
-import { QueueService } from "./queue";
-import { NowPlayingService } from "./nowPlaying";
-import { TrackService } from "./track";
 import { MessageService } from "./message";
+import { NowPlayingService } from "./nowPlaying";
+import { QueueService } from "./queue";
+import { TrackService } from "./track";
 
 export class NowPlayingWorker {
-  private timers = new Map<string, NodeJS.Timeout>();
+  private timers = new Map<string, number>();
 
   private nowPlayingService: NowPlayingService;
   private queueService: QueueService;

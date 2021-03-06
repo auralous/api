@@ -1,10 +1,9 @@
-import { MongoClient, Db } from "mongodb";
-
+import { Db, MongoClient } from "mongodb";
 import {
-  UserDbObject,
-  StoryDbObject,
   FollowDbObject,
   NotificationDbObject,
+  StoryDbObject,
+  UserDbObject,
 } from "../types/index";
 
 function applyIndex(db: Db) {
@@ -15,7 +14,8 @@ function applyIndex(db: Db) {
   // story
   db.collection<StoryDbObject>("stories").createIndexes([
     { key: { creatorId: 1 } },
-    { key: { _id: 1, creatorId: 1 } },
+    { key: { isLive: 1 } },
+    { key: { location: "2dsphere" } },
   ]);
   // follow
   db.collection<FollowDbObject>("follows").createIndexes([

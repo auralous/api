@@ -1,5 +1,5 @@
 import { ObjectID } from "mongodb";
-import type { PlatformName, MessageType } from "./graphql.gen";
+import type { MessageType, PlatformName } from "./graphql.gen";
 
 export interface UserOauthProvider {
   provider: PlatformName;
@@ -43,6 +43,10 @@ export interface StoryDbObject {
   viewable: string[];
   // Internal
   lastCreatorActivityAt: Date;
+  location?: {
+    type: "Point";
+    coordinates: [longitude: number, latitude: number];
+  };
 }
 
 export interface TrackDbObject {

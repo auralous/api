@@ -2,16 +2,22 @@ type Query {
   story(id: ID!): Story
   storyUsers(id: ID!): [String!]
   stories(id: ID!, next: String, limit: Int!): [Story!]!
+  storiesOnMap(lng: Float!, lat: Float!, radius: Float!): [Story!]!
   storyLive(creatorId: String): Story
 }
 
 type Mutation {
-  createStory(text: String!, isPublic: Boolean!): Story!
+  createStory(text: String!, isPublic: Boolean!, location: LocationInput): Story!
   deleteStory(id: ID!): ID!
   changeStoryQueueable(id: ID!, userId: String!, isRemoving: Boolean!): Boolean!
-  unliveStory(id: ID!): Boolean!
+  unliveStory(id: ID!): Story!
   pingStory(id: ID!): Boolean!
   sendStoryInvites(id: ID!, invitedIds: [String!]!): Boolean!
+}
+
+input LocationInput {
+  lng: Float!
+  lat: Float!
 }
 
 type Subscription {

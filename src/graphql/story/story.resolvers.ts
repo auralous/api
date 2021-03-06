@@ -2,7 +2,6 @@ import { ForbiddenError, UserInputError } from "../../error";
 import { PUBSUB_CHANNELS } from "../../lib/constant";
 import { defaultAvatar } from "../../lib/defaultAvatar";
 import { StoryService } from "../../services/story";
-
 import type { Resolvers, StoryDbObject } from "../../types/index";
 
 const resolvers: Resolvers = {
@@ -26,6 +25,9 @@ const resolvers: Resolvers = {
         (s) => StoryService.getPermission(user, s).isViewable
       );
     },
+    async storiesOnMap(parent, { lng, lat, radius }, { services }) {
+      return services.Story.findByLocation(lng, lat, radius);
+    },
     async storyUsers(parent, { id }, { services, user }) {
       const story = await services.Story.findById(id);
       if (!story || !StoryService.getPermission(user, story).isViewable)
@@ -38,10 +40,11 @@ const resolvers: Resolvers = {
     },
   },
   Mutation: {
-    createStory(parent, { text, isPublic }, { services, user }) {
+    createStory(parent, { text, isPublic, location }, { services, user }) {
       return services.Story.create(user, {
         text,
         isPublic,
+        location,
       });
     },
     async unliveStory(parent, { id }, { services, user }) {

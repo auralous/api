@@ -1,16 +1,15 @@
 import DataLoader from "dataloader";
 import { ObjectID } from "mongodb";
-import { AuthenticationError, ForbiddenError } from "../error/index";
 import { deleteByPattern } from "../db/redis";
-import { PUBSUB_CHANNELS, REDIS_KEY, CONFIG } from "../lib/constant";
+import { AuthenticationError, ForbiddenError } from "../error/index";
 import { deleteCloudinaryImagesByPrefix } from "../lib/cloudinary";
+import { CONFIG, PUBSUB_CHANNELS, REDIS_KEY } from "../lib/constant";
+import type { NullablePartial, StoryDbObject } from "../types/index";
 import { MessageType, UserDbObject } from "../types/index";
-
-import type { ServiceContext } from "./types";
-import type { StoryDbObject, NullablePartial } from "../types/index";
-import { NowPlayingWorker } from "./nowPlayingWorker";
 import { MessageService } from "./message";
 import { NotificationService } from "./notification";
+import { NowPlayingWorker } from "./nowPlayingWorker";
+import type { ServiceContext } from "./types";
 
 export class StoryService {
   private collection = this.context.db.collection<StoryDbObject>("stories");
@@ -75,7 +74,7 @@ export class StoryService {
    * but no new songs can be added to it
    * @param storyId
    */
-  async unliveStory(storyId: string): Promise<boolean> {
+  async unliveStory(storyId: string): Promise<StoryDbObject> {
     // WARN: this does not check auth
     // Delete queue. See QueueService#deleteById
     await this.context.redis.del(REDIS_KEY.queue(storyId));
@@ -87,9 +86,9 @@ export class StoryService {
       { $set: { isLive: false } },
       { returnOriginal: false }
     );
-    if (!value) return false;
+    if (!value) throw new ForbiddenError("Cannot delete this story");
     this.notifyUpdate(value);
-    return true;
+    return value;
   }
 
   /**
@@ -99,7 +98,13 @@ export class StoryService {
    */
   async create(
     me: UserDbObject | null,
-    { text, isPublic }: Pick<StoryDbObject, "text" | "isPublic">
+    {
+      text,
+      isPublic,
+      location,
+    }: Pick<StoryDbObject, "text" | "isPublic"> & {
+      location: { lng: number; lat: number } | null | undefined;
+    }
   ) {
     if (!me) throw new AuthenticationError("");
 
@@ -124,6 +129,9 @@ export class StoryService {
       viewable: [],
       queueable: [],
       lastCreatorActivityAt: createdAt,
+      ...(location && {
+        location: { type: "Point", coordinates: [location.lng, location.lat] },
+      }),
     });
 
     const notificationService = new NotificationService(this.context);
@@ -172,6 +180,21 @@ export class StoryService {
         story = this.checkStoryStatus(story);
         return story.isLive ? story : null;
       });
+  }
+
+  async findByLocation(lng: number, lat: number, radius: number) {
+    return this.collection
+      .find({
+        isLive: true,
+        location: {
+          $near: {
+            $geometry: { type: "Point", coordinates: [lng, lat] },
+            $maxDistance: radius, // in meter
+            $minDistance: 0,
+          },
+        },
+      })
+      .toArray();
   }
 
   /**

@@ -1,16 +1,15 @@
 import DataLoader from "dataloader";
 import { ObjectID } from "mongodb";
-import { AuthenticationError, ForbiddenError } from "../error/index";
 import { deleteByPattern } from "../db/redis";
-import { PUBSUB_CHANNELS, REDIS_KEY, CONFIG } from "../lib/constant";
+import { AuthenticationError, ForbiddenError } from "../error/index";
 import { deleteCloudinaryImagesByPrefix } from "../lib/cloudinary";
+import { CONFIG, PUBSUB_CHANNELS, REDIS_KEY } from "../lib/constant";
+import type { NullablePartial, StoryDbObject } from "../types/index";
 import { MessageType, UserDbObject } from "../types/index";
-
-import type { ServiceContext } from "./types";
-import type { StoryDbObject, NullablePartial } from "../types/index";
-import { NowPlayingWorker } from "./nowPlayingWorker";
 import { MessageService } from "./message";
 import { NotificationService } from "./notification";
+import { NowPlayingWorker } from "./nowPlayingWorker";
+import type { ServiceContext } from "./types";
 
 export class StoryService {
   private collection = this.context.db.collection<StoryDbObject>("stories");
@@ -172,6 +171,20 @@ export class StoryService {
         story = this.checkStoryStatus(story);
         return story.isLive ? story : null;
       });
+  }
+
+  async findByLocation(lng: number, lat: number, radius: number) {
+    return this.collection
+      .find({
+        location: {
+          $near: {
+            $geometry: { type: "Point", coordinates: [lng, lat] },
+            $maxDistance: 10000, // in meter
+            $minDistance: 0,
+          },
+        },
+      })
+      .toArray();
   }
 
   /**

@@ -10,7 +10,7 @@ type Mutation {
   createStory(text: String!, isPublic: Boolean!, location: LocationInput): Story!
   deleteStory(id: ID!): ID!
   changeStoryQueueable(id: ID!, userId: String!, isRemoving: Boolean!): Boolean!
-  unliveStory(id: ID!): Boolean!
+  unliveStory(id: ID!): Story!
   pingStory(id: ID!): Boolean!
   sendStoryInvites(id: ID!, invitedIds: [String!]!): Boolean!
 }

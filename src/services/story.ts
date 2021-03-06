@@ -74,7 +74,7 @@ export class StoryService {
    * but no new songs can be added to it
    * @param storyId
    */
-  async unliveStory(storyId: string): Promise<boolean> {
+  async unliveStory(storyId: string): Promise<StoryDbObject> {
     // WARN: this does not check auth
     // Delete queue. See QueueService#deleteById
     await this.context.redis.del(REDIS_KEY.queue(storyId));
@@ -86,9 +86,9 @@ export class StoryService {
       { $set: { isLive: false } },
       { returnOriginal: false }
     );
-    if (!value) return false;
+    if (!value) throw new ForbiddenError("Cannot delete this story");
     this.notifyUpdate(value);
-    return true;
+    return value;
   }
 
   /**

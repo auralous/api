@@ -189,7 +189,7 @@ export class StoryService {
         location: {
           $near: {
             $geometry: { type: "Point", coordinates: [lng, lat] },
-            $maxDistance: 100000, // in meter
+            $maxDistance: radius, // in meter
             $minDistance: 0,
           },
         },

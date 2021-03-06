@@ -40,10 +40,11 @@ const resolvers: Resolvers = {
     },
   },
   Mutation: {
-    createStory(parent, { text, isPublic }, { services, user }) {
+    createStory(parent, { text, isPublic, location }, { services, user }) {
       return services.Story.create(user, {
         text,
         isPublic,
+        location,
       });
     },
     async unliveStory(parent, { id }, { services, user }) {

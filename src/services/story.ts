@@ -98,7 +98,13 @@ export class StoryService {
    */
   async create(
     me: UserDbObject | null,
-    { text, isPublic }: Pick<StoryDbObject, "text" | "isPublic">
+    {
+      text,
+      isPublic,
+      location,
+    }: Pick<StoryDbObject, "text" | "isPublic"> & {
+      location: { lng: number; lat: number } | null | undefined;
+    }
   ) {
     if (!me) throw new AuthenticationError("");
 
@@ -123,6 +129,9 @@ export class StoryService {
       viewable: [],
       queueable: [],
       lastCreatorActivityAt: createdAt,
+      ...(location && {
+        location: { type: "Point", coordinates: [location.lng, location.lat] },
+      }),
     });
 
     const notificationService = new NotificationService(this.context);
@@ -176,10 +185,11 @@ export class StoryService {
   async findByLocation(lng: number, lat: number, radius: number) {
     return this.collection
       .find({
+        isLive: true,
         location: {
           $near: {
             $geometry: { type: "Point", coordinates: [lng, lat] },
-            $maxDistance: 10000, // in meter
+            $maxDistance: 100000, // in meter
             $minDistance: 0,
           },
         },

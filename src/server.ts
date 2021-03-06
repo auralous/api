@@ -45,8 +45,6 @@ const rawBody = (
 
   console.log(`Redis status is ${redis.status}`);
 
-  console.log(`Generate symmetric secret key`);
-
   await initAuth();
 
   const {

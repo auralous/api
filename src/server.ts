@@ -1,3 +1,4 @@
+import { makeAPQHandler } from "@benzene/extra";
 import { parseGraphQLBody } from "@benzene/http";
 import * as Sentry from "@sentry/node";
 import cors from "cors";
@@ -10,10 +11,11 @@ import * as WebSocket from "ws";
 import { createAuthApp, getUserFromRequest, initAuth } from "./auth/index";
 import { createMongoClient, createRedisClient } from "./db/index";
 import { buildGraphQLServer } from "./gql";
-import { parseQuery } from "./lib/http";
+import { parseQuery, rawBody } from "./lib/http";
 import { PubSub } from "./lib/pubsub";
 import { NowPlayingWorker } from "./services/nowPlayingWorker";
 import type { ExtendedIncomingMessage, ExtendedWebSocket } from "./types/index";
+
 Sentry.init({
   dsn: process.env.SENTRY_DSN,
   beforeSend: (event, hint) => {
@@ -21,15 +23,6 @@ Sentry.init({
     return event;
   },
 });
-
-const rawBody = (
-  req: ExtendedIncomingMessage,
-  done: (body: string) => void
-) => {
-  let body = "";
-  req.on("data", (chunk) => (body += chunk));
-  req.on("end", () => done(body));
-};
 
 (async () => {
   const redis = createRedisClient();
@@ -51,6 +44,7 @@ const rawBody = (
     graphqlHTTP,
     graphqlWS,
     stringify: graphqlStringify,
+    GQL,
   } = buildGraphQLServer(db, redis, pubsub);
 
   // app
@@ -114,14 +108,32 @@ const rawBody = (
     next();
   });
 
+  const apqHTTP = makeAPQHandler();
+
   app.all("/graphql", (req, res) => {
-    rawBody(req, (rawBody) => {
+    rawBody(req, async (rawBody) => {
+      const body =
+        parseGraphQLBody(rawBody, req.headers["content-type"]) || undefined;
+
+      try {
+        await apqHTTP(body || req.query);
+      } catch (err) {
+        // It may throw `HTTPError` object from `@benzene/extra`
+        // It may be `PersistedQueryNotFound`, which asks the client
+        // to send back a pair of query and hash to persist
+        const result = GQL.formatExecutionResult({
+          errors: [err],
+        });
+        return res
+          .writeHead(err.status, { "content-type": "application/json" })
+          .end(JSON.stringify(result));
+      }
+
       graphqlHTTP(
         {
           headers: req.headers as Record<string, string>,
           method: req.method,
-          body:
-            parseGraphQLBody(rawBody, req.headers["content-type"]) || undefined,
+          body,
           query: req.query,
         },
         {

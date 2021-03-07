@@ -125,5 +125,5 @@ export function buildGraphQLServer(
     },
   });
 
-  return { graphqlHTTP, graphqlWS, stringify };
+  return { GQL, graphqlHTTP, graphqlWS, stringify };
 }

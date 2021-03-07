@@ -14,7 +14,6 @@ YouTube Data API (v3)](https://developers.google.com/youtube/v3) must be enabled
 - `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET`: Spotify Client ID  and Secret for OAuth and Spotify data.Consumer key and secret for OAuth.
 - `SONGLINK_KEY`: [Songlink/Odesli](https://odesli.co/) API Key.
 - `SENTRY_DSN`: (optional) Sentry DSN for error reporting.
-- `CLOUDINARY_URL`: [Cloudinary](https://cloudinary.com/) URL for image upload. We hope to migrate away from this service in the future.
 - `LOG_LEVEL`: (optional) Set [log level](https://github.com/pinojs/pino/blob/master/docs/api.md#level-string) for [pino](https://github.com/pinojs/pino). Default: `info`.
 
 This project supports loading environment variables from `.env` file via [dotenv](https://github.com/motdotla/dotenv).
@@ -137,7 +136,6 @@ data:
   mongodb-uri: "YOUR_MONGODB_CONNECTION_STRING"
   redis-url: "YOUR_REDIS_CONNECTION_STRING"
   songlink-key: "YOUR_SONGLINK_API_KEY"
-  cloudinary_url: "YOUR_CLOUDINARY_URL"
 ```
 
 Authenticate with Docker to pull `hoangvvo/stereo-api`, which is a private image.

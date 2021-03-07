@@ -1,4 +1,4 @@
-import type { IncomingMessage } from "http";
+import type { IncomingMessage, ServerResponse } from "http";
 import { parse as parseQS } from "querystring";
 import type { ExtendedIncomingMessage } from "../types";
 
@@ -12,10 +12,10 @@ export function parseQuery<T extends Record<string, string>>(
 
 export function rawBody(
   req: ExtendedIncomingMessage,
-  done: (body: string) => void
+  res: ServerResponse,
+  next: () => void
 ) {
-  if (req.method !== "POST") return done("");
-  let body = "";
-  req.on("data", (chunk) => (body += chunk));
-  req.on("end", () => done(body));
+  req.body = "";
+  req.on("data", (chunk) => (req.body += chunk));
+  req.on("end", next);
 }

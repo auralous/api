@@ -6,7 +6,6 @@ import {
   ForbiddenError,
   UserInputError,
 } from "../error/index";
-import { deleteCloudinaryImagesByPrefix } from "../lib/cloudinary";
 import { CONFIG } from "../lib/constant";
 import type { NullablePartial, UserDbObject } from "../types/index";
 import { StoryService } from "./story";
@@ -93,7 +92,12 @@ export class UserService {
       me.isNew = true;
     } else {
       // If user exists, update OAuth tokens
-      await this.updateMeOauth(me, oauth);
+      // and profile pictures
+      await Promise.all<unknown>([
+        this.updateMeOauth(me, oauth),
+        data.profilePicture &&
+          this.updateMe(me, { profilePicture: data.profilePicture }),
+      ]);
     }
     return me;
   }
@@ -148,7 +152,6 @@ export class UserService {
       await storyService.deleteById(me, story._id.toHexString());
     }
 
-    await deleteCloudinaryImagesByPrefix(`users/${me._id}`);
     return true;
   }
 

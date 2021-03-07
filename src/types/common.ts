@@ -21,6 +21,7 @@ export type ExtendedIncomingMessage = IncomingMessage & {
   url: string;
   method: string;
   path: string;
+  body: any;
 };
 
 export type ExtendedWebSocket = WebSocket & { isAlive: boolean };

@@ -3,7 +3,6 @@ import { parseGraphQLBody } from "@benzene/http";
 import * as Sentry from "@sentry/node";
 import cors from "cors";
 // @ts-ignore
-import { graphqlUploadExpress } from "graphql-upload";
 import type { RequestListener } from "http";
 import { createServer } from "http";
 import nc from "next-connect";
@@ -83,17 +82,7 @@ Sentry.init({
   // auth subapp
   app.use("/auth", createAuthApp(db, redis, pubsub));
 
-  app.post(
-    "/graphql",
-    (req, res, next) => {
-      req.is = (type) => Boolean(req.headers["content-type"]?.includes(type));
-      next();
-    },
-    graphqlUploadExpress({
-      maxFiles: 2,
-      maxFileSize: 20000000, // 20MB
-    })
-  );
+  app.post("/graphql", rawBody);
 
   app.get("/graphql", (req, res, next) => {
     // setCacheControl API
@@ -110,42 +99,40 @@ Sentry.init({
 
   const apqHTTP = makeAPQHandler();
 
-  app.all("/graphql", (req, res) => {
-    rawBody(req, async (rawBody) => {
-      const body =
-        parseGraphQLBody(rawBody, req.headers["content-type"]) || undefined;
+  app.all("/graphql", async (req, res) => {
+    const body =
+      parseGraphQLBody(req.body, req.headers["content-type"]) || undefined;
 
-      try {
-        await apqHTTP(body || req.query);
-      } catch (err) {
-        // It may throw `HTTPError` object from `@benzene/extra`
-        // It may be `PersistedQueryNotFound`, which asks the client
-        // to send back a pair of query and hash to persist
-        const result = GQL.formatExecutionResult({
-          errors: [err],
-        });
-        return res
-          .writeHead(err.status, { "content-type": "application/json" })
-          .end(JSON.stringify(result));
+    try {
+      await apqHTTP(body || req.query);
+    } catch (err) {
+      // It may throw `HTTPError` object from `@benzene/extra`
+      // It may be `PersistedQueryNotFound`, which asks the client
+      // to send back a pair of query and hash to persist
+      const result = GQL.formatExecutionResult({
+        errors: [err],
+      });
+      return res
+        .writeHead(err.status, { "content-type": "application/json" })
+        .end(JSON.stringify(result));
+    }
+
+    graphqlHTTP(
+      {
+        headers: req.headers as Record<string, string>,
+        method: req.method,
+        body,
+        query: req.query,
+      },
+      {
+        user: getUserFromRequest(req, db, res),
+        setCacheControl: req.setCacheControl,
       }
-
-      graphqlHTTP(
-        {
-          headers: req.headers as Record<string, string>,
-          method: req.method,
-          body,
-          query: req.query,
-        },
-        {
-          user: getUserFromRequest(req, db, res),
-          setCacheControl: req.setCacheControl,
-        }
-      ).then((result) =>
-        res
-          .writeHead(result.status, result.headers)
-          .end(graphqlStringify(result.payload))
-      );
-    });
+    ).then((result) =>
+      res
+        .writeHead(result.status, result.headers)
+        .end(graphqlStringify(result.payload))
+    );
   });
 
   // http

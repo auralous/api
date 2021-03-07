@@ -1,10 +1,8 @@
 import { AuthenticationError } from "../../error";
-import { uploadStreamToCloudinary } from "../../lib/cloudinary";
-import { defaultAvatar } from "../../lib/defaultAvatar";
 import { CONFIG } from "../../lib/constant";
+import { defaultAvatar } from "../../lib/defaultAvatar";
 import { SpotifyAuthService, YoutubeAuthService } from "../../services/music";
 import { PlatformName } from "../../types/graphql.gen";
-
 import type { Resolvers, UserDbObject } from "../../types/index";
 
 const resolvers: Resolvers = {
@@ -53,19 +51,10 @@ const resolvers: Resolvers = {
     },
   },
   Mutation: {
-    async me(
-      parent,
-      { username, bio, profilePicture: profilePictureFile },
-      { user, services }
-    ) {
+    async me(parent, { username, bio }, { user, services }) {
       if (!user) throw new AuthenticationError("");
-      const profilePicture = profilePictureFile
-        ? await uploadStreamToCloudinary(
-            (await profilePictureFile).createReadStream(),
-            { publicId: `users/${user._id}/profilePicture` }
-          )
-        : undefined;
-      return services.User.updateMe(user, { username, bio, profilePicture });
+
+      return services.User.updateMe(user, { username, bio });
     },
     async deleteMe(parent, args, { services, user }) {
       if (!user) throw new AuthenticationError("");

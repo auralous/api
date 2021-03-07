@@ -2,7 +2,6 @@ import DataLoader from "dataloader";
 import { ObjectID } from "mongodb";
 import { deleteByPattern } from "../db/redis";
 import { AuthenticationError, ForbiddenError } from "../error/index";
-import { deleteCloudinaryImagesByPrefix } from "../lib/cloudinary";
 import { CONFIG, PUBSUB_CHANNELS, REDIS_KEY } from "../lib/constant";
 import type { NullablePartial, StoryDbObject } from "../types/index";
 import { MessageType, UserDbObject } from "../types/index";
@@ -263,7 +262,6 @@ export class StoryService {
     if (!deletedCount) throw new ForbiddenError("Cannot delete story");
     // delete associated
     await Promise.all([
-      deleteCloudinaryImagesByPrefix(`users/${me._id}/stories/${id}`),
       deleteByPattern(this.context.redis, `${REDIS_KEY.story(id)}:*`),
     ]);
     return true;

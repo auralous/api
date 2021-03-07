@@ -95,12 +95,6 @@ spec:
                 configMapKeyRef:
                   key: sentry-dsn
                   name: {{ .Release.Name }}-configmap
-            # cloudinary. remove soon
-            - name: CLOUDINARY_URL
-              valueFrom:
-                secretKeyRef:
-                  key: cloudinary-url
-                  name: {{ .Release.Name }}-secret
             - name: LOG_LEVEL
               valueFrom:
                 configMapKeyRef:

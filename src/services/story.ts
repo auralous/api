@@ -1,13 +1,19 @@
 import DataLoader from "dataloader";
 import { ObjectID } from "mongodb";
 import { deleteByPattern } from "../db/redis";
-import { AuthenticationError, ForbiddenError } from "../error/index";
+import {
+  AuthenticationError,
+  ForbiddenError,
+  UserInputError,
+} from "../error/index";
 import { CONFIG, PUBSUB_CHANNELS, REDIS_KEY } from "../lib/constant";
+import { QueueAction } from "../types/graphql.gen";
 import type { NullablePartial, StoryDbObject } from "../types/index";
 import { MessageType, UserDbObject } from "../types/index";
 import { MessageService } from "./message";
 import { NotificationService } from "./notification";
 import { NowPlayingWorker } from "./nowPlayingWorker";
+import { QueueService } from "./queue";
 import type { ServiceContext } from "./types";
 
 export class StoryService {
@@ -103,9 +109,13 @@ export class StoryService {
       location,
     }: Pick<StoryDbObject, "text" | "isPublic"> & {
       location: { lng: number; lat: number } | null | undefined;
-    }
+    },
+    tracks: string[]
   ) {
     if (!me) throw new AuthenticationError("");
+
+    if (tracks.length < 4)
+      throw new UserInputError("Require at least 4 tracks", ["tracks"]);
 
     const createdAt = new Date();
 
@@ -131,6 +141,11 @@ export class StoryService {
       ...(location && {
         location: { type: "Point", coordinates: [location.lng, location.lat] },
       }),
+    });
+
+    await new QueueService(this.context).executeQueueAction(me, story, {
+      action: QueueAction.Add,
+      tracks,
     });
 
     const notificationService = new NotificationService(this.context);

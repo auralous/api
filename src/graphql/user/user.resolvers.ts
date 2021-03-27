@@ -56,14 +56,14 @@ const resolvers: Resolvers = {
 
       return services.User.updateMe(user, { username, bio });
     },
-    async deleteMe(parent, args, { services, user }) {
+    async meDelete(parent, args, { services, user }) {
       if (!user) throw new AuthenticationError("");
       return services.User.deleteMe(user);
     },
-    async followUser(parent, { id }, { services, user }) {
+    async userFollow(parent, { id }, { services, user }) {
       return services.Follow.follow(user, await services.User.findById(id));
     },
-    async unfollowUser(parent, { id }, { services, user }) {
+    async userUnfollow(parent, { id }, { services, user }) {
       return services.Follow.unfollow(user, id);
     },
   },

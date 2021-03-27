@@ -9,8 +9,8 @@ type Query {
   nowPlayingReactions(id: ID!): [NowPlayingReactionItem!]
 }
 type Mutation {
-  reactNowPlaying(id: ID!, reaction: NowPlayingReactionType!): Boolean
-  skipNowPlaying(id: ID!): Boolean
+  nowPlayingReact(id: ID!, reaction: NowPlayingReactionType!): Boolean
+  nowPlayingSkip(id: ID!): Boolean
 }
 type Subscription {
   nowPlayingUpdated(id: ID!): NowPlaying

@@ -9,7 +9,7 @@ type Query {
 }
 
 type Mutation {
-  addMessage(id: ID!, text: String!): Boolean!
+  messageAdd(id: ID!, text: String!): Boolean!
 }
 
 type Subscription {

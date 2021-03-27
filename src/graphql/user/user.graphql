@@ -8,9 +8,9 @@ type Query {
 
 type Mutation {
   me(name: String, username: String, bio: String): User
-  followUser(id: ID!): Boolean!
-  unfollowUser(id: ID!): Boolean!
-  deleteMe: Boolean!
+  userFollow(id: ID!): Boolean!
+  userUnfollow(id: ID!): Boolean!
+  meDelete: Boolean!
 }
 
 type User {

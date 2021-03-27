@@ -32,7 +32,7 @@ type Query {
 }
 
 type Mutation {
-  readNotifications(ids: [ID!]!): Int!
+  notificationsMarkRead(ids: [ID!]!): Int!
 }
 
 type Subscription {

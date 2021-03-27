@@ -1,8 +1,7 @@
 import { CONFIG } from "../../lib/constant";
 import { isDefined } from "../../lib/utils";
-import { PlatformName } from "../../types/index";
-
 import type { Resolvers } from "../../types/index";
+import { PlatformName } from "../../types/index";
 
 const resolvers: Resolvers = {
   Query: {
@@ -34,10 +33,10 @@ const resolvers: Resolvers = {
     },
   },
   Mutation: {
-    createPlaylist(parent, { name, trackIds }, { services, user }) {
+    playlistCreate(parent, { name, trackIds }, { services, user }) {
       return services.Track.createPlaylist(user, name, trackIds);
     },
-    addPlaylistTracks(parent, { id, trackIds }, { services, user }) {
+    playlistAddTracks(parent, { id, trackIds }, { services, user }) {
       return services.Track.insertPlaylistTracks(user, id, trackIds);
     },
   },

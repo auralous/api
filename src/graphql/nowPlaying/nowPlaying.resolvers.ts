@@ -12,7 +12,7 @@ const resolvers: Resolvers = {
     },
   },
   Mutation: {
-    async reactNowPlaying(parent, { id, reaction }, { services, user }) {
+    async nowPlayingReact(parent, { id, reaction }, { services, user }) {
       await services.NowPlaying.reactNowPlaying(
         user,
         await services.Story.findById(id),
@@ -20,7 +20,7 @@ const resolvers: Resolvers = {
       );
       return true;
     },
-    async skipNowPlaying(parent, { id }, { services, user }) {
+    async nowPlayingSkip(parent, { id }, { services, user }) {
       return services.NowPlaying.skipCurrentTrack(
         user,
         await services.Story.findById(id)

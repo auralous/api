@@ -27,7 +27,7 @@ const resolvers: Resolvers = {
     },
   },
   Mutation: {
-    readNotifications(parent, { ids }, { services, user }) {
+    notificationsMarkRead(parent, { ids }, { services, user }) {
       return services.Notification.markRead(user, ids);
     },
   },

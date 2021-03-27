@@ -40,7 +40,7 @@ const resolvers: Resolvers = {
     },
   },
   Mutation: {
-    createStory(
+    storyCreate(
       parent,
       { text, isPublic, location, tracks },
       { services, user }
@@ -55,23 +55,23 @@ const resolvers: Resolvers = {
         tracks
       );
     },
-    async unliveStory(parent, { id }, { services, user }) {
+    async storyUnlive(parent, { id }, { services, user }) {
       const story = await services.Story.findById(id);
       if (!story) throw new UserInputError("Story not found", ["id"]);
       if (story.creatorId !== user?._id)
         throw new ForbiddenError("Story cannot be updated");
       return services.Story.unliveStory(id);
     },
-    async deleteStory(parent, { id }, { services, user }) {
+    async storyDelete(parent, { id }, { services, user }) {
       await services.Story.deleteById(user, id);
       return id;
     },
-    pingStory(parent, { id }, { services, user }) {
+    storyPing(parent, { id }, { services, user }) {
       if (!user) return false;
       services.Story.pingPresence(user, id);
       return true;
     },
-    async changeStoryQueueable(
+    async storyChangeQueueable(
       parent,
       { id, userId, isRemoving },
       { services, user }
@@ -86,7 +86,7 @@ const resolvers: Resolvers = {
         isRemoving
       );
     },
-    async sendStoryInvites(parent, { id, invitedIds }, { services, user }) {
+    async storySendInvites(parent, { id, invitedIds }, { services, user }) {
       const story = await services.Story.findById(id);
       if (!story) throw new UserInputError("Story does not exist", ["storyId"]);
 

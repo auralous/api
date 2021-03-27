@@ -13,8 +13,8 @@ type Query {
 }
 
 type Mutation {
-  addPlaylistTracks(id: ID!, trackIds: [String!]!): Boolean!
-  createPlaylist(name: String!, trackIds: [String!]!): Playlist!
+  playlistAddTracks(id: ID!, trackIds: [String!]!): Boolean!
+  playlistCreate(name: String!, trackIds: [String!]!): Playlist!
 }
 
 type Track {

@@ -1,9 +1,8 @@
 import { AuthenticationError, ForbiddenError } from "../../error/index";
 import { PUBSUB_CHANNELS, REDIS_KEY } from "../../lib/constant";
-import { MessageType } from "../../types";
-
-import type { Resolvers } from "../../types";
 import { StoryService } from "../../services/story";
+import type { Resolvers } from "../../types";
+import { MessageType } from "../../types";
 
 const resolvers: Resolvers = {
   Subscription: {
@@ -37,7 +36,7 @@ const resolvers: Resolvers = {
     },
   },
   Mutation: {
-    async addMessage(parents, { id, text }, { user, services }) {
+    async messageAdd(parents, { id, text }, { user, services }) {
       if (!user) throw new AuthenticationError("");
 
       const story = await services.Story.findById(REDIS_KEY.message(id).id);

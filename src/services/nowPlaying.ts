@@ -1,20 +1,36 @@
+import fastJson from "fast-json-stringify";
 import { AuthenticationError, ForbiddenError } from "../error/index";
 import { PUBSUB_CHANNELS, REDIS_KEY } from "../lib/constant";
-import { NowPlayingWorker } from "./nowPlayingWorker";
-
-import type { ServiceContext } from "./types";
 import type {
   NowPlayingItemDbObject,
-  UserDbObject,
-  NowPlayingReactionType,
   NowPlayingReactionItem,
+  NowPlayingReactionType,
   StoryDbObject,
+  UserDbObject,
 } from "../types/index";
-import { QueueService } from "./queue";
+import { NowPlayingWorker } from "./nowPlayingWorker";
 import { StoryService } from "./story";
+import type { ServiceContext } from "./types";
+
+const itemStringify = fastJson({
+  title: "Now Playing Queue Item",
+  type: "object",
+  properties: {
+    index: { type: "number" },
+    trackId: { type: "string" },
+    creatorId: { type: "string" },
+    playedAt: { type: "string" },
+    endedAt: { type: "string" },
+  },
+  required: ["index", "trackId", "creatorId", "playedAt", "endedAt"],
+});
 
 export class NowPlayingService {
   constructor(private context: ServiceContext) {}
+
+  static stringifyItem(currentTrack: NowPlayingItemDbObject) {
+    return itemStringify(currentTrack);
+  }
 
   /**
    * Find the nowPlaying by story id
@@ -29,7 +45,9 @@ export class NowPlayingService {
       .get(REDIS_KEY.nowPlaying(id))
       .then((npStr) =>
         npStr
-          ? (QueueService.parseQueue(npStr) as NowPlayingItemDbObject)
+          ? (JSON.parse(npStr, (key, value) =>
+              key === "playedAt" || key === "endedAt" ? new Date(value) : value
+            ) as NowPlayingItemDbObject)
           : null
       );
     if (!currTrack) return null;
@@ -104,7 +122,7 @@ export class NowPlayingService {
 
     // If the reaction already eists, the below returns 0 / does nothing
     const result = await this.context.redis.hset(
-      REDIS_KEY.nowPlayingReaction(String(story._id), currItem.id),
+      REDIS_KEY.nowPlayingReaction(String(story._id), currItem.index),
       me._id,
       reaction
     );
@@ -119,7 +137,7 @@ export class NowPlayingService {
     const currentTrack = await this.findById(id);
     if (!currentTrack) return [];
     const o = await this.context.redis.hgetall(
-      REDIS_KEY.nowPlayingReaction(id, currentTrack.id)
+      REDIS_KEY.nowPlayingReaction(id, currentTrack.index)
     );
     return Object.entries(o).map(([userId, reaction]) => ({
       userId,

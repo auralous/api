@@ -6,7 +6,6 @@ enum QueueAction {
 }
 
 type QueueItem {
-  id: ID!
   trackId: String!
   creatorId: String!
 }

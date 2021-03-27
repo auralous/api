@@ -1,15 +1,11 @@
 import { PUBSUB_CHANNELS } from "../../lib/constant";
-
 import type { Resolvers } from "../../types/index";
 
 const resolvers: Resolvers = {
   Query: {
     async nowPlaying(parent, { id }, { services }) {
       const currentTrack = await services.NowPlaying.findById(id);
-      return {
-        id,
-        currentTrack,
-      };
+      return { id, currentTrack };
     },
     async nowPlayingReactions(parent, { id }, { services }) {
       return services.NowPlaying.getAllReactions(id);

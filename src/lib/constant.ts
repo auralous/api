@@ -8,14 +8,11 @@ export const REDIS_KEY = {
   nowPlaying(storyId: string) {
     return `story:${storyId}:playing`;
   },
-  nowPlayingReaction(storyId: string, currQueueItemId: string) {
-    return `story:${storyId}:reactions:${currQueueItemId}`;
+  nowPlayingReaction(storyId: string, index: number) {
+    return `story:${storyId}:reactions:${index}`;
   },
-  queue(storyId: string) {
-    if (storyId.includes(":played")) {
-      // Played queue ends with :played instead of :queue
-      return `${this.story(storyId)}:played`;
-    }
+  queue(storyId: string, played?: boolean) {
+    if (played) return `${this.story(storyId)}:played`;
     return `${this.story(storyId)}:queue`;
   },
   message(typeAndId: string) {

@@ -2,9 +2,7 @@ import { makeAPQHandler } from "@benzene/extra";
 import { parseGraphQLBody } from "@benzene/http";
 import * as Sentry from "@sentry/node";
 import cors from "cors";
-// @ts-ignore
-import type { RequestListener } from "http";
-import { createServer } from "http";
+import { createServer, RequestListener } from "http";
 import nc from "next-connect";
 import * as WebSocket from "ws";
 import { createAuthApp, getUserFromRequest, initAuth } from "./auth/index";
@@ -49,7 +47,7 @@ Sentry.init({
   // app
   const app = nc<ExtendedIncomingMessage>();
 
-  app.use("/health", (req, res) => {
+  app.get("/health", (req, res) => {
     const mongoOk = mongoClient.isConnected();
     const redisStatus = redis.status;
     res

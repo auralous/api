@@ -128,9 +128,10 @@ const resolvers: Resolvers = {
         trackIdForImage = np?.trackId;
       } else {
         const [firstTrackItem] = await services.Queue.findById(
-          `${String(_id)}:played`,
+          String(_id),
           0,
-          0
+          0,
+          true
         );
         trackIdForImage = firstTrackItem?.trackId;
       }

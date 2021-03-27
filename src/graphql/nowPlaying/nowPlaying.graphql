@@ -17,7 +17,7 @@ type Subscription {
   nowPlayingReactionsUpdated(id: ID!): [NowPlayingReactionItem!]
 }
 type NowPlayingQueueItem {
-  id: ID!
+  index: Int!
   trackId: ID!
   playedAt: DateTime!
   endedAt: DateTime!

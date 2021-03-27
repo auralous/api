@@ -71,7 +71,7 @@ export class NowPlayingWorker {
 
   private setNowPlayingById(id: string, queueItem: NowPlayingItemDbObject) {
     return this.redis
-      .set(REDIS_KEY.nowPlaying(id), QueueService.stringifyQueue(queueItem))
+      .set(REDIS_KEY.nowPlaying(id), NowPlayingService.stringifyItem(queueItem))
       .then(Boolean);
   }
 
@@ -114,12 +114,9 @@ export class NowPlayingWorker {
       return prevCurrentTrack;
     }
 
-    const queueId = storyId;
-    const playedQueueId = `${storyId}:played`;
-
     let currentTrack: NowPlayingItemDbObject | null = null;
 
-    const firstTrackInQueue = await this.queueService.shiftItem(queueId);
+    const firstTrackInQueue = await this.queueService.shiftItem(storyId);
 
     if (firstTrackInQueue) {
       const detailNextTrack = await this.trackService.findOrCreate(
@@ -134,6 +131,7 @@ export class NowPlayingWorker {
 
       currentTrack = {
         ...firstTrackInQueue,
+        index: prevCurrentTrack ? prevCurrentTrack.index + 1 : 0,
         playedAt: now,
         endedAt: new Date(now.getTime() + detailNextTrack.duration),
       };
@@ -142,7 +140,7 @@ export class NowPlayingWorker {
     if (currentTrack) {
       // Push previous nowPlaying to played queue
       if (prevCurrentTrack)
-        await this.queueService.pushItems(playedQueueId, prevCurrentTrack);
+        await this.queueService.pushItemsPlayed(storyId, prevCurrentTrack);
       // Save currentTrack
       await this.setNowPlayingById(storyId, currentTrack);
       // Send message

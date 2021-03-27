@@ -20,12 +20,12 @@ export interface UserDbObject {
 }
 
 export interface QueueItemDbObject {
-  id: string;
   trackId: string;
   creatorId: string;
 }
 
 export interface NowPlayingItemDbObject extends QueueItemDbObject {
+  index: number;
   playedAt: Date;
   endedAt: Date;
 }

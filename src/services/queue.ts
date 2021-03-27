@@ -1,49 +1,36 @@
-import { nanoid } from "nanoid/non-secure";
 import fastJson from "fast-json-stringify";
-import { AuthenticationError, ForbiddenError, UserInputError } from "../error";
-import { StoryService } from "./story";
-import { NowPlayingWorker } from "./nowPlayingWorker";
+import { AuthenticationError, ForbiddenError } from "../error";
+import { PUBSUB_CHANNELS, REDIS_KEY } from "../lib/constant";
 import { reorder } from "../lib/utils";
-import { REDIS_KEY, PUBSUB_CHANNELS } from "../lib/constant";
-import { QueueAction } from "../types/graphql.gen";
-
-import type { ServiceContext } from "./types";
+import {
+  MutationQueueAddArgs,
+  MutationQueueRemoveArgs,
+  MutationQueueReorderArgs,
+} from "../types/graphql.gen";
 import type {
-  NowPlayingItemDbObject,
   QueueItemDbObject,
   StoryDbObject,
   UserDbObject,
 } from "../types/index";
+import { NowPlayingWorker } from "./nowPlayingWorker";
+import { StoryService } from "./story";
+import type { ServiceContext } from "./types";
 
 const queueItemStringify = fastJson({
   title: "Queue Item",
   type: "object",
   properties: {
-    id: { type: "string" },
     trackId: { type: "string" },
     creatorId: { type: "string" },
-    // additional props
-    playedAt: { type: "string" },
-    endedAt: { type: "string" },
   },
-  required: ["id", "trackId", "creatorId"],
+  required: ["trackId", "creatorId"],
 });
 
 export class QueueService {
   constructor(private context: ServiceContext) {}
 
-  static stringifyQueue(item: QueueItemDbObject): string {
+  static stringifyQueueItem(item: QueueItemDbObject): string {
     return queueItemStringify(item);
-  }
-
-  static parseQueue(str: string): QueueItemDbObject | NowPlayingItemDbObject {
-    return JSON.parse(str, (key, value) =>
-      key === "playedAt" || key === "endedAt" ? new Date(value) : value
-    );
-  }
-
-  static randomQueueItemId(): string {
-    return nanoid(4);
   }
 
   private notifyUpdate(id: string) {
@@ -61,11 +48,12 @@ export class QueueService {
   async findById(
     id: string,
     start = 0,
-    stop = -1
+    stop = -1,
+    played?: boolean
   ): Promise<QueueItemDbObject[]> {
     return this.context.redis
-      .lrange(REDIS_KEY.queue(id), start, stop)
-      .then((res) => res.map(QueueService.parseQueue));
+      .lrange(REDIS_KEY.queue(id, played), start, stop)
+      .then((res) => res.map((it) => JSON.parse(it)));
   }
 
   /**
@@ -84,80 +72,81 @@ export class QueueService {
     const str = await this.context.redis.lpop(REDIS_KEY.queue(id));
     if (!str) return null;
     this.notifyUpdate(id);
-    return QueueService.parseQueue(str);
+    return JSON.parse(str);
   }
 
   /**
    * Push a queue item to the end
-   * @param id
+   * @param storyId
    * @param items
    */
   async pushItems(
-    id: string,
-    ...items: (Omit<QueueItemDbObject, "id"> & {
-      id?: string;
-    })[]
+    storyId: string,
+    ...queueItems: QueueItemDbObject[]
   ): Promise<number> {
-    const queueItems: QueueItemDbObject[] = items.map((item) => {
-      return {
-        ...item,
-        id: item.id || QueueService.randomQueueItemId(),
-      };
-    });
     const count = await this.context.redis.rpush(
-      REDIS_KEY.queue(id),
-      ...queueItems.map(QueueService.stringifyQueue)
+      REDIS_KEY.queue(storyId),
+      ...queueItems.map((item) => QueueService.stringifyQueueItem(item))
     );
-    if (count) this.notifyUpdate(id);
+    if (count) this.notifyUpdate(storyId);
+    return count;
+  }
+
+  async pushItemsPlayed(storyId: string, ...queueItems: QueueItemDbObject[]) {
+    const count = await this.context.redis.rpush(
+      REDIS_KEY.queue(storyId, true),
+      ...queueItems.map((item) => QueueService.stringifyQueueItem(item))
+    );
     return count;
   }
 
   /**
    * Reorder queue items
-   * @param id
+   * @param storyId
    * @param origin
    * @param dest
    */
-  async reorderItems(id: string, origin: number, dest: number) {
+  async reorderItems(storyId: string, origin: number, dest: number) {
     // FIXME: Need better performant strategy
     const allItems = await this.context.redis.lrange(
-      REDIS_KEY.queue(id),
+      REDIS_KEY.queue(storyId),
       0,
       -1
     );
-    await this.deleteById(id);
+    await this.deleteById(storyId);
     const count = await this.context.redis.rpush(
-      REDIS_KEY.queue(id),
+      REDIS_KEY.queue(storyId),
       reorder(allItems, origin, dest)
     );
-    this.notifyUpdate(id);
+    this.notifyUpdate(storyId);
     return count;
   }
 
   /**
    * Remove a queue item
-   * @param id
+   * @param storyId
    * @param pos
    */
-  async removeItem(id: string, pos: number): Promise<number> {
+  async removeItem(
+    storyId: string,
+    removeArg: Omit<MutationQueueRemoveArgs, "id">
+  ): Promise<number> {
     // redis does not have remove item from list by index
-    const DEL_VAL = "";
-    await this.context.redis.lset(REDIS_KEY.queue(id), pos, DEL_VAL);
     const count = await this.context.redis.lrem(
-      REDIS_KEY.queue(id),
+      REDIS_KEY.queue(storyId),
       1,
-      DEL_VAL
+      QueueService.stringifyQueueItem(removeArg)
     );
-    if (count) this.notifyUpdate(id);
+    if (count) this.notifyUpdate(storyId);
     return count;
   }
 
   /**
    * Delete a queue item
-   * @param id
+   * @param storyId
    */
-  async deleteById(id: string) {
-    return this.context.redis.del(REDIS_KEY.queue(id));
+  async deleteById(storyId: string) {
+    return this.context.redis.del(REDIS_KEY.queue(storyId));
   }
 
   /**
@@ -165,70 +154,50 @@ export class QueueService {
    * Usually a public API to GraphQL
    * @param me
    * @param story
-   * @param param2
+   * @param actions
    */
   async executeQueueAction(
     me: UserDbObject | null,
-    story: StoryDbObject,
-    {
-      action,
-      tracks,
-      position,
-      insertPosition,
-    }: {
-      action: QueueAction;
-      tracks?: string[] | null;
-      position?: number | null;
-      insertPosition?: number | null;
+    story: StoryDbObject | null,
+    actions: {
+      add?: Omit<MutationQueueAddArgs, "id">;
+      reorder?: Omit<MutationQueueReorderArgs, "id">;
+      remove?: Omit<MutationQueueRemoveArgs, "id">;
     }
   ) {
+    if (!story) throw new ForbiddenError("Story does not exist");
+
     const id = String(story._id);
     if (!me) throw new AuthenticationError("");
 
-    if (!story.isLive) throw new ForbiddenError("Story is not live");
+    if (!story.isLive) throw new ForbiddenError("Story is no longer live");
 
     if (!StoryService.getPermission(me, story).isQueueable)
       throw new ForbiddenError("You are not allowed to add to this queue");
 
-    switch (action) {
-      case QueueAction.Add: {
-        if (!tracks) throw new UserInputError("Missing tracks", ["tracks"]);
+    if (actions.add) {
+      await this.pushItems(
+        id,
+        ...actions.add.tracks.map((trackId) => ({
+          trackId,
+          creatorId: me._id,
+        }))
+      );
 
-        await this.pushItems(
-          id,
-          ...tracks.map((trackId) => ({
-            trackId,
-            creatorId: me._id,
-          }))
-        );
+      // It is possible that adding a new item will restart nowPlaying
+      NowPlayingWorker.requestResolve(this.context.pubsub, String(story._id));
 
-        // It is possible that adding a new item will restart nowPlaying
-        NowPlayingWorker.requestResolve(this.context.pubsub, String(story._id));
-        break;
-      }
-      case QueueAction.Remove:
-        if (typeof position !== "number")
-          throw new UserInputError("Missing position", ["position"]);
-
-        await this.removeItem(id, position);
-        break;
-      case QueueAction.Reorder:
-        if (typeof insertPosition !== "number")
-          throw new UserInputError("Missing destination position", [
-            "insertPosition",
-          ]);
-        if (typeof position !== "number")
-          throw new UserInputError("Missing originated position", ["position"]);
-
-        await this.reorderItems(id, position, insertPosition);
-        break;
-      case QueueAction.Clear:
-        await this.deleteById(id);
-        break;
-      default:
-        throw new ForbiddenError("Invalid action");
+      return true;
+    } else if (actions.remove) {
+      return Boolean(await this.removeItem(id, actions.remove));
+    } else if (actions.reorder) {
+      await this.reorderItems(
+        id,
+        actions.reorder.position,
+        actions.reorder.insertPosition
+      );
+      return true;
     }
-
-    return true;
+    return false;
   }
 }

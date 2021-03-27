@@ -1,8 +1,6 @@
-import { ForbiddenError } from "../../error/index";
 import { PUBSUB_CHANNELS } from "../../lib/constant";
-
-import type { Resolvers } from "../../types/index";
 import { StoryService } from "../../services/story";
+import type { Resolvers } from "../../types/index";
 
 const resolvers: Resolvers = {
   Query: {
@@ -14,20 +12,26 @@ const resolvers: Resolvers = {
     },
   },
   Mutation: {
-    async updateQueue(
-      parent,
-      { id, action, tracks, position, insertPosition },
-      { user, services }
-    ) {
-      const story = await services.Story.findById(id);
-      if (!story) throw new ForbiddenError("Story does not exist");
-
-      return services.Queue.executeQueueAction(user, story, {
-        action,
-        tracks,
-        position,
-        insertPosition,
-      });
+    async queueAdd(parent, { id, ...addArgs }, { user, services }) {
+      return services.Queue.executeQueueAction(
+        user,
+        await services.Story.findById(id),
+        { add: addArgs }
+      );
+    },
+    async queueRemove(parent, { id, ...removeArgs }, { user, services }) {
+      return services.Queue.executeQueueAction(
+        user,
+        await services.Story.findById(id),
+        { remove: removeArgs }
+      );
+    },
+    async queueReorder(parent, { id, ...reorderArgs }, { user, services }) {
+      return services.Queue.executeQueueAction(
+        user,
+        await services.Story.findById(id),
+        { reorder: reorderArgs }
+      );
     },
   },
   Subscription: {

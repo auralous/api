@@ -7,7 +7,6 @@ import {
   UserInputError,
 } from "../error/index";
 import { CONFIG, PUBSUB_CHANNELS, REDIS_KEY } from "../lib/constant";
-import { QueueAction } from "../types/graphql.gen";
 import type { NullablePartial, StoryDbObject } from "../types/index";
 import { MessageType, UserDbObject } from "../types/index";
 import { MessageService } from "./message";
@@ -144,8 +143,7 @@ export class StoryService {
     });
 
     await new QueueService(this.context).executeQueueAction(me, story, {
-      action: QueueAction.Add,
-      tracks,
+      add: { tracks },
     });
 
     const notificationService = new NotificationService(this.context);

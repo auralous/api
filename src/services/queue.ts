@@ -1,8 +1,12 @@
 import fastJson from "fast-json-stringify";
-import { AuthenticationError, ForbiddenError, UserInputError } from "../error";
+import { AuthenticationError, ForbiddenError } from "../error";
 import { PUBSUB_CHANNELS, REDIS_KEY } from "../lib/constant";
 import { reorder } from "../lib/utils";
-import { QueueAction } from "../types/graphql.gen";
+import {
+  MutationQueueAddArgs,
+  MutationQueueRemoveArgs,
+  MutationQueueReorderArgs,
+} from "../types/graphql.gen";
 import type {
   QueueItemDbObject,
   StoryDbObject,
@@ -123,14 +127,15 @@ export class QueueService {
    * @param storyId
    * @param pos
    */
-  async removeItem(storyId: string, pos: number): Promise<number> {
+  async removeItem(
+    storyId: string,
+    removeArg: Omit<MutationQueueRemoveArgs, "id">
+  ): Promise<number> {
     // redis does not have remove item from list by index
-    const DEL_VAL = "";
-    await this.context.redis.lset(REDIS_KEY.queue(storyId), pos, DEL_VAL);
     const count = await this.context.redis.lrem(
       REDIS_KEY.queue(storyId),
       1,
-      DEL_VAL
+      QueueService.stringifyQueueItem(removeArg)
     );
     if (count) this.notifyUpdate(storyId);
     return count;
@@ -149,70 +154,50 @@ export class QueueService {
    * Usually a public API to GraphQL
    * @param me
    * @param story
-   * @param param2
+   * @param actions
    */
   async executeQueueAction(
     me: UserDbObject | null,
-    story: StoryDbObject,
-    {
-      action,
-      tracks,
-      position,
-      insertPosition,
-    }: {
-      action: QueueAction;
-      tracks?: string[] | null;
-      position?: number | null;
-      insertPosition?: number | null;
+    story: StoryDbObject | null,
+    actions: {
+      add?: Omit<MutationQueueAddArgs, "id">;
+      reorder?: Omit<MutationQueueReorderArgs, "id">;
+      remove?: Omit<MutationQueueRemoveArgs, "id">;
     }
   ) {
+    if (!story) throw new ForbiddenError("Story does not exist");
+
     const id = String(story._id);
     if (!me) throw new AuthenticationError("");
 
-    if (!story.isLive) throw new ForbiddenError("Story is not live");
+    if (!story.isLive) throw new ForbiddenError("Story is no longer live");
 
     if (!StoryService.getPermission(me, story).isQueueable)
       throw new ForbiddenError("You are not allowed to add to this queue");
 
-    switch (action) {
-      case QueueAction.Add: {
-        if (!tracks) throw new UserInputError("Missing tracks", ["tracks"]);
+    if (actions.add) {
+      await this.pushItems(
+        id,
+        ...actions.add.tracks.map((trackId) => ({
+          trackId,
+          creatorId: me._id,
+        }))
+      );
 
-        await this.pushItems(
-          id,
-          ...tracks.map((trackId) => ({
-            trackId,
-            creatorId: me._id,
-          }))
-        );
+      // It is possible that adding a new item will restart nowPlaying
+      NowPlayingWorker.requestResolve(this.context.pubsub, String(story._id));
 
-        // It is possible that adding a new item will restart nowPlaying
-        NowPlayingWorker.requestResolve(this.context.pubsub, String(story._id));
-        break;
-      }
-      case QueueAction.Remove:
-        if (typeof position !== "number")
-          throw new UserInputError("Missing position", ["position"]);
-
-        await this.removeItem(id, position);
-        break;
-      case QueueAction.Reorder:
-        if (typeof insertPosition !== "number")
-          throw new UserInputError("Missing destination position", [
-            "insertPosition",
-          ]);
-        if (typeof position !== "number")
-          throw new UserInputError("Missing originated position", ["position"]);
-
-        await this.reorderItems(id, position, insertPosition);
-        break;
-      case QueueAction.Clear:
-        await this.deleteById(id);
-        break;
-      default:
-        throw new ForbiddenError("Invalid action");
+      return true;
+    } else if (actions.remove) {
+      return Boolean(await this.removeItem(id, actions.remove));
+    } else if (actions.reorder) {
+      await this.reorderItems(
+        id,
+        actions.reorder.position,
+        actions.reorder.insertPosition
+      );
+      return true;
     }
-
-    return true;
+    return false;
   }
 }

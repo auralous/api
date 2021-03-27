@@ -40,12 +40,20 @@ const resolvers: Resolvers = {
     },
   },
   Mutation: {
-    createStory(parent, { text, isPublic, location }, { services, user }) {
-      return services.Story.create(user, {
-        text,
-        isPublic,
-        location,
-      });
+    createStory(
+      parent,
+      { text, isPublic, location, tracks },
+      { services, user }
+    ) {
+      return services.Story.create(
+        user,
+        {
+          text,
+          isPublic,
+          location,
+        },
+        tracks
+      );
     },
     async unliveStory(parent, { id }, { services, user }) {
       const story = await services.Story.findById(id);

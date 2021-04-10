@@ -46,7 +46,7 @@ export function getUserFromRequest(
   db: Db,
   res?: ServerResponse
 ) {
-  const token = getTokenFromCookie(req);
+  const token = req.headers.authorization || getTokenFromCookie(req);
   if (!token) return null;
   return decodeFromToken(token).then(async (payload) => {
     if (!payload) {

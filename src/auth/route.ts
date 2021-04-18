@@ -3,7 +3,7 @@ import type { Db } from "mongodb";
 import nc from "next-connect";
 import type { PubSub } from "../lib/pubsub";
 import { ExtendedIncomingMessage } from "../types/index";
-import { setTokenToCookie } from "./cookie";
+import { logoutHandler } from "./auth";
 import { createGoogleAuthApp } from "./google";
 import { createSpotifyAuthApp } from "./spotify";
 
@@ -19,8 +19,5 @@ export function createAuthApp(db: Db, redis: IORedis.Cluster, pubsub: PubSub) {
   })
     .use("/spotify", createSpotifyAuthApp(db, redis, pubsub))
     .use("/google", createGoogleAuthApp(db, redis, pubsub))
-    .post("/logout", (req, res) => {
-      setTokenToCookie(res, null);
-      res.writeHead(204).end();
-    });
+    .post("/logout", logoutHandler);
 }

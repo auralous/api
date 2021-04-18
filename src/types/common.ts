@@ -18,6 +18,7 @@ export type ExtendedIncomingMessage = IncomingMessage & {
   setCacheControl?: SetCachControl;
   is: (type: string) => boolean;
   query: Record<string, string>;
+  cookies: Record<string, string>;
   url: string;
   method: string;
   path: string;

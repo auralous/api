@@ -5,30 +5,85 @@ import SignJWT from "jose/jwt/sign";
 import jwtVerify from "jose/jwt/verify";
 import type { KeyLike } from "jose/types";
 import type { Db } from "mongodb";
+import { URL } from "url";
 import type { PubSub } from "../lib/pubsub";
 import { UserService } from "../services/user";
 import type { ExtendedIncomingMessage, UserDbObject } from "../types";
-import { getTokenFromCookie, setTokenToCookie } from "./cookie";
+import { setCookie } from "./cookie";
 
-export async function doAuth(
-  context: { db: Db; redis: IORedis.Cluster; pubsub: PubSub },
-  res: ServerResponse,
-  oauth: UserDbObject["oauth"],
-  profile: Pick<UserDbObject, "profilePicture" | "email">
+const authCookieName = "sid";
+const isAppLoginCookieName = "is-app-login";
+
+function setTokenToCookie(res: ServerResponse, token: string | null) {
+  setCookie(res, authCookieName, token, {
+    domain: new URL(process.env.APP_URI as string).hostname,
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    maxAge: 365 * 24 * 60 * 60,
+    path: "/",
+    sameSite: "lax" as const,
+  });
+}
+
+export function logoutHandler(
+  req: ExtendedIncomingMessage,
+  res: ServerResponse
 ) {
+  setTokenToCookie(res, null);
+  res.writeHead(204).end();
+}
+
+export function createAuthHandler(context: {
+  db: Db;
+  redis: IORedis.Cluster;
+  pubsub: PubSub;
+}) {
   const userService = new UserService(context);
-  const user = await userService.authOrCreate(oauth, profile);
+  return {
+    async authHandler(
+      req: ExtendedIncomingMessage,
+      res: ServerResponse,
+      url: string
+    ) {
+      setCookie(
+        res,
+        isAppLoginCookieName,
+        req.query["is_app_login"] === "1" ? "1" : null
+      );
+      if (req.query["is_app_login"]) {
+        // modify url to pass in state
+        const urlObj = new URL(url);
+        urlObj.searchParams.set(`state`, `app_login`);
+        url = urlObj.toString();
+      }
+      res.writeHead(307, { Location: url }).end();
+    },
+    async callbackHandler(
+      req: ExtendedIncomingMessage,
+      res: ServerResponse,
+      oauth: UserDbObject["oauth"],
+      profile: Pick<UserDbObject, "profilePicture" | "email">
+    ) {
+      const user = await userService.authOrCreate(oauth, profile);
 
-  setTokenToCookie(res, await encodeUserIdToToken(user._id));
+      const token = await encodeUserIdToToken(user._id);
 
-  res
-    .writeHead(307, {
-      Location: `${process.env.APP_URI}/auth/callback${
-        // @ts-expect-error: isNew is a special field to check if user is newly registered
-        user.isNew ? "?isNew=1" : ""
-      }`,
-    })
-    .end();
+      const redirectTarget =
+        req.query.state === "app_login"
+          ? `auralous://sign-in?access_token=${token}`
+          : `${process.env.APP_URI}/auth/callback?success=1`;
+
+      setTokenToCookie(res, token);
+
+      res
+        .writeHead(307, {
+          Location: `${redirectTarget}${
+            (user as UserDbObject & { isNew?: boolean }).isNew ? "&isNew=1" : ""
+          }`,
+        })
+        .end();
+    },
+  };
 }
 
 const issuer = "auralous:api";
@@ -46,7 +101,7 @@ export function getUserFromRequest(
   db: Db,
   res?: ServerResponse
 ) {
-  const token = req.headers.authorization || getTokenFromCookie(req);
+  const token = req.headers.authorization || req.cookies[authCookieName];
   if (!token) return null;
   return decodeFromToken(token).then(async (payload) => {
     if (!payload) {

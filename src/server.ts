@@ -1,6 +1,7 @@
 import { makeAPQHandler } from "@benzene/extra";
 import { parseGraphQLBody } from "@benzene/http";
 import * as Sentry from "@sentry/node";
+import { parse } from "cookie";
 import cors from "cors";
 import { createServer, RequestListener } from "http";
 import nc from "next-connect";
@@ -74,6 +75,7 @@ Sentry.init({
 
   app.use((req, res, next) => {
     req.query = parseQuery(req);
+    req.cookies = parse(req.headers.cookie || "");
     next();
   });
 
@@ -144,6 +146,7 @@ Sentry.init({
   });
 
   wss.on("connection", async (socket, req: ExtendedIncomingMessage) => {
+    req.cookies = parse(req.headers.cookie || "");
     graphqlWS(socket, {
       user: getUserFromRequest(req, db),
     });

@@ -4,35 +4,41 @@ import nc from "next-connect";
 import type { PubSub } from "../lib/pubsub";
 import { SpotifyAuthService } from "../services/music";
 import { ExtendedIncomingMessage, PlatformName } from "../types/index";
-import { doAuth } from "./auth";
+import { createAuthHandler } from "./auth";
 
 export function createSpotifyAuthApp(
   db: Db,
   redis: IORedis.Cluster,
   pubsub: PubSub
 ) {
+  const { authHandler, callbackHandler } = createAuthHandler({
+    db,
+    redis,
+    pubsub,
+  });
+
+  const scopesStr = [
+    "user-read-email",
+    "user-read-private",
+    "playlist-read-private",
+    "playlist-modify-public",
+    "playlist-modify-private",
+    "user-read-currently-playing",
+    "streaming",
+  ].join(" ");
+
   return nc<ExtendedIncomingMessage>()
     .get("/", async (req, res) => {
-      const scopes = [
-        "user-read-email",
-        "user-read-private",
-        "playlist-read-private",
-        "playlist-modify-public",
-        "playlist-modify-private",
-        "user-read-currently-playing",
-        "streaming",
-      ].join(" ");
-
       const url =
         `https://accounts.spotify.com/authorize?` +
         `response_type=code` +
         `&client_id=${process.env.SPOTIFY_CLIENT_ID}` +
-        `&scope=${encodeURIComponent(scopes)}` +
+        `&scope=${encodeURIComponent(scopesStr)}` +
         `&redirect_uri=${encodeURIComponent(
           SpotifyAuthService.apiAuthCallback
         )}`;
 
-      res.writeHead(307, { Location: url }).end();
+      authHandler(req, res, url);
     })
     .get("/callback", async (req, res) => {
       if (!req.query.code) throw new Error("Denied");
@@ -40,8 +46,8 @@ export function createSpotifyAuthApp(
       const jsonToken = await SpotifyAuthService.getTokens(req.query.code);
       const json = await SpotifyAuthService.getUser(jsonToken.access_token);
 
-      await doAuth(
-        { db, redis, pubsub },
+      await callbackHandler(
+        req,
         res,
         {
           id: json.id,

@@ -4,7 +4,7 @@ import type { Db } from "mongodb";
 import nc from "next-connect";
 import type { PubSub } from "../lib/pubsub";
 import { ExtendedIncomingMessage, PlatformName } from "../types/index";
-import { doAuth } from "./auth";
+import { createAuthHandler } from "./auth";
 
 export function createGoogleAuthApp(
   db: Db,
@@ -16,6 +16,12 @@ export function createGoogleAuthApp(
     process.env.GOOGLE_CLIENT_SECRET,
     `${process.env.API_URI}/auth/google/callback`
   );
+
+  const { authHandler, callbackHandler } = createAuthHandler({
+    db,
+    redis,
+    pubsub,
+  });
 
   return nc<ExtendedIncomingMessage>()
     .get("/", (req, res) => {
@@ -31,8 +37,7 @@ export function createGoogleAuthApp(
           "https://www.googleapis.com/auth/youtubepartner",
         ],
       });
-
-      res.writeHead(307, { Location: url }).end();
+      authHandler(req, res, url);
     })
     .get("/callback", async (req, res) => {
       if (!req.query.code) throw new Error("Denied");
@@ -45,8 +50,8 @@ export function createGoogleAuthApp(
         ).toString()
       );
 
-      await doAuth(
-        { db, redis, pubsub },
+      await callbackHandler(
+        req,
         res,
         {
           id: gUser.sub,

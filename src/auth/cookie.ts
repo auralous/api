@@ -1,33 +1,21 @@
-import { CookieSerializeOptions, parse, serialize } from "cookie";
+import { CookieSerializeOptions, serialize } from "cookie";
 import type { ServerResponse } from "http";
-import { URL } from "url";
-import type { ExtendedIncomingMessage } from "../types";
 
-const cookieName = "sid";
-
-export function getTokenFromCookie(req: ExtendedIncomingMessage) {
-  return parse(req.headers.cookie || "")[cookieName];
-}
-
-const serializeOption: CookieSerializeOptions = {
-  domain: new URL(process.env.APP_URI as string).hostname,
-  httpOnly: true,
-  secure: process.env.NODE_ENV === "production",
-  maxAge: 365 * 24 * 60 * 60,
-  path: "/",
-  sameSite: "lax" as const,
-};
-
-export function setTokenToCookie(res: ServerResponse, token: string | null) {
-  if (!token) {
+export function setCookie(
+  res: ServerResponse,
+  name: string,
+  value: string | null,
+  serializeOption?: CookieSerializeOptions
+) {
+  if (!value) {
     res.setHeader(
       "set-cookie",
-      serialize(cookieName, "", {
+      serialize(name, "", {
         ...serializeOption,
         maxAge: 0,
       })
     );
   } else {
-    res.setHeader("set-cookie", serialize(cookieName, token, serializeOption));
+    res.setHeader("set-cookie", serialize(name, value, serializeOption));
   }
 }

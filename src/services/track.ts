@@ -1,18 +1,17 @@
 import DataLoader from "dataloader";
 import fastJson from "fast-json-stringify";
 import fetch from "node-fetch";
-import { SpotifyService, YoutubeService } from "./music";
+import { AuthenticationError } from "../error";
 import { CONFIG, REDIS_KEY } from "../lib/constant";
-import { PlatformName } from "../types/index";
-
-import type { ServiceContext } from "./types";
 import type {
-  TrackDbObject,
   ArtistDbObject,
   OdesliResponse,
+  TrackDbObject,
   UserDbObject,
 } from "../types/index";
-import { AuthenticationError } from "../error";
+import { PlatformName } from "../types/index";
+import { SpotifyService, YoutubeService } from "./music";
+import type { ServiceContext } from "./types";
 
 const stringifyTrack = fastJson({
   title: "Track",
@@ -236,5 +235,11 @@ export class TrackService {
     await this.insertPlaylistTracks(me, playlist.id, tracksIds);
 
     return playlist;
+  }
+
+  async findFeaturedPlaylists(me?: UserDbObject | null) {
+    return this[
+      me?.oauth.provider || PlatformName.Youtube
+    ].getFeaturedPlaylists(me?.oauth.accessToken || undefined);
   }
 }

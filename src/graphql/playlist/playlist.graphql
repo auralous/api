@@ -1,0 +1,21 @@
+type Query {
+  playlist(id: ID!): Playlist
+  myPlaylists: [Playlist!]
+  playlistTracks(id: ID!): [Track!]!
+  playlistsFeatured: [Playlist!]!
+  playlistsFriends: [Playlist!]!
+}
+
+type Mutation {
+  playlistAddTracks(id: ID!, trackIds: [String!]!): Boolean!
+  playlistCreate(name: String!, trackIds: [String!]!): Playlist!
+}
+
+type Playlist {
+  id: ID!
+  platform: PlatformName!
+  externalId: ID!
+  name: String!
+  image: String!
+  url: String!
+}

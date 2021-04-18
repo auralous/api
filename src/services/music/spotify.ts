@@ -300,7 +300,7 @@ export class SpotifyService {
       `${this.BASE_URL}/artists/${externalId}`,
       {
         headers: {
-          Authorization: `Authorization: Bearer ${accessToken}`,
+          Authorization: `Bearer ${accessToken}`,
           "Content-Type": "application/json",
         },
       }
@@ -316,6 +316,33 @@ export class SpotifyService {
       image: json.images?.[0]?.url || "",
       url: json.external_urls.spotify,
     };
+  }
+
+  /**
+   * Get Featured Playlists using Spotify API
+   */
+  async getFeaturedPlaylists(userAccessToken?: string): Promise<Playlist[]> {
+    const data: SpotifyApi.ListOfFeaturedPlaylistsResponse | null = await fetch(
+      `${this.BASE_URL}/browse/featured-playlists`,
+      {
+        headers: {
+          Authorization: `Bearer ${await SpotifyService.userTokenOrOurs(
+            userAccessToken
+          )}`,
+          "Content-Type": "application/json",
+        },
+      }
+    ).then((response) => (response.ok ? response.json() : null));
+    return (
+      data?.playlists.items.map((playlist) => ({
+        id: `spotify:${playlist.id}`,
+        externalId: playlist.id,
+        image: playlist.images[0]?.url,
+        name: playlist.name,
+        platform: PlatformName.Spotify,
+        url: playlist.external_urls.spotify,
+      })) || []
+    );
   }
 }
 

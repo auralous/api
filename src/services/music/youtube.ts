@@ -1,16 +1,15 @@
-import { google, Auth, youtube_v3 } from "googleapis";
+import { Auth, google, youtube_v3 } from "googleapis";
 import fetch from "node-fetch";
-import { isDefined } from "../../lib/utils";
 import { MAX_TRACK_DURATION } from "../../lib/constant";
-import { PlatformName, UserDbObject } from "../../types/index";
-
-import type { TrackService } from "../track";
-import type { UserService } from "../user";
+import { isDefined } from "../../lib/utils";
 import type {
   ArtistDbObject,
-  TrackDbObject,
   Playlist,
+  TrackDbObject,
 } from "../../types/index";
+import { PlatformName, UserDbObject } from "../../types/index";
+import type { TrackService } from "../track";
+import type { UserService } from "../user";
 
 function parseDurationToMs(str: string) {
   // https://developers.google.com/youtube/v3/docs/videos#contentDetails.duration
@@ -340,6 +339,13 @@ export class YoutubeService {
       image: snippet.thumbnails?.high?.url as string,
       url: `https://www.youtube.com/channel/${externalId}`,
     };
+  }
+
+  /**
+   * Get Featured Playlists by scrapping YouTube API
+   */
+  async getFeaturedPlaylists(): Promise<Playlist[]> {
+    return [];
   }
 }
 

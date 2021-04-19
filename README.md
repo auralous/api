@@ -1,4 +1,4 @@
-# stereo-api
+# @auralous/api
 
 > Music Together
 
@@ -16,28 +16,22 @@ YouTube Data API (v3)](https://developers.google.com/youtube/v3) must be enabled
 - `SENTRY_DSN`: (optional) Sentry DSN for error reporting.
 - `LOG_LEVEL`: (optional) Set [log level](https://github.com/pinojs/pino/blob/master/docs/api.md#level-string) for [pino](https://github.com/pinojs/pino). Default: `info`.
 
-This project supports loading environment variables from `.env` file via [dotenv](https://github.com/motdotla/dotenv).
+This project supports loading environment variables from `.env` file via [dotenv](https://github.com/motdotla/dotenv). The following can be used for dev:
+
+```dotenv
+API_URI=http://localhost:4000
+APP_URI=http://localhost:3000
+MONGODB_URI=mongodb://localhost:27017
+REDIS_URL=redis://localhost:
+```
 
 ## Local Development
 
 Install the following:
 
 - [Node](https://nodejs.org/) 14.x ([nvm](https://github.com/nvm-sh/nvm) recommended)
-- [Yarn](https://yarnpkg.com/) 1.x: See [Installation](https://classic.yarnpkg.com/en/docs/install)
-- [Redis](https://redis.io/) 6.x: See [Download](https://redis.io/download). You want to grab `src/
-- [Mongo](https://www.mongodb.com/) 4.4: Download [MongoDB Community Server](https://www.mongodb.com/try/download/community).
 
-Set the required environment variables as defined in [Environment variables](#environment-variables).
-
-Redis must be run using cluster mode. See [Redis cluster tutorial](https://redis.io/topics/cluster-tutorial). A quick way to create Redis Cluster is to use [`create-cluster` script](https://redis.io/topics/cluster-tutorial#creating-a-redis-cluster-using-the-create-cluster-script)
-
-```
-path/to/create-cluster start
-path/to/create-cluster create
-path/to/create-cluster stop
-```
-
-Run `yarn dev` to start the development server.
+Run `docker-compose up` to start redis and mongodb services. Then, run `yarn dev` to start the development server.
 
 ## Kubernetes Setup
 
@@ -136,6 +130,7 @@ data:
   mongodb-uri: "YOUR_MONGODB_CONNECTION_STRING"
   redis-url: "YOUR_REDIS_CONNECTION_STRING"
   songlink-key: "YOUR_SONGLINK_API_KEY"
+  jwk-private: 'jwk private'
 ```
 
 Authenticate with Docker to pull `hoangvvo/stereo-api`, which is a private image.

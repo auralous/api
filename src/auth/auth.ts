@@ -111,10 +111,7 @@ export function getUserFromRequest(
     }
     if (res && (payload.exp as number) - Date.now() / 1000 < 43200) {
       // refresh jwt if remaining exp < 6 hours
-      await setTokenToCookie(
-        res,
-        await encodeUserIdToToken(payload.sub as string)
-      );
+      setTokenToCookie(res, await encodeUserIdToToken(payload.sub as string));
     }
     return db.collection<UserDbObject>("users").findOne({ _id: payload.sub });
   });

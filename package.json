@@ -11,7 +11,7 @@
     "build:ts": "tsc",
     "build:copy": "npx cpy ./*/*.graphql --parents --cwd=src/graphql ../../dist/graphql",
     "build": "npm run codegen && npm run build:ts && npm run build:copy",
-    "dev": "tsnd -r dotenv/config --respawn --transpile-only src/server",
+    "dev": "tsnd -r dotenv/config --poll --respawn --transpile-only src/server",
     "codegen": "graphql-codegen",
     "lint": "eslint ./ --ext js,ts,tsx --ignore-path .gitignore"
   },

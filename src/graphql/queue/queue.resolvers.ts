@@ -5,7 +5,8 @@ import type { Resolvers } from "../../types/index";
 const resolvers: Resolvers = {
   Query: {
     async queue(parent, { id }, { services, user }) {
-      const story = await services.Story.findById(id.split(":")[0]);
+      const [storyId] = id.split(":");
+      const story = await services.Story.findById(storyId);
       if (!story || !StoryService.getPermission(user, story).isViewable)
         return null;
       return { id, items: [] };
@@ -47,7 +48,8 @@ const resolvers: Resolvers = {
   },
   Queue: {
     async items({ id }, args, { services }) {
-      return services.Queue.findById(id);
+      const [storyId, played] = id.split(":");
+      return services.Queue.findById(storyId, 0, -1, Boolean(played));
     },
   },
 };

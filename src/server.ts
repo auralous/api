@@ -1,4 +1,3 @@
-import { makeAPQHandler } from "@benzene/extra";
 import { parseGraphQLBody } from "@benzene/http";
 import * as Sentry from "@sentry/node";
 import { parse } from "cookie";
@@ -42,7 +41,6 @@ Sentry.init({
     graphqlHTTP,
     graphqlWS,
     stringify: graphqlStringify,
-    GQL,
   } = buildGraphQLServer(db, redis, pubsub);
 
   // app
@@ -97,25 +95,9 @@ Sentry.init({
     next();
   });
 
-  const apqHTTP = makeAPQHandler();
-
   app.all("/graphql", async (req, res) => {
     const body =
       parseGraphQLBody(req.body, req.headers["content-type"]) || undefined;
-
-    try {
-      await apqHTTP(body || req.query);
-    } catch (err) {
-      // It may throw `HTTPError` object from `@benzene/extra`
-      // It may be `PersistedQueryNotFound`, which asks the client
-      // to send back a pair of query and hash to persist
-      const result = GQL.formatExecutionResult({
-        errors: [err],
-      });
-      return res
-        .writeHead(err.status, { "content-type": "application/json" })
-        .end(JSON.stringify(result));
-    }
 
     graphqlHTTP(
       {

@@ -1,3 +1,4 @@
+import { makeAPQHandler } from "@benzene/extra";
 import { Benzene, makeHandler } from "@benzene/http";
 import { makeHandler as makeWSHandler } from "@benzene/ws";
 import * as Sentry from "@sentry/node";
@@ -75,8 +76,13 @@ export function buildGraphQLServer(
   });
 
   // http
+  const apq = makeAPQHandler();
 
-  const graphqlHTTP = makeHandler(GQL);
+  const graphqlHTTP = makeHandler(GQL, {
+    onParams(params) {
+      return apq(params);
+    },
+  });
 
   // ws
   const graphqlWS = makeWSHandler(GQL);

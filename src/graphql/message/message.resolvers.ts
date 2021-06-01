@@ -53,6 +53,11 @@ const resolvers: Resolvers = {
       }));
     },
   },
+  Message: {
+    async creator({ creatorId }, args, { services }) {
+      return (await services.User.findById(creatorId))!;
+    },
+  },
 };
 
 export default resolvers;

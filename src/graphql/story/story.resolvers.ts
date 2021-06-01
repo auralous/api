@@ -146,6 +146,9 @@ const resolvers: Resolvers = {
       }
       return img || defaultAvatar("story", String(_id));
     },
+    async creator({ creatorId }, args, { services }) {
+      return (await services.User.findById(creatorId))!;
+    },
   },
 };
 

@@ -19,6 +19,7 @@ type Subscription {
 type Message {
   id: ID!
   creatorId: String!
+  creator: User!
   createdAt: DateTime!
   text: String
   type: MessageType!

@@ -4,6 +4,7 @@ type Query {
   playlistTracks(id: ID!): [Track!]!
   playlistsFeatured: [Playlist!]!
   playlistsFriends: [Playlist!]!
+  playlistsSearch(query: String!): [Playlist!]!
 }
 
 type Mutation {

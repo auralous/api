@@ -31,6 +31,7 @@ type Story {
   isPublic: Boolean!
   image: String!
   creatorId: ID!
+  creator: User!
   createdAt: DateTime!
   isLive: Boolean!
   queueable: [String!]!

@@ -1,9 +1,8 @@
 import { google, youtube_v3 } from "googleapis";
-import fetch from "node-fetch";
 import type { Playlist } from "../graphql/graphql.gen.js";
 import { PlatformName } from "../graphql/graphql.gen.js";
-import { TrackService } from "../services/track.js";
 import { MAX_TRACK_DURATION } from "../utils/constant.js";
+import { axios } from "../utils/undici.js";
 import { isDefined } from "../utils/utils.js";
 import type { ArtistDbObject, TrackDbObject, UserDbObject } from "./types.js";
 
@@ -96,8 +95,6 @@ export class YoutubeAPI {
     version: "v3",
     auth: process.env.GOOGLE_API_KEY,
   });
-
-  static trackService = new TrackService({ loaders: {} });
 
   /**
    * Get YouTube track
@@ -252,8 +249,8 @@ export class YoutubeAPI {
         ...(
           await Promise.all(
             (trackData.items || []).map((trackItemData) =>
-              YoutubeAPI.trackService.findOrCreate(
-                `youtube:${trackItemData.contentDetails?.videoId}`
+              YoutubeAPI.getTrack(
+                trackItemData.contentDetails?.videoId as string
               )
             )
           )
@@ -281,25 +278,18 @@ export class YoutubeAPI {
       context: INTERNAL_YTAPI.context,
     };
 
-    const json = await fetch(
+    const { data } = await axios.post<any>(
       `${INTERNAL_YTAPI.baseUrl}${searchEndpoint}${INTERNAL_YTAPI.params}`,
+      body,
       {
         headers: INTERNAL_YTAPI.headers,
-        method: "POST",
-        body: JSON.stringify(body),
       }
-    ).then((res) =>
-      res.ok
-        ? res.json()
-        : Promise.reject(
-            new Error("An error has occurred in searching YouTube tracks")
-          )
     );
 
-    if (!json) return [];
+    if (!data) return [];
 
     const list: any[] | undefined =
-      json.contents.sectionListRenderer.contents[0].musicShelfRenderer
+      data.contents.sectionListRenderer.contents[0].musicShelfRenderer
         ?.contents;
 
     // No track found
@@ -310,9 +300,7 @@ export class YoutubeAPI {
         musicResponsiveListItemRenderer.doubleTapCommand.watchEndpoint.videoId
     );
 
-    const promises = videoIds.map((i) =>
-      YoutubeAPI.trackService.findOrCreate(`youtube:${i}`)
-    );
+    const promises = videoIds.map((i) => YoutubeAPI.getTrack(i));
 
     return Promise.all<TrackDbObject | null>(promises).then((tracks) =>
       // A track should only be less than 7 minutes... maybe. You know, 777

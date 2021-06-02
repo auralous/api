@@ -1,6 +1,7 @@
-import fetch from "node-fetch";
-import { SpotifyAuth } from "../auth/spotify";
+import { Client } from "undici";
+import { SpotifyAuth } from "../auth/spotify.js";
 import { PlatformName, Playlist } from "../graphql/graphql.gen.js";
+import { axios, hackyStripOrigin, wrapAxios } from "../utils/undici.js";
 import { isDefined } from "../utils/utils.js";
 import type { ArtistDbObject, TrackDbObject, UserDbObject } from "./types.js";
 
@@ -16,23 +17,25 @@ function getTokenViaClientCredential(): string | Promise<string> {
   if (cache?.accessToken && cache?.expireAt && cache?.expireAt > new Date()) {
     return cache.accessToken;
   }
-  return fetch(`https://accounts.spotify.com/api/token`, {
-    method: "POST",
-    headers: {
-      Authorization: SpotifyAuth.ClientAuthorizationHeader,
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
-    body: "grant_type=client_credentials",
-  })
-    .then((response) => (response.ok ? response.json() : null))
-    .then((json) => {
-      if (!json?.access_token)
+  return axios
+    .post(
+      `https://accounts.spotify.com/api/token`,
+      "grant_type=client_credentials",
+      {
+        headers: {
+          Authorization: SpotifyAuth.ClientAuthorizationHeader,
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+      }
+    )
+    .then(({ data }) => {
+      if (!data?.access_token)
         throw new Error("Cannot get Spotify Token via Implicit");
-      cache.accessToken = json.access_token;
+      cache.accessToken = data.access_token;
       cache.expireAt = new Date(
-        Date.now() + parseInt(json.expires_in, 10) * 1000
+        Date.now() + parseInt(data.expires_in, 10) * 1000
       );
-      return json.access_token as string;
+      return data.access_token as string;
     });
 }
 
@@ -47,6 +50,17 @@ function parseTrack(result: SpotifyApi.TrackObjectFull): TrackDbObject {
     artistIds:
       result.artists.map(({ id }: { id: string }) => `spotify:${id}`) || [],
     albumId: result.album.id,
+    url: result.external_urls.spotify,
+  };
+}
+
+function parseArtist(result: SpotifyApi.ArtistObjectFull): ArtistDbObject {
+  return {
+    id: `spotify:${result.id}`,
+    platform: PlatformName.Spotify,
+    externalId: result.id,
+    name: result.name,
+    image: result.images?.[0]?.url || "",
     url: result.external_urls.spotify,
   };
 }
@@ -75,7 +89,7 @@ async function userTokenOrOurs(userAccessToken?: string) {
 }
 
 export class SpotifyAPI {
-  static BASE_URL = "https://api.spotify.com/v1";
+  static client = wrapAxios(new Client("https://api.spotify.com"));
 
   /**
    * Get Spotify track
@@ -88,20 +102,15 @@ export class SpotifyAPI {
   ): Promise<TrackDbObject | null> {
     // We may offload some of the work using user's token
     const accessToken = await userTokenOrOurs(userAccessToken);
-
-    const json: SpotifyApi.TrackObjectFull | null = await fetch(
-      `${this.BASE_URL}/tracks/${externalId}`,
+    const { data } = await SpotifyAPI.client.get<SpotifyApi.TrackObjectFull>(
+      `/v1/tracks/${externalId}`,
       {
         headers: {
           Authorization: `Authorization: Bearer ${accessToken}`,
-          "Content-Type": "application/json",
         },
       }
-    )
-      // TODO: May want to handle error
-      .then((response) => (response.ok ? response.json() : null));
-    if (!json) return null;
-    return parseTrack(json);
+    );
+    return parseTrack(data);
   }
 
   /**
@@ -114,20 +123,16 @@ export class SpotifyAPI {
     userAccessToken?: string
   ): Promise<Playlist | null> {
     const accessToken = await userTokenOrOurs(userAccessToken);
-
-    const json: SpotifyApi.PlaylistObjectFull | null = await fetch(
-      `${this.BASE_URL}/playlists/${externalId}?fields=id,external_urls,images,name`,
+    const { data } = await SpotifyAPI.client.get<SpotifyApi.PlaylistObjectFull>(
+      `/v1/playlists/${externalId}?fields=id,external_urls,images,name`,
       {
         headers: {
           Authorization: `Authorization: Bearer ${accessToken}`,
-          "Content-Type": "application/json",
         },
       }
-    ).then((response) => (response.ok ? response.json() : null));
+    );
 
-    if (!json) return null;
-
-    return parsePlaylist(json);
+    return parsePlaylist(data);
   }
 
   /**
@@ -142,12 +147,16 @@ export class SpotifyAPI {
     const playlists: Playlist[] = [];
 
     do {
-      data = await fetch(data?.next || `${this.BASE_URL}/me/playlists`, {
-        headers: {
-          Authorization: `Authorization: Bearer ${accessToken}`,
-          "Content-Type": "application/json",
-        },
-      }).then((response) => (response.ok ? response.json() : undefined));
+      data = await SpotifyAPI.client
+        .get<SpotifyApi.ListOfCurrentUsersPlaylistsResponse>(
+          data?.next ? hackyStripOrigin(data.next) : `/v1/me/playlists`,
+          {
+            headers: {
+              Authorization: `Authorization: Bearer ${accessToken}`,
+            },
+          }
+        )
+        .then((res) => res.data);
       if (!data) break;
       playlists.push(...data.items.map(parsePlaylist));
     } while (data?.next);
@@ -168,18 +177,25 @@ export class SpotifyAPI {
   ): Promise<boolean> {
     const accessToken = me.oauth.accessToken;
 
-    return fetch(`${this.BASE_URL}/playlists/${externalId}/tracks`, {
-      method: "POST",
-      headers: {
-        Authorization: `Authorization: Bearer ${accessToken}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        uris: externalTrackIds.map(
-          (externalTrackId) => `spotify:track:${externalTrackId}`
-        ),
-      }),
-    }).then((res) => res.ok);
+    return SpotifyAPI.client
+      .post<SpotifyApi.AddTracksToPlaylistResponse>(
+        `/v1/playlists/${externalId}/tracks`,
+        {
+          uris: externalTrackIds.map(
+            (externalTrackId) => `spotify:track:${externalTrackId}`
+          ),
+        },
+        {
+          headers: {
+            Authorization: `Authorization: Bearer ${accessToken}`,
+          },
+        }
+      )
+      .then(
+        () => true,
+        () =>
+          Promise.reject(new Error("Could not add Spotify tracks to playlist"))
+      );
   }
 
   /**
@@ -194,21 +210,20 @@ export class SpotifyAPI {
   ): Promise<Playlist> {
     const accessToken = me.oauth.accessToken;
 
-    const data: SpotifyApi.CreatePlaylistResponse = await fetch(
-      `${this.BASE_URL}/users/${me.oauth.id}/playlists`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Authorization: Bearer ${accessToken}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ name }),
-      }
-    ).then((res) => (res.ok ? res.json() : null));
-
-    if (!data) throw new Error("Could not create Spotify playlist");
-
-    return parsePlaylist(data);
+    return SpotifyAPI.client
+      .post<SpotifyApi.CreatePlaylistResponse>(
+        `/v1/users/${me.oauth.id}/playlists`,
+        { name },
+        {
+          headers: {
+            Authorization: `Authorization: Bearer ${accessToken}`,
+          },
+        }
+      )
+      .then(
+        (res) => parsePlaylist(res.data),
+        () => Promise.reject("Could not create Spotify playlist")
+      );
   }
 
   /**
@@ -227,15 +242,18 @@ export class SpotifyAPI {
     let trackData: SpotifyApi.PlaylistTrackResponse | undefined;
 
     do {
-      trackData = await fetch(
-        trackData?.next || `${this.BASE_URL}/playlists/${externalId}/tracks`,
-        {
-          headers: {
-            Authorization: `Authorization: Bearer ${accessToken}`,
-            "Content-Type": "application/json",
-          },
-        }
-      ).then((response) => (response.ok ? response.json() : undefined));
+      trackData = await SpotifyAPI.client
+        .get<SpotifyApi.PlaylistTrackResponse>(
+          trackData?.next
+            ? hackyStripOrigin(trackData.next)
+            : `/v1/playlists/${externalId}/tracks`,
+          {
+            headers: {
+              Authorization: `Authorization: Bearer ${accessToken}`,
+            },
+          }
+        )
+        .then((res) => res.data);
 
       if (trackData?.items)
         tracks.push(
@@ -262,17 +280,19 @@ export class SpotifyAPI {
     const accessToken = await userTokenOrOurs(userAccessToken);
 
     const SEARCH_MAX_RESULTS = 30;
-    const json: SpotifyApi.SearchResponse | null = await fetch(
-      `${this.BASE_URL}/search?query=${encodeURIComponent(searchQuery)}` +
-        `&type=track&offset=0&limit=${SEARCH_MAX_RESULTS}`,
-      {
-        headers: {
-          Authorization: `Authorization: Bearer ${accessToken}`,
-          "Content-Type": "application/json",
-        },
-      }
-    ).then((response) => (response.ok ? response.json() : null));
-    return json?.tracks?.items.map(parseTrack) || [];
+
+    const { data } =
+      await SpotifyAPI.client.get<SpotifyApi.TrackSearchResponse>(
+        `/v1/search?query=${encodeURIComponent(searchQuery)}` +
+          `&type=track&offset=0&limit=${SEARCH_MAX_RESULTS}`,
+        {
+          headers: {
+            Authorization: `Authorization: Bearer ${accessToken}`,
+          },
+        }
+      );
+
+    return data.tracks.items.map(parseTrack);
   }
 
   /**
@@ -286,26 +306,19 @@ export class SpotifyAPI {
   ): Promise<ArtistDbObject | null> {
     const accessToken = await userTokenOrOurs(userAccessToken);
 
-    const json: SpotifyApi.ArtistObjectFull | null = await fetch(
-      `${this.BASE_URL}/artists/${externalId}`,
-      {
+    const data = await this.client
+      .get<SpotifyApi.ArtistObjectFull | null>(`/v1/artists/${externalId}`, {
         headers: {
           Authorization: `Bearer ${accessToken}`,
-          "Content-Type": "application/json",
         },
-      }
-    )
-      // TODO: May want to handle error
-      .then((response) => (response.ok ? response.json() : null));
-    if (!json) return null;
-    return {
-      id: `spotify:${externalId}`,
-      platform: PlatformName.Spotify,
-      externalId,
-      name: json.name,
-      image: json.images?.[0]?.url || "",
-      url: json.external_urls.spotify,
-    };
+      })
+      .then(
+        (res) => res.data,
+        () => null
+      );
+
+    if (!data) return null;
+    return parseArtist(data);
   }
 
   /**
@@ -314,24 +327,17 @@ export class SpotifyAPI {
   static async getFeaturedPlaylists(
     userAccessToken?: string
   ): Promise<Playlist[]> {
-    const data: SpotifyApi.ListOfFeaturedPlaylistsResponse | null = await fetch(
-      `${this.BASE_URL}/browse/featured-playlists`,
-      {
-        headers: {
-          Authorization: `Bearer ${await userTokenOrOurs(userAccessToken)}`,
-          "Content-Type": "application/json",
-        },
-      }
-    ).then((response) => (response.ok ? response.json() : null));
-    return (
-      data?.playlists.items.map((playlist) => ({
-        id: `spotify:${playlist.id}`,
-        externalId: playlist.id,
-        image: playlist.images[0]?.url,
-        name: playlist.name,
-        platform: PlatformName.Spotify,
-        url: playlist.external_urls.spotify,
-      })) || []
-    );
+    const data = await SpotifyAPI.client
+      .get<SpotifyApi.ListOfFeaturedPlaylistsResponse>(
+        `/v1/browse/featured-playlists`,
+        {
+          headers: {
+            Authorization: `Bearer ${await userTokenOrOurs(userAccessToken)}`,
+          },
+        }
+      )
+      .then((res) => res.data);
+
+    return data.playlists.items.map(parsePlaylist);
   }
 }

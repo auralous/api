@@ -1,15 +1,17 @@
 import nc from "next-connect";
-import fetch from "node-fetch";
+import { Client } from "undici";
 import type { UserDbObject } from "../data/types.js";
 import { PlatformName } from "../graphql/graphql.gen.js";
 import type { UserService } from "../services/user.js";
+import { axios, wrapAxios } from "../utils/undici.js";
 import { authCallback, authInit } from "./auth.js";
 
 /**
  * Auth Service
  */
-
 export class SpotifyAuth {
+  static client = wrapAxios(new Client("https://api.spotify.com"));
+
   static ClientAuthorizationHeader =
     "Basic " +
     Buffer.from(
@@ -21,41 +23,48 @@ export class SpotifyAuth {
   static async checkToken(accessToken?: string): Promise<boolean> {
     if (!accessToken) return false;
     // Use a private API (but it's quick) to fetch token validity
-    return fetch(
-      `https://api.spotify.com/v1/melody/v1/check_scope?scope=web-playback`,
-      { headers: { Authorization: `Bearer ${accessToken}` } }
-    ).then(
-      (res) => res.status === 200,
-      () => false
-    );
+    return SpotifyAuth.client
+      .get("/v1/melody/v1/check_scope?scope=web-playback", {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      })
+      .then(
+        (res) => res.status === 200,
+        () => false
+      );
   }
 
-  static getTokens(authCode: string): Promise<{
-    access_token: string;
-    expires_in: number;
-    refresh_token: string;
-  }> {
-    return fetch(`https://accounts.spotify.com/api/token`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-        Authorization: SpotifyAuth.ClientAuthorizationHeader,
-      },
-      body: `grant_type=authorization_code&code=${authCode}&redirect_uri=${encodeURIComponent(
-        SpotifyAuth.apiAuthCallback
-      )}`,
-    }).then((res) => res.json());
+  static async getTokens(authCode: string) {
+    return axios
+      .post<{
+        access_token: string;
+        expires_in: number;
+        refresh_token: string;
+      }>(
+        `https://accounts.spotify.com/api/token`,
+        `grant_type=authorization_code&code=${authCode}&redirect_uri=${encodeURIComponent(
+          SpotifyAuth.apiAuthCallback
+        )}`,
+        {
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+            Authorization: SpotifyAuth.ClientAuthorizationHeader,
+          },
+        }
+      )
+      .then((res) => res.data);
   }
 
   static getUser(
     accessToken: string
   ): Promise<SpotifyApi.CurrentUsersProfileResponse> {
-    return fetch(`https://api.spotify.com/v1/me`, {
-      headers: { Authorization: `Bearer ${accessToken}` },
-    })
-      .then((res) => res.json())
-      .then((json) =>
-        json.error ? Promise.reject(new Error(json.error.message)) : json
+    return SpotifyAuth.client
+      .get<
+        SpotifyApi.CurrentUsersProfileResponse | { error: { message: string } }
+      >("/v1/me", {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      })
+      .then(({ data }) =>
+        "error" in data ? Promise.reject(new Error(data.error.message)) : data
       );
   }
 
@@ -73,28 +82,26 @@ export class SpotifyAuth {
     me: UserDbObject,
     userService: UserService
   ): Promise<string | null> {
-    const refreshResponse = await fetch(
+    const res = await axios.post<any>(
       "https://accounts.spotify.com/api/token",
+      `grant_type=refresh_token&refresh_token=${me.oauth.refreshToken}`,
       {
-        method: "POST",
         headers: {
           "content-type": "application/x-www-form-urlencoded",
           Authorization: SpotifyAuth.ClientAuthorizationHeader,
         },
-        body: `grant_type=refresh_token&refresh_token=${me.oauth.refreshToken}`,
       }
     );
-    if (refreshResponse.status !== 200)
+    if (res.status !== 200)
       // Refresh token might have been expired
       return null;
-    const json = await refreshResponse.json();
     // Update tokens
     await userService.updateMeOauth(me, {
-      refreshToken: json.refresh_token,
-      accessToken: json.access_token,
-      expiredAt: new Date(Date.now() + json.expires_in * 1000),
+      refreshToken: res.data.refresh_token,
+      accessToken: res.data.access_token,
+      expiredAt: new Date(Date.now() + res.data.expires_in * 1000),
     });
-    return json.access_token;
+    return res.data.access_token;
   }
 }
 
@@ -122,7 +129,6 @@ export const handler = nc()
   .get("/", (req, res) => authInit(req, res, authUrl))
   .get("/callback", async (req, res) => {
     if (!req.query.code) throw new Error("Denied");
-
     const jsonToken = await SpotifyAuth.getTokens(req.query.code);
     const json = await SpotifyAuth.getUser(jsonToken.access_token);
 

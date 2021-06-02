@@ -1,5 +1,5 @@
-import { GoogleAuth } from "../../auth/google";
-import { SpotifyAuth } from "../../auth/spotify";
+import { GoogleAuth } from "../../auth/google.js";
+import { SpotifyAuth } from "../../auth/spotify.js";
 import type { UserDbObject } from "../../data/types.js";
 import { AuthenticationError } from "../../error/index.js";
 import { CONFIG } from "../../utils/constant.js";

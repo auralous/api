@@ -1,5 +1,6 @@
 import { parse as parseCookie } from "cookie";
 import type { IncomingMessage, ServerResponse } from "http";
+import { Options } from "next-connect";
 import { parse as parseQS } from "querystring";
 import type { SetCacheControl } from "./types.js";
 
@@ -43,3 +44,10 @@ export function makeSetCacheControl(res: ServerResponse): SetCacheControl {
     res.setHeader("cache-control", `${scope.toLowerCase()}, max-age=${maxAge}`);
   };
 }
+
+export const ncOptions: Options<IncomingMessage, ServerResponse> = {
+  onError(err, req, res) {
+    if (process.env.NODE_ENV !== "production") console.error(err);
+    return (res.statusCode = err.status || 500) && res.end(err.message);
+  },
+};

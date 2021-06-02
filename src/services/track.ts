@@ -1,6 +1,6 @@
 import DataLoader from "dataloader";
 import fastJson from "fast-json-stringify";
-import fetch from "node-fetch";
+import { OdesliAPI } from "../data/odesli.js";
 import { redis } from "../data/redis.js";
 import { SpotifyAPI } from "../data/spotify.js";
 import type {
@@ -13,19 +13,6 @@ import { AuthenticationError } from "../error/index.js";
 import { PlatformName } from "../graphql/graphql.gen.js";
 import { CONFIG, REDIS_KEY } from "../utils/constant.js";
 import type { ServiceContext } from "./types.js";
-
-type OdesliResponse =
-  | {
-      entityUniqueId: string;
-      userCountry: string;
-      pageUrl: string;
-      linksByPlatform: {
-        [platform in PlatformName]?: {
-          entityUniqueId: string;
-        };
-      };
-    }
-  | { statusCode: 404 };
 
 const stringifyTrack = fastJson({
   title: "Track",
@@ -134,16 +121,16 @@ export class TrackService {
     if (Object.keys(cache).length > 0) return cache;
 
     // Not found in cache, try to fetch
-    const res = await fetch(
-      `https://api.song.link/v1-alpha.1/links?platform=${platformName}&type=song&id=${externalId}&key=${process.env.SONGLINK_KEY}`
+    const data = await OdesliAPI.getLinks(
+      platformName as PlatformName,
+      externalId
     );
-    const json: OdesliResponse = await res.json();
 
-    if (!("linksByPlatform" in json)) return cache; // cache = {}
+    if (!("linksByPlatform" in data)) return cache; // cache = {}
 
     for (const platform of Object.values(PlatformName)) {
       cache[platform] =
-        json.linksByPlatform[platform]?.entityUniqueId.split("::")[1];
+        data.linksByPlatform[platform]?.entityUniqueId.split("::")[1];
       if (cache[platform]) {
         redis.hset(cacheKey, platform, cache[platform] as string);
       }

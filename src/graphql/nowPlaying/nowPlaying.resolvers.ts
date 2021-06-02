@@ -1,5 +1,5 @@
-import { PUBSUB_CHANNELS } from "../../lib/constant";
-import type { Resolvers } from "../../types/index";
+import { PUBSUB_CHANNELS } from "../../utils/constant.js";
+import type { Resolvers } from "../graphql.gen.js";
 
 const resolvers: Resolvers = {
   Query: {

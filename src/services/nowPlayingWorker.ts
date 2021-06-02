@@ -1,16 +1,16 @@
 import type Redis from "ioredis";
 import type { Db } from "mongodb";
-import { PUBSUB_CHANNELS, REDIS_KEY } from "../lib/constant";
-import type { PubSub } from "../lib/pubsub";
-import {
-  MessageType,
-  NowPlayingItemDbObject,
-  StoryDbObject,
-} from "../types/index";
-import { MessageService } from "./message";
-import { NowPlayingService } from "./nowPlaying";
-import { QueueService } from "./queue";
-import { TrackService } from "./track";
+import { db } from "../data/mongo.js";
+import type { PubSub } from "../data/pubsub.js";
+import { pubsub } from "../data/pubsub.js";
+import { redis } from "../data/redis.js";
+import { NowPlayingItemDbObject, StoryDbObject } from "../data/types.js";
+import { MessageType } from "../graphql/graphql.gen.js";
+import { PUBSUB_CHANNELS, REDIS_KEY } from "../utils/constant.js";
+import { MessageService } from "./message.js";
+import { NowPlayingService } from "./nowPlaying.js";
+import { QueueService } from "./queue.js";
+import { TrackService } from "./track.js";
 
 export class NowPlayingWorker {
   private timers = new Map<string, number>();
@@ -20,7 +20,7 @@ export class NowPlayingWorker {
   private trackService: TrackService;
   private messageService: MessageService;
 
-  static start(db: Db, redis: Redis.Cluster, pubsub: PubSub) {
+  static start() {
     return new NowPlayingWorker(db, redis, pubsub);
   }
 
@@ -49,10 +49,11 @@ export class NowPlayingWorker {
       else if (action === "skip") this.skip(storyId);
     });
     this.init(db);
-    this.nowPlayingService = new NowPlayingService({ db, redis, pubsub });
-    this.queueService = new QueueService({ db, redis, pubsub });
-    this.trackService = new TrackService({ db, redis, pubsub });
-    this.messageService = new MessageService({ db, redis, pubsub });
+    const context = { loaders: {} };
+    this.nowPlayingService = new NowPlayingService(context);
+    this.queueService = new QueueService(context);
+    this.trackService = new TrackService(context);
+    this.messageService = new MessageService(context);
   }
 
   private async init(db: Db) {

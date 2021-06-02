@@ -1,4 +1,4 @@
-import type { Resolvers } from "../../types/index";
+import type { Resolvers } from "../graphql.gen.js";
 
 const resolvers: Resolvers = {
   Query: {

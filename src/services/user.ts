@@ -1,18 +1,20 @@
 import DataLoader from "dataloader";
 import { nanoid } from "nanoid";
 import slug from "slug";
+import { db } from "../data/mongo.js";
+import type { UserDbObject } from "../data/types.js";
 import {
   AuthenticationError,
   ForbiddenError,
   UserInputError,
-} from "../error/index";
-import { CONFIG } from "../lib/constant";
-import type { NullablePartial, UserDbObject } from "../types/index";
-import { StoryService } from "./story";
-import type { ServiceContext } from "./types";
+} from "../error/index.js";
+import { CONFIG } from "../utils/constant.js";
+import type { NullablePartial } from "../utils/types.js";
+import { StoryService } from "./story.js";
+import type { ServiceContext } from "./types.js";
 
 export class UserService {
-  private collection = this.context.db.collection<UserDbObject>("users");
+  private collection = db.collection<UserDbObject>("users");
   private loader: DataLoader<string, UserDbObject | null>;
 
   constructor(private context: ServiceContext) {
@@ -78,7 +80,7 @@ export class UserService {
 
   async authOrCreate(
     oauth: UserDbObject["oauth"],
-    data: Pick<UserDbObject, "profilePicture" | "email" | "bio">
+    data: Pick<UserDbObject, "profilePicture" | "email">
   ) {
     let me = await this.collection.findOne({
       "oauth.provider": oauth.provider,

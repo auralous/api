@@ -1,20 +1,32 @@
-import type { ServerResponse } from "http";
-import type IORedis from "ioredis";
+import type { IncomingMessage, ServerResponse } from "http";
 import parseJwk from "jose/jwk/parse";
 import SignJWT from "jose/jwt/sign";
 import jwtVerify from "jose/jwt/verify";
-import type { KeyLike } from "jose/types";
-import type { Db } from "mongodb";
 import { URL } from "url";
-import type { PubSub } from "../lib/pubsub";
-import { UserService } from "../services/user";
-import type { ExtendedIncomingMessage, UserDbObject } from "../types";
-import { setCookie } from "./cookie";
+import { db } from "../data/mongo.js";
+import type { UserDbObject } from "../data/types.js";
+import { UserService } from "../services/user.js";
+import { setCookie } from "./cookie.js";
+
+/**
+ * Authentication with JWT
+ */
+
+const issuer = "auralous:api";
+
+const privateKey = await parseJwk(
+  JSON.parse(process.env.JWK_PRIVATE as string)
+);
+const publicKey = await parseJwk(JSON.parse(process.env.JWK_PUBLIC as string));
+
+/**
+ * Route handlers for authentication
+ */
 
 const authCookieName = "sid";
 const isAppLoginCookieName = "is-app-login";
 
-function setTokenToCookie(res: ServerResponse, token: string | null) {
+export function setTokenToCookie(res: ServerResponse, token: string | null) {
   setCookie(res, authCookieName, token, {
     domain: new URL(process.env.APP_URI as string).hostname,
     httpOnly: true,
@@ -25,82 +37,62 @@ function setTokenToCookie(res: ServerResponse, token: string | null) {
   });
 }
 
-export function logoutHandler(
-  req: ExtendedIncomingMessage,
-  res: ServerResponse
+/**
+ * Create an auth initialization handler
+ * that set neccessary cookie and redirect to oauth2.0
+ */
+export function authInit(
+  req: IncomingMessage,
+  res: ServerResponse,
+  url: string
 ) {
-  setTokenToCookie(res, null);
-  res.writeHead(204).end();
+  setCookie(
+    res,
+    isAppLoginCookieName,
+    req.query["is_app_login"] === "1" ? "1" : null
+  );
+  if (req.query["is_app_login"]) {
+    // modify url to pass in state
+    const urlObj = new URL(url);
+    urlObj.searchParams.set(`state`, `app_login`);
+    url = urlObj.toString();
+  }
+  res.writeHead(307, { Location: url }).end();
 }
 
-export function createAuthHandler(context: {
-  db: Db;
-  redis: IORedis.Cluster;
-  pubsub: PubSub;
-}) {
-  const userService = new UserService(context);
-  return {
-    async authHandler(
-      req: ExtendedIncomingMessage,
-      res: ServerResponse,
-      url: string
-    ) {
-      setCookie(
-        res,
-        isAppLoginCookieName,
-        req.query["is_app_login"] === "1" ? "1" : null
-      );
-      if (req.query["is_app_login"]) {
-        // modify url to pass in state
-        const urlObj = new URL(url);
-        urlObj.searchParams.set(`state`, `app_login`);
-        url = urlObj.toString();
-      }
-      res.writeHead(307, { Location: url }).end();
-    },
-    async callbackHandler(
-      req: ExtendedIncomingMessage,
-      res: ServerResponse,
-      oauth: UserDbObject["oauth"],
-      profile: Pick<UserDbObject, "profilePicture" | "email">
-    ) {
-      const user = await userService.authOrCreate(oauth, profile);
-
-      const token = await encodeUserIdToToken(user._id);
-
-      const redirectTarget =
-        req.query.state === "app_login"
-          ? `auralous://sign-in?access_token=${token}`
-          : `${process.env.APP_URI}/auth/callback?success=1`;
-
-      setTokenToCookie(res, token);
-
-      res
-        .writeHead(307, {
-          Location: `${redirectTarget}${
-            (user as UserDbObject & { isNew?: boolean }).isNew ? "&isNew=1" : ""
-          }`,
-        })
-        .end();
-    },
-  };
-}
-
-const issuer = "auralous:api";
-
-let privateKey: KeyLike;
-let publicKey: KeyLike;
-
-export async function initAuth() {
-  privateKey = await parseJwk(JSON.parse(process.env.JWK_PRIVATE as string));
-  publicKey = await parseJwk(JSON.parse(process.env.JWK_PUBLIC as string));
-}
-
-export function getUserFromRequest(
-  req: ExtendedIncomingMessage,
-  db: Db,
-  res?: ServerResponse
+/**
+ * Handle callbacks coming from oauth2.0 redirection
+ */
+export async function authCallback(
+  req: IncomingMessage,
+  res: ServerResponse,
+  oauth: UserDbObject["oauth"],
+  profile: Pick<UserDbObject, "profilePicture" | "email">
 ) {
+  const user = await new UserService({ loaders: {} }).authOrCreate(
+    oauth,
+    profile
+  );
+
+  const token = await encodeUserIdToToken(user._id);
+
+  const redirectTarget =
+    req.query.state === "app_login"
+      ? `auralous://sign-in?access_token=${token}`
+      : `${process.env.APP_URI}/auth/callback?success=1`;
+
+  setTokenToCookie(res, token);
+
+  res
+    .writeHead(307, {
+      Location: `${redirectTarget}${
+        (user as UserDbObject & { isNew?: boolean }).isNew ? "&isNew=1" : ""
+      }`,
+    })
+    .end();
+}
+
+export function getUserFromRequest(req: IncomingMessage, res?: ServerResponse) {
   const token = req.headers.authorization || req.cookies[authCookieName];
   if (!token) return null;
   return decodeFromToken(token).then(async (payload) => {
@@ -117,7 +109,7 @@ export function getUserFromRequest(
   });
 }
 
-export async function encodeUserIdToToken(userId: string) {
+async function encodeUserIdToToken(userId: string) {
   return new SignJWT({})
     .setProtectedHeader({ alg: "PS256" })
     .setIssuedAt()
@@ -127,7 +119,7 @@ export async function encodeUserIdToToken(userId: string) {
     .sign(privateKey);
 }
 
-export async function decodeFromToken(jwt: string) {
+async function decodeFromToken(jwt: string) {
   const result = await jwtVerify(jwt, publicKey, {
     issuer,
   }).catch(() => null);

@@ -1,12 +1,12 @@
 import fetch from "node-fetch";
-import { isDefined } from "../../lib/utils";
 import type {
   ArtistDbObject,
-  Playlist,
   TrackDbObject,
-} from "../../types/index";
-import { PlatformName, UserDbObject } from "../../types/index";
-import type { UserService } from "../user";
+  UserDbObject,
+} from "../../data/types.js";
+import { PlatformName, Playlist } from "../../graphql/graphql.gen.js";
+import { isDefined } from "../../utils/utils.js";
+import type { UserService } from "../user.js";
 
 /// <reference path="spotify-api" />
 
@@ -355,9 +355,7 @@ export class SpotifyAuthService {
 
   static apiAuthCallback = `${process.env.API_URI}/auth/spotify/callback`;
 
-  static getTokens(
-    authCode: string
-  ): Promise<{
+  static getTokens(authCode: string): Promise<{
     access_token: string;
     expires_in: number;
     refresh_token: string;

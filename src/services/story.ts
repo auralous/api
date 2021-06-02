@@ -1,29 +1,34 @@
 import DataLoader from "dataloader";
-import { ObjectID } from "mongodb";
-import { deleteByPattern } from "../db/redis";
+import mongodb from "mongodb";
+import { db } from "../data/mongo.js";
+import { pubsub } from "../data/pubsub.js";
+import { deleteByPattern, redis } from "../data/redis.js";
+import { StoryDbObject, UserDbObject } from "../data/types.js";
 import {
   AuthenticationError,
   ForbiddenError,
   UserInputError,
-} from "../error/index";
-import { CONFIG, PUBSUB_CHANNELS, REDIS_KEY } from "../lib/constant";
-import type { NullablePartial, StoryDbObject } from "../types/index";
-import { MessageType, UserDbObject } from "../types/index";
-import { MessageService } from "./message";
-import { NotificationService } from "./notification";
-import { NowPlayingWorker } from "./nowPlayingWorker";
-import { QueueService } from "./queue";
-import type { ServiceContext } from "./types";
+} from "../error/index.js";
+import { MessageType } from "../graphql/graphql.gen.js";
+import { CONFIG, PUBSUB_CHANNELS, REDIS_KEY } from "../utils/constant.js";
+import type { NullablePartial } from "../utils/types.js";
+import { MessageService } from "./message.js";
+import { NotificationService } from "./notification.js";
+import { NowPlayingWorker } from "./nowPlayingWorker.js";
+import { QueueService } from "./queue.js";
+import type { ServiceContext } from "./types.js";
 
 export class StoryService {
-  private collection = this.context.db.collection<StoryDbObject>("stories");
+  private collection = db.collection<StoryDbObject>("stories");
   private loader: DataLoader<string, StoryDbObject | null>;
 
   constructor(private context: ServiceContext) {
     this.loader = new DataLoader(
       async (keys) => {
         const stories = await this.collection
-          .find({ _id: { $in: keys.map(ObjectID.createFromHexString) } })
+          .find({
+            _id: { $in: keys.map(mongodb.ObjectID.createFromHexString) },
+          })
           .toArray()
           .then((stories) => stories.map((s) => this.checkStoryStatus(s)));
         // retain order
@@ -44,7 +49,7 @@ export class StoryService {
    * @param story
    */
   private notifyUpdate(story: StoryDbObject) {
-    this.context.pubsub.publish(PUBSUB_CHANNELS.storyUpdated, {
+    pubsub.publish(PUBSUB_CHANNELS.storyUpdated, {
       id: story._id.toHexString(),
       storyUpdated: story,
     });
@@ -81,12 +86,12 @@ export class StoryService {
   async unliveStory(storyId: string): Promise<StoryDbObject> {
     // WARN: this does not check auth
     // Delete queue. See QueueService#deleteById
-    await this.context.redis.del(REDIS_KEY.queue(storyId));
+    await redis.del(REDIS_KEY.queue(storyId));
     // Skip/Stop nowPlaying
-    NowPlayingWorker.requestSkip(this.context.pubsub, storyId);
+    NowPlayingWorker.requestSkip(pubsub, storyId);
     // Unlive it
     const { value } = await this.collection.findOneAndUpdate(
-      { _id: new ObjectID(storyId) },
+      { _id: new mongodb.ObjectID(storyId) },
       { $set: { isLive: false } },
       { returnOriginal: false }
     );
@@ -173,7 +178,10 @@ export class StoryService {
     next?: string | null
   ) {
     return this.collection
-      .find({ creatorId, ...(next && { _id: { $lt: new ObjectID(next) } }) })
+      .find({
+        creatorId,
+        ...(next && { _id: { $lt: new mongodb.ObjectID(next) } }),
+      })
       .sort({ $natural: -1 })
       .limit(limit || 99999)
       .toArray()
@@ -221,7 +229,7 @@ export class StoryService {
     return this.collection
       .find({
         isPublic: true,
-        ...(next && { _id: { $lt: new ObjectID(next) } }),
+        ...(next && { _id: { $lt: new mongodb.ObjectID(next) } }),
       })
       .sort({ $natural: -1 })
       .limit(limit)
@@ -243,7 +251,7 @@ export class StoryService {
     if (!me) throw new AuthenticationError("");
     const { value: story } = await this.collection.findOneAndUpdate(
       {
-        _id: new ObjectID(id),
+        _id: new mongodb.ObjectID(id),
         creatorId: me._id,
       },
       {
@@ -269,14 +277,12 @@ export class StoryService {
   async deleteById(me: UserDbObject | null, id: string) {
     if (!me) throw new AuthenticationError("");
     const { deletedCount } = await this.collection.deleteOne({
-      _id: new ObjectID(id),
+      _id: new mongodb.ObjectID(id),
       creatorId: me._id,
     });
     if (!deletedCount) throw new ForbiddenError("Cannot delete story");
     // delete associated
-    await Promise.all([
-      deleteByPattern(this.context.redis, `${REDIS_KEY.story(id)}:*`),
-    ]);
+    await Promise.all([deleteByPattern(redis, `${REDIS_KEY.story(id)}:*`)]);
     return true;
   }
 
@@ -296,7 +302,7 @@ export class StoryService {
     if (!me) throw new AuthenticationError("");
     const { value: story } = await this.collection.findOneAndUpdate(
       {
-        _id: new ObjectID(id),
+        _id: new mongodb.ObjectID(id),
         creatorId: me._id,
       },
       isRemoving
@@ -328,7 +334,7 @@ export class StoryService {
     // update lastCreatorActivityAt since the pinging user is create
     if (user?._id === story.creatorId) {
       await this.collection.updateOne(
-        { _id: new ObjectID(storyId), creatorId: user._id },
+        { _id: new mongodb.ObjectID(storyId), creatorId: user._id },
         { $set: { lastCreatorActivityAt: new Date() } }
       );
     }
@@ -336,10 +342,7 @@ export class StoryService {
     const now = Date.now();
     // when was user last in story or possibly NaN if never in
     const lastTimestamp: number = parseInt(
-      await this.context.redis.zscore(
-        REDIS_KEY.storyUserStatus(storyId),
-        user._id
-      ),
+      await redis.zscore(REDIS_KEY.storyUserStatus(storyId), user._id),
       10
     );
 
@@ -347,11 +350,7 @@ export class StoryService {
       !lastTimestamp || now - lastTimestamp > CONFIG.activityTimeout;
 
     // Ping that user is still here
-    await this.context.redis.zadd(
-      REDIS_KEY.storyUserStatus(storyId),
-      now,
-      user._id
-    );
+    await redis.zadd(REDIS_KEY.storyUserStatus(storyId), now, user._id);
 
     if (justJoined) {
       // notify that user just joined via message
@@ -362,7 +361,7 @@ export class StoryService {
       });
 
       // Notify story user update via subscription
-      this.context.pubsub.publish(PUBSUB_CHANNELS.storyUsersUpdated, {
+      pubsub.publish(PUBSUB_CHANNELS.storyUsersUpdated, {
         id: storyId,
         storyUsersUpdated: await this.getPresences(storyId),
       });
@@ -375,7 +374,7 @@ export class StoryService {
    */
   async getPresences(_id: string): Promise<string[]> {
     const minRange = Date.now() - CONFIG.activityTimeout;
-    return this.context.redis.zrevrangebyscore(
+    return redis.zrevrangebyscore(
       REDIS_KEY.storyUserStatus(_id),
       Infinity,
       minRange

@@ -1,16 +1,20 @@
 import fastJson from "fast-json-stringify";
-import { AuthenticationError, ForbiddenError } from "../error/index";
-import { PUBSUB_CHANNELS, REDIS_KEY } from "../lib/constant";
+import { pubsub } from "../data/pubsub.js";
+import { redis } from "../data/redis.js";
 import type {
   NowPlayingItemDbObject,
-  NowPlayingReactionItem,
-  NowPlayingReactionType,
   StoryDbObject,
   UserDbObject,
-} from "../types/index";
-import { NowPlayingWorker } from "./nowPlayingWorker";
-import { StoryService } from "./story";
-import type { ServiceContext } from "./types";
+} from "../data/types.js";
+import { AuthenticationError, ForbiddenError } from "../error/index.js";
+import type {
+  NowPlayingReactionItem,
+  NowPlayingReactionType,
+} from "../graphql/graphql.gen.js";
+import { PUBSUB_CHANNELS, REDIS_KEY } from "../utils/constant.js";
+import { NowPlayingWorker } from "./nowPlayingWorker.js";
+import { StoryService } from "./story.js";
+import type { ServiceContext } from "./types.js";
 
 const itemStringify = fastJson({
   title: "Now Playing Queue Item",
@@ -41,7 +45,7 @@ export class NowPlayingService {
     id: string,
     showPlayed?: boolean
   ): Promise<NowPlayingItemDbObject | null> {
-    const currTrack: NowPlayingItemDbObject | null = await this.context.redis
+    const currTrack: NowPlayingItemDbObject | null = await redis
       .get(REDIS_KEY.nowPlaying(id))
       .then((npStr) =>
         npStr
@@ -64,7 +68,7 @@ export class NowPlayingService {
     id: string,
     currentTrack: NowPlayingItemDbObject | null
   ) {
-    this.context.pubsub.publish(PUBSUB_CHANNELS.nowPlayingUpdated, {
+    pubsub.publish(PUBSUB_CHANNELS.nowPlayingUpdated, {
       nowPlayingUpdated: {
         id,
         currentTrack,
@@ -87,15 +91,13 @@ export class NowPlayingService {
     if (!currentTrack) return false;
     if (story.creatorId !== me._id && currentTrack.creatorId !== me._id)
       throw new AuthenticationError("You are not allowed to make changes");
-    return Boolean(
-      NowPlayingWorker.requestSkip(this.context.pubsub, String(story._id))
-    );
+    return Boolean(NowPlayingWorker.requestSkip(pubsub, String(story._id)));
   }
 
   // NowPlaying Reaction
   // A redis set whose items are `{userId}|{reactionType}`
   private async notifyReactionUpdate(id: string) {
-    this.context.pubsub.publish(PUBSUB_CHANNELS.nowPlayingReactionsUpdated, {
+    pubsub.publish(PUBSUB_CHANNELS.nowPlayingReactionsUpdated, {
       nowPlayingReactionsUpdated: await this.getAllReactions(id),
       id,
     });
@@ -121,7 +123,7 @@ export class NowPlayingService {
     if (!currItem) return null;
 
     // If the reaction already eists, the below returns 0 / does nothing
-    const result = await this.context.redis.hset(
+    const result = await redis.hset(
       REDIS_KEY.nowPlayingReaction(String(story._id), currItem.index),
       me._id,
       reaction
@@ -136,7 +138,7 @@ export class NowPlayingService {
   async getAllReactions(id: string): Promise<NowPlayingReactionItem[]> {
     const currentTrack = await this.findById(id);
     if (!currentTrack) return [];
-    const o = await this.context.redis.hgetall(
+    const o = await redis.hgetall(
       REDIS_KEY.nowPlayingReaction(id, currentTrack.index)
     );
     return Object.entries(o).map(([userId, reaction]) => ({

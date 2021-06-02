@@ -1,8 +1,8 @@
-import { createRedisClient } from "../db/index";
+import { createClient } from "./redis.js";
 
 export class PubSub {
-  pub = createRedisClient();
-  sub = createRedisClient();
+  pub = createClient();
+  sub = createClient();
   _channels = new Set<string>();
   _subscribers = new Set<(inChannel: string, message: string) => void>();
   constructor() {
@@ -77,3 +77,5 @@ export class PubSub {
     };
   }
 }
+
+export const pubsub = new PubSub();

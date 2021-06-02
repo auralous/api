@@ -34,4 +34,3 @@ type Artist {
   image: String!
   url: String!
 }
-

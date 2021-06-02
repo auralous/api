@@ -1,2 +1,2 @@
-export { YoutubeService, YoutubeAuthService } from "./youtube";
-export { SpotifyService, SpotifyAuthService } from "./spotify";
+export { SpotifyAuthService, SpotifyService } from "./spotify.js";
+export { YoutubeAuthService, YoutubeService } from "./youtube.js";

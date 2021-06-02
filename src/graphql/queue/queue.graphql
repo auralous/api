@@ -9,7 +9,7 @@ type Queue {
 }
 
 type Query {
-  queue(id:ID!): Queue
+  queue(id: ID!): Queue
 }
 
 type Mutation {

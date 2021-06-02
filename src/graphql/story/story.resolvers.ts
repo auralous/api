@@ -1,8 +1,9 @@
-import { ForbiddenError, UserInputError } from "../../error";
-import { PUBSUB_CHANNELS } from "../../lib/constant";
-import { defaultAvatar } from "../../lib/defaultAvatar";
-import { StoryService } from "../../services/story";
-import type { Resolvers, StoryDbObject } from "../../types/index";
+import type { StoryDbObject } from "../../data/types.js";
+import { ForbiddenError, UserInputError } from "../../error/index.js";
+import { StoryService } from "../../services/story.js";
+import { PUBSUB_CHANNELS } from "../../utils/constant.js";
+import { defaultAvatar } from "../../utils/defaultAvatar.js";
+import type { Resolvers } from "../graphql.gen.js";
 
 const resolvers: Resolvers = {
   Query: {

@@ -1,15 +1,16 @@
 import { Auth, google, youtube_v3 } from "googleapis";
 import fetch from "node-fetch";
-import { MAX_TRACK_DURATION } from "../../lib/constant";
-import { isDefined } from "../../lib/utils";
 import type {
   ArtistDbObject,
-  Playlist,
   TrackDbObject,
-} from "../../types/index";
-import { PlatformName, UserDbObject } from "../../types/index";
-import type { TrackService } from "../track";
-import type { UserService } from "../user";
+  UserDbObject,
+} from "../../data/types.js";
+import type { Playlist } from "../../graphql/graphql.gen.js";
+import { PlatformName } from "../../graphql/graphql.gen.js";
+import { MAX_TRACK_DURATION } from "../../utils/constant.js";
+import { isDefined } from "../../utils/utils.js";
+import type { TrackService } from "../track.js";
+import type { UserService } from "../user.js";
 
 function parseDurationToMs(str: string) {
   // https://developers.google.com/youtube/v3/docs/videos#contentDetails.duration

@@ -1,9 +1,12 @@
-import { AuthenticationError } from "../../error";
-import { CONFIG } from "../../lib/constant";
-import { defaultAvatar } from "../../lib/defaultAvatar";
-import { SpotifyAuthService, YoutubeAuthService } from "../../services/music";
-import { PlatformName } from "../../types/graphql.gen";
-import type { Resolvers, UserDbObject } from "../../types/index";
+import type { UserDbObject } from "../../data/types.js";
+import { AuthenticationError } from "../../error/index.js";
+import {
+  SpotifyAuthService,
+  YoutubeAuthService,
+} from "../../services/music/index.js";
+import { CONFIG } from "../../utils/constant.js";
+import { defaultAvatar } from "../../utils/defaultAvatar.js";
+import { PlatformName, Resolvers } from "../graphql.gen.js";
 
 const resolvers: Resolvers = {
   Query: {

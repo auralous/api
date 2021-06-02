@@ -1,7 +1,6 @@
-import { CONFIG } from "../../lib/constant";
-import { isDefined } from "../../lib/utils";
-import type { Resolvers } from "../../types/index";
-import { PlatformName } from "../../types/index";
+import { CONFIG } from "../../utils/constant.js";
+import { isDefined } from "../../utils/utils.js";
+import { PlatformName, Resolvers } from "../graphql.gen.js";
 
 const resolvers: Resolvers = {
   Query: {

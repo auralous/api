@@ -1,17 +1,17 @@
 schema: 'src/graphql/*/*.graphql'
 generates:
-  ./src/types/graphql.gen.ts:
+  ./src/graphql/graphql.gen.ts:
     config:
       skipTypename: true
-      contextType: ./common#MyGQLContext
+      contextType: ./types#MyGQLContext
       mappers:
-        User: ./db#UserDbObject
-        Track: ./db#TrackDbObject
-        Artist: ./db#ArtistDbObject
-        Story: ./db#StoryDbObject
-        QueueItem: ./db#QueueItemDbObject
-        Notification: ./db#NotificationDbObject
-        Message: ./db#MessageDbObject
+        User: ../data/types#UserDbObject
+        Track: ../data/types#TrackDbObject
+        Artist: ../data/types#ArtistDbObject
+        Story: ../data/types#StoryDbObject
+        QueueItem: ../data/types#QueueItemDbObject
+        Notification: ../data/types#NotificationDbObject
+        Message: ../data/types#MessageDbObject
       noSchemaStitching: true
     plugins:
       - typescript

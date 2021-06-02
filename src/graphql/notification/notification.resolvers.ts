@@ -1,6 +1,7 @@
-import { AuthenticationError } from "../../error";
-import { PUBSUB_CHANNELS } from "../../lib/constant";
-import type { NotificationDbObject, Resolvers } from "../../types";
+import type { NotificationDbObject } from "../../data/types.js";
+import { AuthenticationError } from "../../error/index.js";
+import { PUBSUB_CHANNELS } from "../../utils/constant.js";
+import type { Resolvers } from "../graphql.gen.js";
 
 const resolvers: Resolvers = {
   Notification: {
@@ -12,13 +13,13 @@ const resolvers: Resolvers = {
     },
   },
   NotificationFollow: {
-    id: (obj) => String(((obj as unknown) as NotificationDbObject)._id),
+    id: (obj) => String((obj as unknown as NotificationDbObject)._id),
   },
   NotificationInvite: {
-    id: (obj) => String(((obj as unknown) as NotificationDbObject)._id),
+    id: (obj) => String((obj as unknown as NotificationDbObject)._id),
   },
   NotificationNewStory: {
-    id: (obj) => String(((obj as unknown) as NotificationDbObject)._id),
+    id: (obj) => String((obj as unknown as NotificationDbObject)._id),
   },
   Query: {
     notifications(parent, { next, limit }, { services, user }) {

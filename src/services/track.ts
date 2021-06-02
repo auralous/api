@@ -1,17 +1,30 @@
 import DataLoader from "dataloader";
 import fastJson from "fast-json-stringify";
 import fetch from "node-fetch";
-import { AuthenticationError } from "../error";
-import { CONFIG, REDIS_KEY } from "../lib/constant";
+import { redis } from "../data/redis.js";
 import type {
   ArtistDbObject,
-  OdesliResponse,
   TrackDbObject,
   UserDbObject,
-} from "../types/index";
-import { PlatformName } from "../types/index";
-import { SpotifyService, YoutubeService } from "./music";
-import type { ServiceContext } from "./types";
+} from "../data/types.js";
+import { AuthenticationError } from "../error/index.js";
+import { PlatformName } from "../graphql/graphql.gen.js";
+import { CONFIG, REDIS_KEY } from "../utils/constant.js";
+import { SpotifyService, YoutubeService } from "./music/index.js";
+import type { ServiceContext } from "./types.js";
+
+type OdesliResponse =
+  | {
+      entityUniqueId: string;
+      userCountry: string;
+      pageUrl: string;
+      linksByPlatform: {
+        [platform in PlatformName]?: {
+          entityUniqueId: string;
+        };
+      };
+    }
+  | { statusCode: 404 };
 
 const stringifyTrack = fastJson({
   title: "Track",
@@ -65,9 +78,9 @@ export class TrackService {
     this.loader = this.artistLoader = new DataLoader(
       (keys) => {
         // REDIS_CLUSTER: mget not work without hash tags
-        return Promise.all(
-          keys.map((key) => this.context.redis.get(key))
-        ).then((results) => results.map((r) => (r ? JSON.parse(r) : null)));
+        return Promise.all(keys.map((key) => redis.get(key))).then((results) =>
+          results.map((r) => (r ? JSON.parse(r) : null))
+        );
       },
       { cache: false }
     );
@@ -91,7 +104,7 @@ export class TrackService {
   async save(id: string, track: TrackDbObject) {
     // update cache
     this.loader.prime(REDIS_KEY.track(id), track);
-    await this.context.redis.set(REDIS_KEY.track(id), stringifyTrack(track));
+    await redis.set(REDIS_KEY.track(id), stringifyTrack(track));
   }
 
   async findOrCreate(
@@ -118,7 +131,7 @@ export class TrackService {
 
     const cacheKey = REDIS_KEY.crossTracks(id);
 
-    const cache = (await this.context.redis.hgetall(cacheKey)) as Record<
+    const cache = (await redis.hgetall(cacheKey)) as Record<
       PlatformName,
       string | undefined
     >;
@@ -134,14 +147,13 @@ export class TrackService {
     if (!("linksByPlatform" in json)) return cache; // cache = {}
 
     for (const platform of Object.values(PlatformName)) {
-      cache[platform] = json.linksByPlatform[platform]?.entityUniqueId.split(
-        "::"
-      )[1];
+      cache[platform] =
+        json.linksByPlatform[platform]?.entityUniqueId.split("::")[1];
       if (cache[platform]) {
-        this.context.redis.hset(cacheKey, platform, cache[platform] as string);
+        redis.hset(cacheKey, platform, cache[platform] as string);
       }
     }
-    this.context.redis.expire(cacheKey, CONFIG.crossTrackMaxAge);
+    redis.expire(cacheKey, CONFIG.crossTrackMaxAge);
 
     return cache;
   }
@@ -167,7 +179,7 @@ export class TrackService {
     // update cache
     this.artistLoader.prime(keyId, artist);
     // stringifyArtist also remove the extra fields
-    await this.context.redis.set(keyId, stringifyArtist(artist));
+    await redis.set(keyId, stringifyArtist(artist));
   }
 
   async findOrCreateArtist(

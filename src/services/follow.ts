@@ -1,10 +1,15 @@
-import { AuthenticationError, UserInputError } from "../error";
-import { FollowDbObject, NotificationDbObject, UserDbObject } from "../types";
-import { NotificationService } from "./notification";
-import { ServiceContext } from "./types";
+import { db } from "../data/mongo.js";
+import type {
+  FollowDbObject,
+  NotificationDbObject,
+  UserDbObject,
+} from "../data/types.js";
+import { AuthenticationError, UserInputError } from "../error/index.js";
+import { NotificationService } from "./notification.js";
+import type { ServiceContext } from "./types.js";
 
 export class FollowService {
-  private collection = this.context.db.collection<FollowDbObject>("follows");
+  private collection = db.collection<FollowDbObject>("follows");
 
   constructor(private context: ServiceContext) {}
 

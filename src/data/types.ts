@@ -1,5 +1,5 @@
-import { ObjectID } from "mongodb";
-import type { MessageType, PlatformName } from "./graphql.gen";
+import mongodb from "mongodb";
+import type { MessageType, PlatformName } from "../graphql/graphql.gen.js";
 
 export interface UserOauthProvider {
   provider: PlatformName;
@@ -31,7 +31,7 @@ export interface NowPlayingItemDbObject extends QueueItemDbObject {
 }
 
 export interface StoryDbObject {
-  _id: ObjectID;
+  _id: mongodb.ObjectID;
   text: string;
   creatorId: string;
   createdAt: Date;
@@ -80,7 +80,7 @@ export interface MessageDbObject {
 }
 
 export interface FollowDbObject {
-  _id: ObjectID;
+  _id: mongodb.ObjectID;
   follower: string;
   following: string;
   followedAt: Date;
@@ -88,7 +88,7 @@ export interface FollowDbObject {
 }
 
 interface NotificationDbObjectBase {
-  _id: ObjectID;
+  _id: mongodb.ObjectID;
   userId: string;
   createdAt: Date;
   hasRead: boolean;

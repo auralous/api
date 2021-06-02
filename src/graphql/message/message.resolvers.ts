@@ -1,8 +1,7 @@
-import { AuthenticationError, ForbiddenError } from "../../error/index";
-import { PUBSUB_CHANNELS, REDIS_KEY } from "../../lib/constant";
-import { StoryService } from "../../services/story";
-import type { Resolvers } from "../../types";
-import { MessageType } from "../../types";
+import { AuthenticationError, ForbiddenError } from "../../error/index.js";
+import { StoryService } from "../../services/story.js";
+import { PUBSUB_CHANNELS, REDIS_KEY } from "../../utils/constant.js";
+import { MessageType, Resolvers } from "../graphql.gen.js";
 
 const resolvers: Resolvers = {
   Subscription: {

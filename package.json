@@ -1,19 +1,20 @@
 {
   "name": "stereo-api",
+  "type": "module",
   "version": "0.0.0",
   "description": "API backend for Stereo",
   "repository": "https://github.com/hoangvvo/stereo-api.git",
   "author": "Hoang Vo (https://hoangvvo.com/)",
   "license": "AGPL-3.0",
   "scripts": {
-    "start": "node dist/server",
+    "start": "node dist/main.js",
     "clean": "npx rimraf dist",
     "build:ts": "tsc",
     "build:copy": "npx cpy ./*/*.graphql --parents --cwd=src/graphql ../../dist/graphql",
     "build": "npm run codegen && npm run build:ts && npm run build:copy",
-    "dev": "tsnd -r dotenv/config --poll --respawn --transpile-only src/server",
+    "dev": "node -r dotenv/config --loader ts-node/esm  ./src/main.ts",
     "codegen": "graphql-codegen",
-    "lint": "eslint ./ --ext js,ts,tsx --ignore-path .gitignore"
+    "lint": "eslint ./ --ext json,ts,tsx --ignore-path .gitignore"
   },
   "dependencies": {
     "@benzene/core": "^0.7.1",
@@ -23,7 +24,7 @@
     "@graphql-tools/load-files": "^6.3.2",
     "@graphql-tools/merge": "^6.2.14",
     "@graphql-tools/schema": "^7.1.5",
-    "@sentry/node": "^6.4.1",
+    "@sentry/node": "^6.5.0",
     "cookie": "^0.4.1",
     "cors": "^2.8.5",
     "dataloader": "^2.0.0",
@@ -44,29 +45,32 @@
     "@graphql-codegen/cli": "^1.21.5",
     "@graphql-codegen/typescript": "^1.22.1",
     "@graphql-codegen/typescript-resolvers": "^1.19.2",
+    "@swc/core": "^1.2.59",
+    "@swc/helpers": "^0.2.12",
     "@types/cookie": "^0.4.0",
     "@types/cors": "^2.8.10",
     "@types/ioredis": "^4.26.4",
     "@types/mongodb": "^3.6.17",
-    "@types/node": "^15.6.1",
+    "@types/node": "^15.6.2",
     "@types/node-fetch": "^2.5.10",
     "@types/pino": "^6.3.8",
     "@types/slug": "^5.0.0",
-    "@types/spotify-api": "^0.0.8",
+    "@types/spotify-api": "^0.0.9",
     "@types/ws": "^7.4.4",
-    "@typescript-eslint/eslint-plugin": "^4.25.0",
-    "@typescript-eslint/parser": "^4.25.0",
+    "@typescript-eslint/eslint-plugin": "^4.26.0",
+    "@typescript-eslint/parser": "^4.26.0",
     "cpy-cli": "^3.1.1",
     "dotenv": "^10.0.0",
     "eslint": "^7.27.0",
     "eslint-config-prettier": "^8.3.0",
     "eslint-plugin-prettier": "^3.4.0",
+    "nodemon": "^2.0.7",
     "prettier": "^2.3.0",
-    "ts-node-dev": "1.1.6",
+    "ts-node": "^10.0.0",
     "typescript": "^4.3.2"
   },
   "engines": {
-    "node": ">14"
+    "node": "16.x"
   },
   "private": true
 }

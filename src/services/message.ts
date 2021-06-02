@@ -1,9 +1,10 @@
 import fastJson from "fast-json-stringify";
 import { nanoid } from "nanoid/non-secure";
-import { REDIS_KEY, PUBSUB_CHANNELS } from "../lib/constant";
-
-import type { ServiceContext } from "./types";
-import type { MessageDbObject } from "../types";
+import { pubsub } from "../data/pubsub.js";
+import { redis } from "../data/redis.js";
+import type { MessageDbObject } from "../data/types.js";
+import { PUBSUB_CHANNELS, REDIS_KEY } from "../utils/constant.js";
+import type { ServiceContext } from "./types.js";
 
 const messageStringify = fastJson({
   title: "Message",
@@ -41,7 +42,7 @@ export class MessageService {
    * @param message message object to be notify
    */
   private notifyMessage(id: string, message: MessageDbObject) {
-    this.context.pubsub.publish(PUBSUB_CHANNELS.messageAdded, {
+    pubsub.publish(PUBSUB_CHANNELS.messageAdded, {
       id,
       messageAdded: message,
     });
@@ -58,7 +59,7 @@ export class MessageService {
     start = 0,
     stop = -1
   ): Promise<MessageDbObject[] | null> {
-    return this.context.redis
+    return redis
       .lrange(REDIS_KEY.message(id).key, start, stop)
       .then((strs) => strs.map(MessageService.parseMessage));
   }
@@ -79,7 +80,7 @@ export class MessageService {
       creatorId: message.creatorId,
     };
 
-    const count = await this.context.redis.rpush(
+    const count = await redis.rpush(
       REDIS_KEY.message(id).key,
       MessageService.stringifyMessage(newMessage)
     );

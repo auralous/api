@@ -7,7 +7,12 @@ type Query {
 }
 
 type Mutation {
-  storyCreate(text: String!, isPublic: Boolean!, location: LocationInput, tracks: [ID!]!): Story!
+  storyCreate(
+    text: String!
+    isPublic: Boolean!
+    location: LocationInput
+    tracks: [ID!]!
+  ): Story!
   storyDelete(id: ID!): ID!
   storyChangeQueueable(id: ID!, userId: String!, isRemoving: Boolean!): Boolean!
   storyUnlive(id: ID!): Story!

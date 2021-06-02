@@ -28,3 +28,5 @@ export function deleteByPattern(r: Redis.Cluster, pattern: string) {
     return keys.map((key) => r.unlink(key));
   });
 }
+
+export const redis = createClient();

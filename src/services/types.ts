@@ -1,9 +1,5 @@
-import type { Db } from "mongodb";
-import type IORedis from "ioredis";
-import type { PubSub } from "../lib/pubsub";
+import DataLoader from "dataloader";
 
 export interface ServiceContext {
-  db: Db;
-  redis: IORedis.Cluster;
-  pubsub: PubSub;
+  loaders: Record<string, DataLoader<string, any>>;
 }

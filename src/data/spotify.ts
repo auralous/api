@@ -1,7 +1,6 @@
-import { Client } from "undici";
 import { SpotifyAuth } from "../auth/spotify.js";
 import { PlatformName, Playlist } from "../graphql/graphql.gen.js";
-import { axios, hackyStripOrigin, wrapAxios } from "../utils/undici.js";
+import juichi, { createClient } from "../utils/juichi.js";
 import { isDefined } from "../utils/utils.js";
 import type { ArtistDbObject, TrackDbObject, UserDbObject } from "./types.js";
 
@@ -17,8 +16,8 @@ function getTokenViaClientCredential(): string | Promise<string> {
   if (cache?.accessToken && cache?.expireAt && cache?.expireAt > new Date()) {
     return cache.accessToken;
   }
-  return axios
-    .post(
+  return juichi
+    .post<any>(
       `https://accounts.spotify.com/api/token`,
       "grant_type=client_credentials",
       {
@@ -89,7 +88,7 @@ async function userTokenOrOurs(userAccessToken?: string) {
 }
 
 export class SpotifyAPI {
-  static client = wrapAxios(new Client("https://api.spotify.com"));
+  static client = createClient("https://api.spotify.com");
 
   /**
    * Get Spotify track
@@ -149,7 +148,7 @@ export class SpotifyAPI {
     do {
       data = await SpotifyAPI.client
         .get<SpotifyApi.ListOfCurrentUsersPlaylistsResponse>(
-          data?.next ? hackyStripOrigin(data.next) : `/v1/me/playlists`,
+          data?.next || `/v1/me/playlists`,
           {
             headers: {
               Authorization: `Authorization: Bearer ${accessToken}`,
@@ -244,9 +243,7 @@ export class SpotifyAPI {
     do {
       trackData = await SpotifyAPI.client
         .get<SpotifyApi.PlaylistTrackResponse>(
-          trackData?.next
-            ? hackyStripOrigin(trackData.next)
-            : `/v1/playlists/${externalId}/tracks`,
+          trackData?.next || `/v1/playlists/${externalId}/tracks`,
           {
             headers: {
               Authorization: `Authorization: Bearer ${accessToken}`,

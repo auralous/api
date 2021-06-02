@@ -1,6 +1,5 @@
-import { Client } from "undici";
 import { PlatformName } from "../graphql/graphql.gen.js";
-import { wrapAxios } from "../utils/undici.js";
+import { createClient } from "../utils/juichi.js";
 
 type OdesliResponse =
   | {
@@ -16,7 +15,7 @@ type OdesliResponse =
   | { statusCode: 404 };
 
 export class OdesliAPI {
-  static client = wrapAxios(new Client("https://api.song.link"));
+  static client = createClient("https://api.song.link");
   static getLinks(platformName: PlatformName, externalId: string) {
     return OdesliAPI.client
       .get<OdesliResponse>(

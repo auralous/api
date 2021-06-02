@@ -1,16 +1,15 @@
 import nc from "next-connect";
-import { Client } from "undici";
 import type { UserDbObject } from "../data/types.js";
 import { PlatformName } from "../graphql/graphql.gen.js";
 import type { UserService } from "../services/user.js";
-import { axios, wrapAxios } from "../utils/undici.js";
+import juichi, { createClient } from "../utils/juichi.js";
 import { authCallback, authInit } from "./auth.js";
 
 /**
  * Auth Service
  */
 export class SpotifyAuth {
-  static client = wrapAxios(new Client("https://api.spotify.com"));
+  static client = createClient("https://api.spotify.com");
 
   static ClientAuthorizationHeader =
     "Basic " +
@@ -34,7 +33,7 @@ export class SpotifyAuth {
   }
 
   static async getTokens(authCode: string) {
-    return axios
+    return juichi
       .post<{
         access_token: string;
         expires_in: number;
@@ -82,7 +81,7 @@ export class SpotifyAuth {
     me: UserDbObject,
     userService: UserService
   ): Promise<string | null> {
-    const res = await axios.post<any>(
+    const res = await juichi.post<any>(
       "https://accounts.spotify.com/api/token",
       `grant_type=refresh_token&refresh_token=${me.oauth.refreshToken}`,
       {

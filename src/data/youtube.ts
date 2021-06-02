@@ -2,7 +2,7 @@ import { google, youtube_v3 } from "googleapis";
 import type { Playlist } from "../graphql/graphql.gen.js";
 import { PlatformName } from "../graphql/graphql.gen.js";
 import { MAX_TRACK_DURATION } from "../utils/constant.js";
-import { axios } from "../utils/undici.js";
+import juichi from "../utils/juichi.js";
 import { isDefined } from "../utils/utils.js";
 import type { ArtistDbObject, TrackDbObject, UserDbObject } from "./types.js";
 
@@ -278,7 +278,7 @@ export class YoutubeAPI {
       context: INTERNAL_YTAPI.context,
     };
 
-    const { data } = await axios.post<any>(
+    const { data } = await juichi.post<any>(
       `${INTERNAL_YTAPI.baseUrl}${searchEndpoint}${INTERNAL_YTAPI.params}`,
       body,
       {

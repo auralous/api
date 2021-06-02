@@ -1,6 +1,8 @@
-import { google } from "googleapis";
+import { Auth, google } from "googleapis";
 import nc from "next-connect";
+import { UserDbObject } from "../data/types.js";
 import { PlatformName } from "../graphql/graphql.gen.js";
+import type { UserService } from "../services/user.js";
 import { authCallback, authInit } from "./auth.js";
 
 const oauth2Client = new google.auth.OAuth2(
@@ -49,3 +51,44 @@ export const handler = nc()
       }
     );
   });
+
+export class GoogleAuth {
+  private oauth2Client = new google.auth.OAuth2(
+    process.env.GOOGLE_CLIENT_KEY,
+    process.env.GOOGLE_CLIENT_SECRET,
+    `${process.env.API_URI}/auth/google/callback`
+  );
+
+  async getAccessToken(
+    me: UserDbObject,
+    userService: UserService
+  ): Promise<string | null> {
+    if (me.oauth.provider !== PlatformName.Youtube) return null;
+
+    this.oauth2Client.setCredentials({
+      access_token: me.oauth.accessToken,
+      refresh_token: me.oauth.refreshToken,
+    });
+
+    const refreshHandler = (tokens: Auth.Credentials) => {
+      userService.updateMeOauth(me, {
+        accessToken: tokens.access_token,
+        refreshToken: tokens.refresh_token,
+        ...(tokens.expiry_date && {
+          expiredAt: new Date(tokens.expiry_date),
+        }),
+      });
+    };
+
+    // We register refresh token handler in case it happens
+    this.oauth2Client.on("tokens", refreshHandler);
+    return this.oauth2Client
+      .getAccessToken()
+      .then((resp) => resp.token || null)
+      .catch(() => null)
+      .finally(() => {
+        // We no longer need this, remove to avoid memory leak
+        this.oauth2Client.off("tokens", refreshHandler);
+      });
+  }
+}

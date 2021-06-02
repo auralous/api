@@ -2,15 +2,16 @@ import DataLoader from "dataloader";
 import fastJson from "fast-json-stringify";
 import fetch from "node-fetch";
 import { redis } from "../data/redis.js";
+import { SpotifyAPI } from "../data/spotify.js";
 import type {
   ArtistDbObject,
   TrackDbObject,
   UserDbObject,
 } from "../data/types.js";
+import { YoutubeAPI } from "../data/youtube.js";
 import { AuthenticationError } from "../error/index.js";
 import { PlatformName } from "../graphql/graphql.gen.js";
 import { CONFIG, REDIS_KEY } from "../utils/constant.js";
-import { SpotifyService, YoutubeService } from "./music/index.js";
 import type { ServiceContext } from "./types.js";
 
 type OdesliResponse =
@@ -71,9 +72,6 @@ export class TrackService {
   private loader: DataLoader<string, TrackDbObject | null>;
   private artistLoader: DataLoader<string, ArtistDbObject | null>;
 
-  private _youtube?: YoutubeService;
-  private _spotify?: SpotifyService;
-
   constructor(private context: ServiceContext) {
     this.loader = this.artistLoader = new DataLoader(
       (keys) => {
@@ -87,14 +85,11 @@ export class TrackService {
   }
 
   get youtube() {
-    if (this._youtube) return this._youtube;
-    // We should avoid passing this i possible
-    return (this._youtube = new YoutubeService((id) => this.findOrCreate(id)));
+    return YoutubeAPI;
   }
 
   get spotify() {
-    if (this._spotify) return this._spotify;
-    return (this._spotify = new SpotifyService());
+    return SpotifyAPI;
   }
 
   private find(id: string) {

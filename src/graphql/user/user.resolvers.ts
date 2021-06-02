@@ -1,9 +1,7 @@
+import { GoogleAuth } from "../../auth/google";
+import { SpotifyAuth } from "../../auth/spotify";
 import type { UserDbObject } from "../../data/types.js";
 import { AuthenticationError } from "../../error/index.js";
-import {
-  SpotifyAuthService,
-  YoutubeAuthService,
-} from "../../services/music/index.js";
 import { CONFIG } from "../../utils/constant.js";
 import { defaultAvatar } from "../../utils/defaultAvatar.js";
 import { PlatformName, Resolvers } from "../graphql.gen.js";
@@ -16,8 +14,8 @@ const resolvers: Resolvers = {
 
       const authService =
         user.oauth.provider === PlatformName.Youtube
-          ? new YoutubeAuthService()
-          : new SpotifyAuthService();
+          ? new GoogleAuth()
+          : new SpotifyAuth();
 
       const accessToken = await authService.getAccessToken(user, services.User);
 

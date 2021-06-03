@@ -1,6 +1,6 @@
+import un from "undecim";
 import { SpotifyAuth, SpotifyTokenResponse } from "../auth/spotify.js";
 import { PlatformName, Playlist } from "../graphql/graphql.gen.js";
-import juichi from "../juichi/index.js";
 import { isDefined } from "../utils/utils.js";
 import type { ArtistDbObject, TrackDbObject, UserDbObject } from "./types.js";
 
@@ -16,7 +16,7 @@ function getTokenViaClientCredential(): string | Promise<string> {
   if (cache?.accessToken && cache?.expireAt && cache?.expireAt > new Date()) {
     return cache.accessToken;
   }
-  return juichi
+  return un
     .post(SpotifyAuth.tokenEndpoint, {
       body: "grant_type=client_credentials",
       headers: {
@@ -84,7 +84,7 @@ async function userTokenOrOurs(userAccessToken?: string) {
 }
 
 export class SpotifyAPI {
-  static client = juichi.create({ prefixURL: "https://api.spotify.com" });
+  static client = un.create({ prefixURL: "https://api.spotify.com" });
 
   /**
    * Get Spotify track
@@ -169,7 +169,7 @@ export class SpotifyAPI {
 
     return SpotifyAPI.client
       .post(`/v1/playlists/${externalId}/tracks`, {
-        body: {
+        data: {
           uris: externalTrackIds.map(
             (externalTrackId) => `spotify:track:${externalTrackId}`
           ),
@@ -199,7 +199,7 @@ export class SpotifyAPI {
 
     return SpotifyAPI.client
       .post(`/v1/users/${me.oauth.id}/playlists`, {
-        body: { name },
+        data: { name },
         headers: {
           Authorization: `Authorization: Bearer ${accessToken}`,
         },

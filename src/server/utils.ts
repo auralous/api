@@ -2,7 +2,7 @@ import { parse as parseCookie } from "cookie";
 import type { IncomingMessage, ServerResponse } from "http";
 import { Options } from "next-connect";
 import { parse as parseQS } from "querystring";
-import { HTTPStatusError } from "../juichi/errors.js";
+import { HTTPStatusError } from "undecim";
 import type { SetCacheControl } from "./types.js";
 
 /**
@@ -48,11 +48,11 @@ export function makeSetCacheControl(res: ServerResponse): SetCacheControl {
 
 export const ncOptions: Options<IncomingMessage, ServerResponse> = {
   onError(err, req, res) {
-    if (err.name === "HTTPStatusError") {
-      (err as HTTPStatusError).response
-        .text()
-        .then((text) => console.error({ text, ...err }));
-    } else if (process.env.NODE_ENV !== "production") console.error(err);
+    if (err instanceof HTTPStatusError) {
+      err.response.text().then((text) => console.error({ text, ...err }));
+    } else {
+      console.error(err);
+    }
     return (
       (res.statusCode = err.status || 500) &&
       res.end(err.message || "Something went wrong")

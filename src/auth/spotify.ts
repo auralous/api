@@ -1,8 +1,8 @@
 import nc from "next-connect";
+import un from "undecim";
 import { URLSearchParams } from "url";
 import type { UserDbObject } from "../data/types.js";
 import { PlatformName } from "../graphql/graphql.gen.js";
-import juichi from "../juichi/index.js";
 import type { UserService } from "../services/user.js";
 import { authCallback, authInit } from "./auth.js";
 
@@ -18,7 +18,7 @@ export interface SpotifyTokenResponse {
 }
 
 export class SpotifyAuth {
-  static client = juichi.create({ prefixURL: "https://api.spotify.com" });
+  static client = un.create({ prefixURL: "https://api.spotify.com" });
 
   static tokenEndpoint = "https://accounts.spotify.com/api/token";
 
@@ -44,9 +44,9 @@ export class SpotifyAuth {
   }
 
   static async getTokens(authCode: string) {
-    return juichi
+    return un
       .post(SpotifyAuth.tokenEndpoint, {
-        body: new URLSearchParams({
+        data: new URLSearchParams({
           grant_type: "authorization_code",
           code: authCode,
           redirect_uri: SpotifyAuth.apiAuthCallback,
@@ -87,9 +87,9 @@ export class SpotifyAuth {
     me: UserDbObject,
     userService: UserService
   ): Promise<string | null> {
-    const data = await juichi
+    const data = await un
       .post(SpotifyAuth.tokenEndpoint, {
-        body: new URLSearchParams({
+        data: new URLSearchParams({
           grant_type: "refresh_token",
           refresh_token: me.oauth.refreshToken || "",
         }),

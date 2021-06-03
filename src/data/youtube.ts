@@ -1,7 +1,7 @@
 import { google, youtube_v3 } from "googleapis";
+import un from "undecim";
 import type { Playlist } from "../graphql/graphql.gen.js";
 import { PlatformName } from "../graphql/graphql.gen.js";
-import juichi from "../juichi/index.js";
 import { MAX_TRACK_DURATION } from "../utils/constant.js";
 import { isDefined } from "../utils/utils.js";
 import type { ArtistDbObject, TrackDbObject, UserDbObject } from "./types.js";
@@ -273,11 +273,11 @@ export class YoutubeAPI {
     };
     const searchEndpoint = "/search";
 
-    const data = await juichi
+    const data = await un
       .post(
         `${INTERNAL_YTAPI.baseUrl}${searchEndpoint}${INTERNAL_YTAPI.params}`,
         {
-          body: {
+          data: {
             params: "Eg-KAQwIA" + filterParams.video + "MABqChAEEAMQCRAFEAo%3D",
             query: searchQuery,
             context: INTERNAL_YTAPI.context,

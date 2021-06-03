@@ -1,5 +1,5 @@
+import un from "undecim";
 import { PlatformName } from "../graphql/graphql.gen.js";
-import juichi from "../juichi/index.js";
 
 type OdesliResponse =
   | {
@@ -15,7 +15,7 @@ type OdesliResponse =
   | { statusCode: 404 };
 
 export class OdesliAPI {
-  static client = juichi.create({ prefixURL: "https://api.song.link" });
+  static client = un.create({ prefixURL: "https://api.song.link" });
   static getLinks(platformName: PlatformName, externalId: string) {
     return OdesliAPI.client
       .get(

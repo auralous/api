@@ -1,8 +1,8 @@
 import { google, youtube_v3 } from "googleapis";
 import type { Playlist } from "../graphql/graphql.gen.js";
 import { PlatformName } from "../graphql/graphql.gen.js";
+import juichi from "../juichi/index.js";
 import { MAX_TRACK_DURATION } from "../utils/constant.js";
-import juichi from "../utils/juichi.js";
 import { isDefined } from "../utils/utils.js";
 import type { ArtistDbObject, TrackDbObject, UserDbObject } from "./types.js";
 
@@ -272,19 +272,20 @@ export class YoutubeAPI {
       video: "BABGAAgACgA",
     };
     const searchEndpoint = "/search";
-    const body = {
-      params: "Eg-KAQwIA" + filterParams.video + "MABqChAEEAMQCRAFEAo%3D",
-      query: searchQuery,
-      context: INTERNAL_YTAPI.context,
-    };
 
-    const { data } = await juichi.post<any>(
-      `${INTERNAL_YTAPI.baseUrl}${searchEndpoint}${INTERNAL_YTAPI.params}`,
-      body,
-      {
-        headers: INTERNAL_YTAPI.headers,
-      }
-    );
+    const data = await juichi
+      .post(
+        `${INTERNAL_YTAPI.baseUrl}${searchEndpoint}${INTERNAL_YTAPI.params}`,
+        {
+          body: {
+            params: "Eg-KAQwIA" + filterParams.video + "MABqChAEEAMQCRAFEAo%3D",
+            query: searchQuery,
+            context: INTERNAL_YTAPI.context,
+          },
+          headers: INTERNAL_YTAPI.headers,
+        }
+      )
+      .json<any>();
 
     if (!data) return [];
 

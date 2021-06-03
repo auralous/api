@@ -1,6 +1,6 @@
-import { SpotifyAuth } from "../auth/spotify.js";
+import { SpotifyAuth, SpotifyTokenResponse } from "../auth/spotify.js";
 import { PlatformName, Playlist } from "../graphql/graphql.gen.js";
-import juichi, { createClient } from "../utils/juichi.js";
+import juichi from "../juichi/index.js";
 import { isDefined } from "../utils/utils.js";
 import type { ArtistDbObject, TrackDbObject, UserDbObject } from "./types.js";
 
@@ -17,24 +17,20 @@ function getTokenViaClientCredential(): string | Promise<string> {
     return cache.accessToken;
   }
   return juichi
-    .post<any>(
-      `https://accounts.spotify.com/api/token`,
-      "grant_type=client_credentials",
-      {
-        headers: {
-          Authorization: SpotifyAuth.ClientAuthorizationHeader,
-          "Content-Type": "application/x-www-form-urlencoded",
-        },
-      }
-    )
-    .then(({ data }) => {
-      if (!data?.access_token)
+    .post(SpotifyAuth.tokenEndpoint, {
+      body: "grant_type=client_credentials",
+      headers: {
+        Authorization: SpotifyAuth.ClientAuthorizationHeader,
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+    })
+    .json<SpotifyTokenResponse>()
+    .then((data) => {
+      if (!("access_token" in data))
         throw new Error("Cannot get Spotify Token via Implicit");
       cache.accessToken = data.access_token;
-      cache.expireAt = new Date(
-        Date.now() + parseInt(data.expires_in, 10) * 1000
-      );
-      return data.access_token as string;
+      cache.expireAt = new Date(Date.now() + data.expires_in * 1000);
+      return data.access_token;
     });
 }
 
@@ -88,7 +84,7 @@ async function userTokenOrOurs(userAccessToken?: string) {
 }
 
 export class SpotifyAPI {
-  static client = createClient("https://api.spotify.com");
+  static client = juichi.create({ prefixURL: "https://api.spotify.com" });
 
   /**
    * Get Spotify track
@@ -101,14 +97,13 @@ export class SpotifyAPI {
   ): Promise<TrackDbObject | null> {
     // We may offload some of the work using user's token
     const accessToken = await userTokenOrOurs(userAccessToken);
-    const { data } = await SpotifyAPI.client.get<SpotifyApi.TrackObjectFull>(
-      `/v1/tracks/${externalId}`,
-      {
+    const data = await SpotifyAPI.client
+      .get(`/v1/tracks/${externalId}`, {
         headers: {
           Authorization: `Authorization: Bearer ${accessToken}`,
         },
-      }
-    );
+      })
+      .json<SpotifyApi.TrackObjectFull>();
     return parseTrack(data);
   }
 
@@ -122,14 +117,13 @@ export class SpotifyAPI {
     userAccessToken?: string
   ): Promise<Playlist | null> {
     const accessToken = await userTokenOrOurs(userAccessToken);
-    const { data } = await SpotifyAPI.client.get<SpotifyApi.PlaylistObjectFull>(
-      `/v1/playlists/${externalId}?fields=id,external_urls,images,name`,
-      {
+    const data = await SpotifyAPI.client
+      .get(`/v1/playlists/${externalId}?fields=id,external_urls,images,name`, {
         headers: {
           Authorization: `Authorization: Bearer ${accessToken}`,
         },
-      }
-    );
+      })
+      .json<SpotifyApi.PlaylistObjectFull>();
 
     return parsePlaylist(data);
   }
@@ -147,15 +141,12 @@ export class SpotifyAPI {
 
     do {
       data = await SpotifyAPI.client
-        .get<SpotifyApi.ListOfCurrentUsersPlaylistsResponse>(
-          data?.next || `/v1/me/playlists`,
-          {
-            headers: {
-              Authorization: `Authorization: Bearer ${accessToken}`,
-            },
-          }
-        )
-        .then((res) => res.data);
+        .get(data?.next || `/v1/me/playlists`, {
+          headers: {
+            Authorization: `Authorization: Bearer ${accessToken}`,
+          },
+        })
+        .json<SpotifyApi.ListOfCurrentUsersPlaylistsResponse>();
       if (!data) break;
       playlists.push(...data.items.map(parsePlaylist));
     } while (data?.next);
@@ -177,19 +168,16 @@ export class SpotifyAPI {
     const accessToken = me.oauth.accessToken;
 
     return SpotifyAPI.client
-      .post<SpotifyApi.AddTracksToPlaylistResponse>(
-        `/v1/playlists/${externalId}/tracks`,
-        {
+      .post(`/v1/playlists/${externalId}/tracks`, {
+        body: {
           uris: externalTrackIds.map(
             (externalTrackId) => `spotify:track:${externalTrackId}`
           ),
         },
-        {
-          headers: {
-            Authorization: `Authorization: Bearer ${accessToken}`,
-          },
-        }
-      )
+        headers: {
+          Authorization: `Authorization: Bearer ${accessToken}`,
+        },
+      })
       .then(
         () => true,
         () =>
@@ -210,18 +198,15 @@ export class SpotifyAPI {
     const accessToken = me.oauth.accessToken;
 
     return SpotifyAPI.client
-      .post<SpotifyApi.CreatePlaylistResponse>(
-        `/v1/users/${me.oauth.id}/playlists`,
-        { name },
-        {
-          headers: {
-            Authorization: `Authorization: Bearer ${accessToken}`,
-          },
-        }
-      )
-      .then(
-        (res) => parsePlaylist(res.data),
-        () => Promise.reject("Could not create Spotify playlist")
+      .post(`/v1/users/${me.oauth.id}/playlists`, {
+        body: { name },
+        headers: {
+          Authorization: `Authorization: Bearer ${accessToken}`,
+        },
+      })
+      .json<SpotifyApi.CreatePlaylistResponse>()
+      .then(parsePlaylist, () =>
+        Promise.reject("Could not create Spotify playlist")
       );
   }
 
@@ -242,15 +227,12 @@ export class SpotifyAPI {
 
     do {
       trackData = await SpotifyAPI.client
-        .get<SpotifyApi.PlaylistTrackResponse>(
-          trackData?.next || `/v1/playlists/${externalId}/tracks`,
-          {
-            headers: {
-              Authorization: `Authorization: Bearer ${accessToken}`,
-            },
-          }
-        )
-        .then((res) => res.data);
+        .get(trackData?.next || `/v1/playlists/${externalId}/tracks`, {
+          headers: {
+            Authorization: `Authorization: Bearer ${accessToken}`,
+          },
+        })
+        .json<SpotifyApi.PlaylistTrackResponse>();
 
       if (trackData?.items)
         tracks.push(
@@ -278,8 +260,8 @@ export class SpotifyAPI {
 
     const SEARCH_MAX_RESULTS = 30;
 
-    const { data } =
-      await SpotifyAPI.client.get<SpotifyApi.TrackSearchResponse>(
+    const data = await SpotifyAPI.client
+      .get(
         `/v1/search?query=${encodeURIComponent(searchQuery)}` +
           `&type=track&offset=0&limit=${SEARCH_MAX_RESULTS}`,
         {
@@ -287,7 +269,8 @@ export class SpotifyAPI {
             Authorization: `Authorization: Bearer ${accessToken}`,
           },
         }
-      );
+      )
+      .json<SpotifyApi.TrackSearchResponse>();
 
     return data.tracks.items.map(parseTrack);
   }
@@ -304,15 +287,13 @@ export class SpotifyAPI {
     const accessToken = await userTokenOrOurs(userAccessToken);
 
     const data = await this.client
-      .get<SpotifyApi.ArtistObjectFull | null>(`/v1/artists/${externalId}`, {
+      .get(`/v1/artists/${externalId}`, {
         headers: {
           Authorization: `Bearer ${accessToken}`,
         },
       })
-      .then(
-        (res) => res.data,
-        () => null
-      );
+      .json<SpotifyApi.ArtistObjectFull | null>()
+      .catch(() => null);
 
     if (!data) return null;
     return parseArtist(data);
@@ -325,15 +306,12 @@ export class SpotifyAPI {
     userAccessToken?: string
   ): Promise<Playlist[]> {
     const data = await SpotifyAPI.client
-      .get<SpotifyApi.ListOfFeaturedPlaylistsResponse>(
-        `/v1/browse/featured-playlists`,
-        {
-          headers: {
-            Authorization: `Bearer ${await userTokenOrOurs(userAccessToken)}`,
-          },
-        }
-      )
-      .then((res) => res.data);
+      .get(`/v1/browse/featured-playlists`, {
+        headers: {
+          Authorization: `Bearer ${await userTokenOrOurs(userAccessToken)}`,
+        },
+      })
+      .json<SpotifyApi.ListOfFeaturedPlaylistsResponse>();
 
     return data.playlists.items.map(parsePlaylist);
   }

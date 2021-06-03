@@ -18,7 +18,7 @@ import { QueueService } from "../services/queue.js";
 import { StoryService } from "../services/story.js";
 import { TrackService } from "../services/track.js";
 import { UserService } from "../services/user.js";
-import schema from "./schema.ts";
+import schema from "./schema.js";
 import type { MyGQLContext } from "./types.js";
 
 const EXPECTED_ERR_CODES = ["PERSISTED_QUERY_NOT_FOUND"];

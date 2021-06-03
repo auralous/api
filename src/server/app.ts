@@ -2,15 +2,23 @@ import { parseGraphQLBody } from "@benzene/http";
 import cors from "cors";
 import nc from "next-connect";
 import { getUserFromRequest } from "../auth/auth.js";
+import auth from "../auth/handler.js";
 import { client as mongoClient } from "../data/mongo.js";
 import { redis } from "../data/redis.js";
 import {
   graphqlHTTP,
   stringify as graphqlStringify,
 } from "../graphql/handler.js";
-import { cookieAndQuery, makeSetCacheControl, rawBody } from "./utils.js";
+import {
+  cookieAndQuery,
+  makeSetCacheControl,
+  ncOptions,
+  rawBody,
+} from "./utils.js";
 
-const app = nc();
+const isDev = process.env.NODE_ENV !== "production";
+
+const app = nc(ncOptions);
 
 /**
  * Health Endpoint to check MongoDB and Redis statuses
@@ -28,7 +36,7 @@ app.get("/health", (req, res) => {
   );
 });
 
-if (process.env.NODE_ENV !== "production") {
+if (isDev) {
   // For dev env, we setup cors configuration.
   // However, in production, reverse proxy has already handled it
   app.use(
@@ -67,5 +75,7 @@ app.all("/graphql", (req, res) => {
       .end(graphqlStringify(result.payload))
   );
 });
+
+app.use("/auth", auth);
 
 export default app;

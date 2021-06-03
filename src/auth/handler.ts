@@ -1,9 +1,10 @@
 import nc from "next-connect";
+import { ncOptions } from "../server/utils.js";
 import { setTokenToCookie } from "./auth.js";
 import { handler as google } from "./google.js";
 import { handler as spotify } from "./spotify.js";
 
-const auth = nc();
+const auth = nc(ncOptions);
 
 /**
  * Auth subapps

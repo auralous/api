@@ -26,8 +26,6 @@ function getTokenViaClientCredential(): string | Promise<string> {
     })
     .json<SpotifyTokenResponse>()
     .then((data) => {
-      if (!("access_token" in data))
-        throw new Error("Cannot get Spotify Token via Implicit");
       cache.accessToken = data.access_token;
       cache.expireAt = new Date(Date.now() + data.expires_in * 1000);
       return data.access_token;

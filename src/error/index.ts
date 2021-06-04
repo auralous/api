@@ -1,31 +1,21 @@
-import { GraphQLError } from "graphql";
-
-export class StereoGraphQLError extends GraphQLError {
+export class AuraError extends Error {
   constructor(
     message: string,
-    code?: string,
-    extensions?: Record<string, unknown>
+    public code: string = "AU_ERROR",
+    public extensions?: Record<string, unknown>
   ) {
-    if (code) (extensions = extensions || {}).code = code;
-    super(
-      message,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      extensions
-    );
+    super(message);
+    if (code) this.code = (this.extensions = this.extensions || {}).code = code;
   }
 }
 
-export class AuthenticationError extends StereoGraphQLError {
+export class AuthenticationError extends AuraError {
   constructor(message: string) {
     super(message, "UNAUTHENTICATED");
   }
 }
 
-export class UserInputError extends StereoGraphQLError {
+export class UserInputError extends AuraError {
   constructor(message: string, invalidArgs: string[]) {
     super(message, "FORBIDDEN", {
       invalidArgs,
@@ -33,7 +23,7 @@ export class UserInputError extends StereoGraphQLError {
   }
 }
 
-export class ForbiddenError extends StereoGraphQLError {
+export class ForbiddenError extends AuraError {
   constructor(message: string) {
     super(message, "FORBIDDEN");
   }

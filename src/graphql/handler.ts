@@ -1,7 +1,6 @@
 /**
  * Create GraphQL handlers for HTTP and WS
  */
-
 import { makeAPQHandler } from "@benzene/extra";
 import { Benzene, makeHandler } from "@benzene/http";
 import { makeHandler as makeWSHandler } from "@benzene/ws";
@@ -9,7 +8,7 @@ import * as Sentry from "@sentry/node";
 import fastJson from "fast-json-stringify";
 import { formatError } from "graphql";
 import { pubsub } from "../data/pubsub.js";
-import { StereoGraphQLError } from "../error/index.js";
+import { isExpectedError } from "../error/utils.js";
 import { FollowService } from "../services/follow.js";
 import { MessageService } from "../services/message.js";
 import { NotificationService } from "../services/notification.js";
@@ -20,8 +19,6 @@ import { TrackService } from "../services/track.js";
 import { UserService } from "../services/user.js";
 import schema from "./schema.js";
 import type { MyGQLContext } from "./types.js";
-
-const EXPECTED_ERR_CODES = ["PERSISTED_QUERY_NOT_FOUND"];
 
 const serviceContext = { loaders: {} };
 
@@ -46,24 +43,12 @@ const GQL = new Benzene<MyGQLContext, BenzeneExtra>({
   schema,
   formatErrorFn(error) {
     if (
-      error.extensions?.code &&
-      EXPECTED_ERR_CODES.includes(error.extensions.code)
+      !isExpectedError(error) ||
+      (error.originalError && !isExpectedError(error.originalError))
     ) {
-      // expected error
-      return formatError(error);
+      Sentry.captureException(error);
     }
-    if (error.originalError) {
-      if (error.originalError instanceof StereoGraphQLError)
-        // user error
-        return formatError(error);
-      else {
-        // internal error
-        Sentry.captureException(error);
-        return formatError(error);
-      }
-    }
-    // graphql error
-    else return formatError(error);
+    return formatError(error);
   },
   contextFn: async ({ extra: { user, setCacheControl } }) => ({
     user: user ? ("then" in user ? await user : user) : null,

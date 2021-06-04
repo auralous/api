@@ -2,6 +2,7 @@ import nc from "next-connect";
 import un from "undecim";
 import { URLSearchParams } from "url";
 import type { UserDbObject } from "../data/types.js";
+import { ForbiddenError } from "../error/index.js";
 import { PlatformName } from "../graphql/graphql.gen.js";
 import type { UserService } from "../services/user.js";
 import { authCallback, authInit } from "./auth.js";
@@ -136,7 +137,7 @@ const authUrl =
 export const handler = nc()
   .get("/", (req, res) => authInit(req, res, authUrl))
   .get("/callback", async (req, res) => {
-    if (!req.query.code) throw new Error("Denied");
+    if (!req.query.code) throw new ForbiddenError("Unauthorized");
     const jsonToken = await SpotifyAuth.getTokens(req.query.code);
     const json = await SpotifyAuth.getUser(jsonToken.access_token);
 

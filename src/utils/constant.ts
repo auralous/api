@@ -17,7 +17,7 @@ export const REDIS_KEY = {
   },
   message(typeAndId: string) {
     const [type, id] = typeAndId.split(":");
-    if (type !== "story") throw new Error("Invalid resourceType");
+    if (type !== "story") throw new TypeError("Invalid resourceType");
     return { type, id, key: `${this[type](id)}:messages` };
   },
   track: (platformAndId: string) => `track:${platformAndId}`,

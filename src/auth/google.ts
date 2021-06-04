@@ -1,6 +1,7 @@
 import { Auth, google } from "googleapis";
 import nc from "next-connect";
 import { UserDbObject } from "../data/types.js";
+import { ForbiddenError } from "../error/index.js";
 import { PlatformName } from "../graphql/graphql.gen.js";
 import type { UserService } from "../services/user.js";
 import { authCallback, authInit } from "./auth.js";
@@ -71,7 +72,7 @@ export const handler = nc()
     authInit(req, res, url);
   })
   .get("/callback", async (req, res) => {
-    if (!req.query.code) throw new Error("Denied");
+    if (!req.query.code) throw new ForbiddenError("Unauthorized");
     const { tokens } = await oauth2Client.getToken(req.query.code);
 
     const gUser = JSON.parse(

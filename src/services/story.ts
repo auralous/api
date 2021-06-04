@@ -282,7 +282,7 @@ export class StoryService {
     });
     if (!deletedCount) throw new ForbiddenError("Cannot delete story");
     // delete associated
-    await Promise.all([deleteByPattern(redis, `${REDIS_KEY.story(id)}:*`)]);
+    await Promise.all([deleteByPattern(redis, `${REDIS_KEY.queue(id)}:*`)]);
     return true;
   }
 
@@ -354,7 +354,7 @@ export class StoryService {
 
     if (justJoined) {
       // notify that user just joined via message
-      messageService.add(`story:${storyId}`, {
+      messageService.add(storyId, {
         text: storyId,
         type: MessageType.Join,
         creatorId: user._id,

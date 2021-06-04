@@ -56,11 +56,10 @@ export class QueueService {
   async findById(
     id: string,
     start = 0,
-    stop = -1,
-    played?: boolean
+    stop = -1
   ): Promise<QueueItemDbObject[]> {
     return redis
-      .lrange(REDIS_KEY.queue(id, played), start, stop)
+      .lrange(REDIS_KEY.queue(id), start, stop)
       .then((res) => res.map((it) => JSON.parse(it)));
   }
 

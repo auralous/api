@@ -7,7 +7,6 @@ Sentry.init({
     console.error(hint?.originalException || hint?.syntheticException);
     return event;
   },
-  debug: process.env.NODE_ENV !== "production",
 });
 
 await startServer();

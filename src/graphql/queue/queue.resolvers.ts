@@ -1,14 +1,10 @@
-import { StoryService } from "../../services/story.js";
 import { PUBSUB_CHANNELS } from "../../utils/constant.js";
 import type { Resolvers } from "../graphql.gen.js";
 
 const resolvers: Resolvers = {
   Query: {
-    async queue(parent, { id }, { services, user }) {
-      const [storyId] = id.split(":");
-      const story = await services.Story.findById(storyId);
-      if (!story || !StoryService.getPermission(user, story).isViewable)
-        return null;
+    async queue(parent, { id }) {
+      // FIXME: Check auth
       return { id, items: [] };
     },
   },
@@ -48,8 +44,7 @@ const resolvers: Resolvers = {
   },
   Queue: {
     async items({ id }, args, { services }) {
-      const [storyId, played] = id.split(":");
-      return services.Queue.findById(storyId, 0, -1, Boolean(played));
+      return services.Queue.findById(id, 0, -1);
     },
   },
 };

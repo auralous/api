@@ -1,18 +1,12 @@
 import { AuthenticationError, ForbiddenError } from "../../error/index.js";
-import { StoryService } from "../../services/story.js";
-import { PUBSUB_CHANNELS, REDIS_KEY } from "../../utils/constant.js";
+import { PUBSUB_CHANNELS } from "../../utils/constant.js";
 import { MessageType, Resolvers } from "../graphql.gen.js";
 
 const resolvers: Resolvers = {
   Subscription: {
     messageAdded: {
-      async subscribe(parent, { id }, { pubsub, services, user }) {
-        const story = await services.Story.findById(REDIS_KEY.message(id).id);
-        if (!story || !StoryService.getPermission(user, story).isViewable)
-          throw new ForbiddenError(
-            "You are not allowed to subscribe to this channel"
-          );
-
+      async subscribe(parent, { id }, { pubsub }) {
+        // FIXME: Check auth
         return pubsub.on(
           PUBSUB_CHANNELS.messageAdded,
           (payload) => payload.id === id
@@ -21,16 +15,13 @@ const resolvers: Resolvers = {
     },
   },
   Query: {
-    async messages(parent, { id, offset, limit }, { user, services }) {
+    async messages(parent, { id, offset, limit }, { services }) {
       limit = limit || 20; // limit = 0 is invalid
       offset = offset || 0;
       if (limit > 20) throw new ForbiddenError("Too large limit");
       const stop = -offset - 1;
       const start = stop - limit + 1;
-      // id is storyId
-      const story = await services.Story.findById(REDIS_KEY.message(id).id);
-      if (!story || !StoryService.getPermission(user, story).isViewable)
-        return null;
+      // FIXME: Check auth
       return services.Message.findById(id, start, stop);
     },
   },
@@ -38,12 +29,7 @@ const resolvers: Resolvers = {
     async messageAdd(parents, { id, text }, { user, services }) {
       if (!user) throw new AuthenticationError("");
 
-      const story = await services.Story.findById(REDIS_KEY.message(id).id);
-
-      if (!story || !StoryService.getPermission(user, story).isViewable)
-        throw new ForbiddenError(
-          "You are not allowed to send message to this channel"
-        );
+      // Check auth
 
       return !!(await services.Message.add(id, {
         text,

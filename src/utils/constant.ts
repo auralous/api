@@ -5,20 +5,17 @@ export const REDIS_KEY = {
   storyUserStatus(storyId: string) {
     return `${this.story(storyId)}:userStatus`;
   },
-  nowPlaying(storyId: string) {
-    return `story:${storyId}:playing`;
+  nowPlaying(id: string) {
+    return `nowPlaying:${id}:playing`;
   },
-  nowPlayingReaction(storyId: string, index: number) {
-    return `story:${storyId}:reactions:${index}`;
+  nowPlayingReaction(id: string, index: number) {
+    return `nowPlaying:${id}:reactions:${index}`;
   },
-  queue(storyId: string, played?: boolean) {
-    if (played) return `${this.story(storyId)}:played`;
-    return `${this.story(storyId)}:queue`;
+  queue(id: string) {
+    return `queue:${id}`;
   },
-  message(typeAndId: string) {
-    const [type, id] = typeAndId.split(":");
-    if (type !== "story") throw new TypeError("Invalid resourceType");
-    return { type, id, key: `${this[type](id)}:messages` };
+  message(id: string) {
+    return `message:${id}`;
   },
   track: (platformAndId: string) => `track:${platformAndId}`,
   artist: (platformAndId: string) => `artist:${platformAndId}`,

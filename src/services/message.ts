@@ -60,7 +60,7 @@ export class MessageService {
     stop = -1
   ): Promise<MessageDbObject[] | null> {
     return redis
-      .lrange(REDIS_KEY.message(id).key, start, stop)
+      .lrange(REDIS_KEY.message(id), start, stop)
       .then((strs) => strs.map(MessageService.parseMessage));
   }
 
@@ -81,7 +81,7 @@ export class MessageService {
     };
 
     const count = await redis.rpush(
-      REDIS_KEY.message(id).key,
+      REDIS_KEY.message(id),
       MessageService.stringifyMessage(newMessage)
     );
 

@@ -145,7 +145,7 @@ export class NowPlayingWorker {
       // Save currentTrack
       await this.setNowPlayingById(storyId, currentTrack);
       // Send message
-      await this.messageService.add(`story:${storyId}`, {
+      await this.messageService.add(storyId, {
         creatorId: currentTrack.creatorId,
         type: MessageType.Play,
         text: currentTrack.trackId,

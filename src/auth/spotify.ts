@@ -88,11 +88,13 @@ export class SpotifyAuth {
     me: UserDbObject,
     userService: UserService
   ): Promise<string | null> {
+    if (!me.oauth.refreshToken) return null;
+
     const data = await un
       .post(SpotifyAuth.tokenEndpoint, {
         data: new URLSearchParams({
           grant_type: "refresh_token",
-          refresh_token: me.oauth.refreshToken || "",
+          refresh_token: me.oauth.refreshToken,
         }),
         headers: {
           Authorization: SpotifyAuth.ClientAuthorizationHeader,

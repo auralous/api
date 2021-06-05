@@ -39,7 +39,7 @@ function parseTrack(result: SpotifyApi.TrackObjectFull): TrackDbObject {
     externalId: result.id,
     duration: result.duration_ms,
     title: result.name,
-    image: result.album?.images?.[0]?.url || "",
+    image: result.album?.images?.[0]?.url,
     artistIds:
       result.artists.map(({ id }: { id: string }) => `spotify:${id}`) || [],
     albumId: result.album.id,
@@ -53,7 +53,7 @@ function parseArtist(result: SpotifyApi.ArtistObjectFull): ArtistDbObject {
     platform: PlatformName.Spotify,
     externalId: result.id,
     name: result.name,
-    image: result.images?.[0]?.url || "",
+    image: result.images?.[0]?.url,
     url: result.external_urls.spotify,
   };
 }
@@ -64,7 +64,7 @@ function parsePlaylist(
   return {
     id: `spotify:${result.id}`,
     externalId: result.id,
-    image: result.images[0]?.url || "",
+    image: result.images[0]?.url,
     name: result.name,
     platform: PlatformName.Spotify,
     url: result.external_urls.spotify,

@@ -2,7 +2,6 @@ import { google, youtube_v3 } from "googleapis";
 import un from "undecim";
 import type { Playlist } from "../graphql/graphql.gen.js";
 import { PlatformName } from "../graphql/graphql.gen.js";
-import { MAX_TRACK_DURATION } from "../utils/constant.js";
 import { isDefined } from "../utils/utils.js";
 import type { ArtistDbObject, TrackDbObject, UserDbObject } from "./types.js";
 
@@ -84,9 +83,26 @@ function parsePlaylist(result: youtube_v3.Schema$Playlist): Playlist {
     id: `youtube:${result.id}`,
     platform: PlatformName.Youtube,
     externalId: result.id as string,
-    image: result.snippet?.thumbnails?.high?.url as string,
+    image: result.snippet?.thumbnails?.high?.url || undefined,
     name: result.snippet?.title as string,
     url: `https://www.youtube.com/playlist?list=${result.id}`,
+  };
+}
+
+function parseTrack(result: youtube_v3.Schema$Video): TrackDbObject {
+  const msDuration = parseDurationToMs(
+    (result.contentDetails!.duration as string).substr(2)
+  );
+  return {
+    id: `youtube:${result.id}`,
+    externalId: result.id as string,
+    platform: PlatformName.Youtube,
+    duration: msDuration,
+    title: result.snippet!.title as string,
+    image: result.snippet!.thumbnails?.high?.url || undefined,
+    artistIds: [`youtube:${result.snippet!.channelId as string}`],
+    albumId: "",
+    url: `https://youtu.be/${result.id as string}`,
   };
 }
 
@@ -104,29 +120,15 @@ export class YoutubeAPI {
     const { data: json } = await YoutubeAPI.youtube.videos.list({
       part: ["contentDetails", "snippet", "status"],
       fields:
-        "items(snippet(title,thumbnails/high,channelId),contentDetails/duration,status/embeddable)",
+        "items(id,snippet(title,thumbnails/high,channelId),contentDetails/duration,status/embeddable)",
       id: [externalId],
     });
     if (!json?.items?.[0]) return null;
     const { contentDetails, snippet, status } = json.items[0];
     if (!snippet || !status || !contentDetails) return null;
     if (!status.embeddable) return null;
-    const msDuration = parseDurationToMs(
-      (contentDetails.duration as string).substr(2)
-    );
-    // Video is too long to be considered a track
-    if (msDuration > MAX_TRACK_DURATION) return null;
-    return {
-      id: `youtube:${externalId}`,
-      externalId,
-      platform: PlatformName.Youtube,
-      duration: msDuration,
-      title: snippet.title as string,
-      image: snippet.thumbnails?.high?.url as string,
-      artistIds: [`youtube:${snippet.channelId as string}`],
-      albumId: "",
-      url: `https://youtu.be/${externalId}`,
-    };
+
+    return parseTrack(json.items[0]);
   }
 
   /**
@@ -165,7 +167,7 @@ export class YoutubeAPI {
           part: ["id", "snippet"],
           mine: true,
           fields: "nextPageToken,items(id,snippet(title,thumbnails.high.url))",
-          access_token: me.oauth.accessToken || "",
+          access_token: me.oauth.accessToken!,
           pageToken: data?.nextPageToken || undefined,
         })
       ).data;

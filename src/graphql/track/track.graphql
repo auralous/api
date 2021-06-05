@@ -16,7 +16,7 @@ type Track {
   artists: [Artist!]!
   duration: Int!
   title: String!
-  image: String!
+  image: String
   url: String!
 }
 
@@ -31,6 +31,6 @@ type Artist {
   platform: PlatformName!
   externalId: ID!
   name: String!
-  image: String!
+  image: String
   url: String!
 }

@@ -55,7 +55,7 @@ export interface TrackDbObject {
   externalId: string;
   duration: number;
   title: string;
-  image: string;
+  image?: string;
   artistIds: string[];
   albumId: string;
   url: string;

@@ -17,6 +17,6 @@ type Playlist {
   platform: PlatformName!
   externalId: ID!
   name: String!
-  image: String!
+  image: String
   url: String!
 }

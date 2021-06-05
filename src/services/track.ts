@@ -34,7 +34,6 @@ const stringifyTrack = fastJson({
     "platform",
     "duration",
     "title",
-    "image",
     "artistIds",
     "albumId",
     "url",
@@ -52,7 +51,7 @@ const stringifyArtist = fastJson({
     url: { type: "string" },
     image: { type: "string" },
   },
-  required: ["id", "platform", "externalId", "name", "url", "image"],
+  required: ["id", "platform", "externalId", "name", "url"],
 });
 
 export class TrackService {

@@ -4,11 +4,10 @@
 import { makeAPQHandler } from "@benzene/extra";
 import { Benzene, makeHandler } from "@benzene/http";
 import { makeHandler as makeWSHandler } from "@benzene/ws";
-import * as Sentry from "@sentry/node";
 import fastJson from "fast-json-stringify";
 import { formatError } from "graphql";
 import { pubsub } from "../data/pubsub.js";
-import { isExpectedError } from "../error/utils.js";
+import { logError } from "../error/utils.js";
 import { FollowService } from "../services/follow.js";
 import { MessageService } from "../services/message.js";
 import { NotificationService } from "../services/notification.js";
@@ -42,12 +41,7 @@ const services = {
 const GQL = new Benzene<MyGQLContext, BenzeneExtra>({
   schema,
   formatErrorFn(error) {
-    if (
-      !isExpectedError(error) ||
-      (error.originalError && !isExpectedError(error.originalError))
-    ) {
-      Sentry.captureException(error);
-    }
+    logError(error.originalError || error);
     return formatError(error);
   },
   contextFn: async ({ extra: { user, setCacheControl } }) => ({

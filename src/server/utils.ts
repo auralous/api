@@ -1,9 +1,8 @@
-import * as Sentry from "@sentry/node";
 import { parse as parseCookie } from "cookie";
 import type { IncomingMessage, ServerResponse } from "http";
 import { Options } from "next-connect";
 import { parse as parseQS } from "querystring";
-import { isExpectedError } from "../error/utils.js";
+import { logError } from "../error/utils.js";
 import type { SetCacheControl } from "./types.js";
 
 /**
@@ -49,9 +48,7 @@ export function makeSetCacheControl(res: ServerResponse): SetCacheControl {
 
 export const ncOptions: Options<IncomingMessage, ServerResponse> = {
   onError(err, req, res) {
-    if (!isExpectedError(err)) {
-      Sentry.captureException(err);
-    }
+    logError(err);
     return (
       (res.statusCode = err.status || 500) &&
       res.end(err.message || "Something went wrong")

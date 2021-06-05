@@ -71,7 +71,7 @@ export class FollowService {
             unfollowedAt: null,
           },
         },
-        { upsert: true, returnOriginal: false }
+        { upsert: true, returnDocument: "after" }
       )
       .then((result) => result.value);
 

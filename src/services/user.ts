@@ -134,7 +134,7 @@ export class UserService {
           ...(profilePicture && { profilePicture }),
         },
       },
-      { returnOriginal: false }
+      { returnDocument: "after" }
     );
     return user || null;
   }

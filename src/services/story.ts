@@ -94,7 +94,7 @@ export class StoryService {
     const { value } = await this.collection.findOneAndUpdate(
       { _id: new mongodb.ObjectID(storyId) },
       { $set: { isLive: false } },
-      { returnOriginal: false }
+      { returnDocument: "after" }
     );
     if (!value) throw new ForbiddenError("Cannot delete this story");
     this.notifyUpdate(value);
@@ -271,7 +271,7 @@ export class StoryService {
           ...(typeof isLive === "boolean" && { isLive }),
         },
       },
-      { returnOriginal: false }
+      { returnDocument: "after" }
     );
     if (!story) throw new ForbiddenError("Cannot update story");
     this.notifyUpdate(story);
@@ -317,7 +317,7 @@ export class StoryService {
       isRemoving
         ? { $pull: { queueable: addingUser._id } }
         : { $addToSet: { queueable: addingUser._id } },
-      { returnOriginal: false }
+      { returnDocument: "after" }
     );
     if (!story) throw new ForbiddenError("Cannot update story");
     this.notifyUpdate(story);

@@ -34,7 +34,7 @@ type Story {
   id: ID!
   text: String!
   isPublic: Boolean!
-  image: String!
+  image: String
   creatorId: ID!
   creator: User!
   createdAt: DateTime!

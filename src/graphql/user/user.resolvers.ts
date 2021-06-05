@@ -3,7 +3,6 @@ import { SpotifyAuth } from "../../auth/spotify.js";
 import type { UserDbObject } from "../../data/types.js";
 import { AuthenticationError } from "../../error/index.js";
 import { CONFIG } from "../../utils/constant.js";
-import { defaultAvatar } from "../../utils/defaultAvatar.js";
 import { PlatformName, Resolvers } from "../graphql.gen.js";
 
 const resolvers: Resolvers = {
@@ -70,9 +69,6 @@ const resolvers: Resolvers = {
   },
   User: {
     id: ({ _id }) => _id,
-    profilePicture({ profilePicture, username }) {
-      return profilePicture || defaultAvatar("user", username);
-    },
   },
 };
 

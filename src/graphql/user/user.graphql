@@ -17,7 +17,7 @@ type User {
   id: ID!
   username: String!
   bio: String
-  profilePicture: String!
+  profilePicture: String
 }
 
 type UserStat {

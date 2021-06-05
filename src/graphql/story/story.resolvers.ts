@@ -2,7 +2,6 @@ import type { StoryDbObject } from "../../data/types.js";
 import { ForbiddenError, UserInputError } from "../../error/index.js";
 import { StoryService } from "../../services/story.js";
 import { PUBSUB_CHANNELS } from "../../utils/constant.js";
-import { defaultAvatar } from "../../utils/defaultAvatar.js";
 import type { Resolvers } from "../graphql.gen.js";
 
 const resolvers: Resolvers = {
@@ -122,30 +121,15 @@ const resolvers: Resolvers = {
     id: ({ _id }) => String(_id),
     async image({ isLive, image, _id }, args, { services, user }) {
       if (image) return image;
-
-      let trackIdForImage: string | undefined;
       if (isLive) {
         const np = await services.NowPlaying.findById(String(_id), true);
-        trackIdForImage = np?.trackId;
-      } else {
-        const [firstTrackItem] = await services.Queue.findById(
-          String(_id),
-          0,
-          0,
-          true
+        return (
+          (np?.trackId &&
+            (await services.Track.findOrCreate(np.trackId, user))?.image) ||
+          null
         );
-        trackIdForImage = firstTrackItem?.trackId;
       }
-
-      let img: string | undefined;
-      if (trackIdForImage) {
-        const firstTrack = await services.Track.findOrCreate(
-          trackIdForImage,
-          user
-        );
-        img = firstTrack?.image;
-      }
-      return img || defaultAvatar("story", String(_id));
+      return null;
     },
     async creator({ creatorId }, args, { services }) {
       return (await services.User.findById(creatorId))!;

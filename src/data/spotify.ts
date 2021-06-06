@@ -85,24 +85,33 @@ export class SpotifyAPI {
   static client = un.create({ prefixURL: "https://api.spotify.com" });
 
   /**
-   * Get Spotify track
-   * @param externalId
+   * Get Spotify tracks
+   * @param externalIds
    * @param userAccessToken optional user access token
    */
-  static async getTrack(
-    externalId: string,
+  static async getTracks(
+    externalIds: string[],
     userAccessToken?: string
-  ): Promise<TrackDbObject | null> {
+  ): Promise<(TrackDbObject | null)[]> {
     // We may offload some of the work using user's token
     const accessToken = await userTokenOrOurs(userAccessToken);
-    const data = await SpotifyAPI.client
-      .get(`/v1/tracks/${externalId}`, {
-        headers: {
-          Authorization: `Authorization: Bearer ${accessToken}`,
-        },
-      })
-      .json<SpotifyApi.TrackObjectFull>();
-    return parseTrack(data);
+    const results: (TrackDbObject | null)[] = [];
+    while (externalIds.length > 0) {
+      const ids = externalIds.splice(0, 50);
+      if (ids.length > 0) {
+        const data = await SpotifyAPI.client
+          .get(`/v1/tracks/?ids=${ids.join(",")}`, {
+            headers: {
+              Authorization: `Authorization: Bearer ${accessToken}`,
+            },
+          })
+          .json<SpotifyApi.MultipleTracksResponse>();
+        results.push(
+          ...data.tracks.map((val) => (val ? parseTrack(val) : null))
+        );
+      }
+    }
+    return results;
   }
 
   /**
@@ -274,27 +283,32 @@ export class SpotifyAPI {
   }
 
   /**
-   * Get Spotify artist
-   * @param externalId
+   * Get Spotify artists
+   * @param externalIds
    * @param userAccessToken optional user access token
    */
-  static async getArtist(
-    externalId: string,
+  static async getArtists(
+    externalIds: string[],
     userAccessToken?: string
-  ): Promise<ArtistDbObject | null> {
+  ): Promise<(ArtistDbObject | null)[]> {
     const accessToken = await userTokenOrOurs(userAccessToken);
-
-    const data = await this.client
-      .get(`/v1/artists/${externalId}`, {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-      })
-      .json<SpotifyApi.ArtistObjectFull | null>()
-      .catch(() => null);
-
-    if (!data) return null;
-    return parseArtist(data);
+    const results: (ArtistDbObject | null)[] = [];
+    while (externalIds.length > 0) {
+      const ids = externalIds.splice(0, 50);
+      if (ids.length > 0) {
+        const data = await this.client
+          .get(`/v1/artists?ids=${ids.join(",")}`, {
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+            },
+          })
+          .json<SpotifyApi.MultipleArtistsResponse>();
+        results.push(
+          ...data.artists.map((val) => (val ? parseArtist(val) : null))
+        );
+      }
+    }
+    return results;
   }
 
   /**

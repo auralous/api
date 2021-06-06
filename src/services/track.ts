@@ -95,8 +95,8 @@ export class TrackService {
     let track = await this.find(id);
     if (!track) {
       const [platform, externalId] = id.split(":");
-      track = await this[platform as PlatformName]?.getTrack(
-        externalId,
+      [track] = await this[platform as PlatformName]?.getTracks(
+        [externalId],
         (me?.oauth.provider === platform && me.oauth.accessToken) || undefined
       );
       if (!track) return null;
@@ -170,8 +170,8 @@ export class TrackService {
     let artist = await this.findArtist(id);
     if (!artist) {
       const [platform, externalId] = id.split(":");
-      artist = await this[platform as PlatformName].getArtist(
-        externalId,
+      [artist] = await this[platform as PlatformName].getArtists(
+        [externalId],
         (me?.oauth.provider === platform && me.oauth.accessToken) || undefined
       );
       if (!artist) return null;

@@ -4,6 +4,7 @@ import { SpotifyAuth, SpotifyTokenResponse } from "../auth/spotify.js";
 import { PlatformName, Playlist } from "../graphql/graphql.gen.js";
 import { isDefined } from "../utils/utils.js";
 import type { ArtistDbObject, TrackDbObject, UserDbObject } from "./types.js";
+import { getFromIdsPerEveryNum } from "./utils.js";
 
 /// <reference path="spotify-api" />
 
@@ -95,10 +96,10 @@ export class SpotifyAPI {
   ): Promise<(TrackDbObject | null)[]> {
     // We may offload some of the work using user's token
     const accessToken = await userTokenOrOurs(userAccessToken);
-    const results: (TrackDbObject | null)[] = [];
-    while (externalIds.length > 0) {
-      const ids = externalIds.splice(0, 50);
-      if (ids.length > 0) {
+    return getFromIdsPerEveryNum<TrackDbObject | null>(
+      externalIds,
+      50,
+      async (ids) => {
         const data = await SpotifyAPI.client
           .get(`/v1/tracks/?ids=${ids.join(",")}`, {
             headers: {
@@ -106,12 +107,9 @@ export class SpotifyAPI {
             },
           })
           .json<SpotifyApi.MultipleTracksResponse>();
-        results.push(
-          ...data.tracks.map((val) => (val ? parseTrack(val) : null))
-        );
+        return data.tracks.map((val) => (val ? parseTrack(val) : null));
       }
-    }
-    return results;
+    );
   }
 
   /**
@@ -292,10 +290,10 @@ export class SpotifyAPI {
     userAccessToken?: string
   ): Promise<(ArtistDbObject | null)[]> {
     const accessToken = await userTokenOrOurs(userAccessToken);
-    const results: (ArtistDbObject | null)[] = [];
-    while (externalIds.length > 0) {
-      const ids = externalIds.splice(0, 50);
-      if (ids.length > 0) {
+    return getFromIdsPerEveryNum<ArtistDbObject | null>(
+      externalIds,
+      50,
+      async (ids) => {
         const data = await this.client
           .get(`/v1/artists?ids=${ids.join(",")}`, {
             headers: {
@@ -303,12 +301,9 @@ export class SpotifyAPI {
             },
           })
           .json<SpotifyApi.MultipleArtistsResponse>();
-        results.push(
-          ...data.artists.map((val) => (val ? parseArtist(val) : null))
-        );
+        return data.artists.map((val) => (val ? parseArtist(val) : null));
       }
-    }
-    return results;
+    );
   }
 
   /**

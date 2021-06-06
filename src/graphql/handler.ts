@@ -3,6 +3,7 @@
  */
 import { makeAPQHandler } from "@benzene/extra";
 import { Benzene, makeHandler } from "@benzene/http";
+import { makeCompileQuery } from "@benzene/jit";
 import { makeHandler as makeWSHandler } from "@benzene/ws";
 import fastJson from "fast-json-stringify";
 import { formatError } from "graphql";
@@ -50,6 +51,7 @@ const GQL = new Benzene<MyGQLContext, BenzeneExtra>({
     services,
     setCacheControl,
   }),
+  compileQuery: makeCompileQuery(),
 });
 
 // http

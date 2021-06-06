@@ -1,4 +1,5 @@
 import un from "undecim";
+import { URLSearchParams } from "url";
 import { SpotifyAuth, SpotifyTokenResponse } from "../auth/spotify.js";
 import { PlatformName, Playlist } from "../graphql/graphql.gen.js";
 import { isDefined } from "../utils/utils.js";
@@ -18,10 +19,9 @@ function getTokenViaClientCredential(): string | Promise<string> {
   }
   return un
     .post(SpotifyAuth.tokenEndpoint, {
-      body: "grant_type=client_credentials",
+      data: new URLSearchParams({ grant_type: "client_credentials" }),
       headers: {
         Authorization: SpotifyAuth.ClientAuthorizationHeader,
-        "Content-Type": "application/x-www-form-urlencoded",
       },
     })
     .json<SpotifyTokenResponse>()

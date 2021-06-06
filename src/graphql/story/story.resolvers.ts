@@ -1,4 +1,4 @@
-import type { StoryDbObject } from "../../data/types.js";
+import type { StoryDbObject, UserDbObject } from "../../data/types.js";
 import { ForbiddenError, UserInputError } from "../../error/index.js";
 import { StoryService } from "../../services/story.js";
 import { PUBSUB_CHANNELS } from "../../utils/constant.js";
@@ -125,14 +125,14 @@ const resolvers: Resolvers = {
         const np = await services.NowPlaying.findById(String(_id), true);
         return (
           (np?.trackId &&
-            (await services.Track.findOrCreate(np.trackId, user))?.image) ||
+            (await services.Track.findTrack(np.trackId, user))?.image) ||
           null
         );
       }
       return null;
     },
     async creator({ creatorId }, args, { services }) {
-      return (await services.User.findById(creatorId))!;
+      return (await services.User.findById(creatorId)) as UserDbObject;
     },
   },
 };

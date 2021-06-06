@@ -17,8 +17,6 @@ export const REDIS_KEY = {
   message(id: string) {
     return `message:${id}`;
   },
-  track: (platformAndId: string) => `track:${platformAndId}`,
-  artist: (platformAndId: string) => `artist:${platformAndId}`,
   crossTracks: (platformAndId: string) => `crossTracks:${platformAndId}`,
 } as const;
 

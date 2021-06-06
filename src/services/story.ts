@@ -123,10 +123,7 @@ export class StoryService {
       throw new UserInputError("Require at least 4 tracks", ["tracks"]);
 
     // use first track as image
-    const track = await new TrackService(this.context).findOrCreate(
-      tracks[0],
-      me
-    );
+    const track = await new TrackService(this.context).findTrack(tracks[0], me);
     const image = track?.image;
 
     const createdAt = new Date();

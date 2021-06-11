@@ -60,6 +60,11 @@ export class TrackService {
   createEntryLoader<T extends TrackDbObject | ArtistDbObject>(
     getFnName: "getTracks" | "getArtists"
   ) {
+    /**
+     * For the loader, we group all YouTube / Spotify / Apple Music
+     * into seperate sets. Then call getTracks() for each set using
+     * their respective APIs
+     */
     return async (entryIds: readonly string[]) => {
       const resultMap: Record<string, T | null> = {};
       const idsBatches = {

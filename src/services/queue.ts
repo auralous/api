@@ -101,7 +101,7 @@ export class QueueService {
 
   async pushItemsPlayed(storyId: string, ...queueItems: QueueItemDbObject[]) {
     const count = await redis.rpush(
-      REDIS_KEY.queue(storyId, true),
+      REDIS_KEY.queue(`${storyId}:played`),
       ...queueItems.map((item) => QueueService.stringifyQueueItem(item))
     );
     return count;

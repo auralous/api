@@ -5,7 +5,7 @@ import { PlatformName, Resolvers } from "../graphql.gen.js";
 const resolvers: Resolvers = {
   Query: {
     async track(parent, { id }, { services, setCacheControl }) {
-      const track = await services.Track.findOrCreate(id);
+      const track = await services.Track.findTrack(id);
       if (track) setCacheControl?.(CONFIG.trackMaxAge);
       return track;
     },
@@ -42,9 +42,7 @@ const resolvers: Resolvers = {
   Track: {
     artists({ artistIds }, args, { services, user }) {
       return Promise.all(
-        artistIds.map((artistId) =>
-          services.Track.findOrCreateArtist(artistId, user)
-        )
+        artistIds.map((artistId) => services.Track.findArtist(artistId, user))
       ).then((r) => r.filter(isDefined));
     },
   },

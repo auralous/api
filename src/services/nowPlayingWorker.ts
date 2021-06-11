@@ -120,7 +120,7 @@ export class NowPlayingWorker {
     const firstTrackInQueue = await this.queueService.shiftItem(storyId);
 
     if (firstTrackInQueue) {
-      const detailNextTrack = await this.trackService.findOrCreate(
+      const detailNextTrack = await this.trackService.findTrack(
         firstTrackInQueue.trackId
       );
 

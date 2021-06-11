@@ -4,33 +4,39 @@ import { SpotifyAuth, SpotifyTokenResponse } from "../auth/spotify.js";
 import { PlatformName, Playlist } from "../graphql/graphql.gen.js";
 import { isDefined } from "../utils/utils.js";
 import type { ArtistDbObject, TrackDbObject, UserDbObject } from "./types.js";
+import { getFromIdsPerEveryNum } from "./utils.js";
 
 /// <reference path="spotify-api" />
 
-// For implicit auth
-const cache: {
-  accessToken?: string;
-  expireAt?: Date;
-} = {};
+// For implicit aut
+let clientAccessToken: string | null = null;
 
-function getTokenViaClientCredential(): string | Promise<string> {
-  if (cache?.accessToken && cache?.expireAt && cache?.expireAt > new Date()) {
-    return cache.accessToken;
-  }
-  return un
+/**
+ * Implicit Auth is the token generated
+ * using client id and client secret
+ * that is only used if user access token
+ * is unavailable
+ */
+const updateImplicitAccessToken = async () => {
+  const data = await un
     .post(SpotifyAuth.tokenEndpoint, {
       data: new URLSearchParams({ grant_type: "client_credentials" }),
       headers: {
         Authorization: SpotifyAuth.ClientAuthorizationHeader,
       },
     })
-    .json<SpotifyTokenResponse>()
-    .then((data) => {
-      cache.accessToken = data.access_token;
-      cache.expireAt = new Date(Date.now() + data.expires_in * 1000);
-      return data.access_token;
-    });
-}
+    .json<SpotifyTokenResponse>();
+  if (data.access_token) {
+    clientAccessToken = data.access_token;
+    setTimeout(updateImplicitAccessToken, data.expires_in * 1000 - 60 * 1000);
+  } else {
+    // Retry
+    clientAccessToken = null;
+    updateImplicitAccessToken();
+  }
+};
+
+await updateImplicitAccessToken();
 
 function parseTrack(result: SpotifyApi.TrackObjectFull): TrackDbObject {
   return {
@@ -71,38 +77,34 @@ function parsePlaylist(
   };
 }
 
-/**
- * Either use the provided access token are one from implicit client auth
- */
-async function userTokenOrOurs(userAccessToken?: string) {
-  return (
-    ((await SpotifyAuth.checkToken(userAccessToken)) && userAccessToken) ||
-    (await getTokenViaClientCredential())
-  );
-}
-
 export class SpotifyAPI {
   static client = un.create({ prefixURL: "https://api.spotify.com" });
 
   /**
-   * Get Spotify track
-   * @param externalId
+   * Get Spotify tracks
+   * @param externalIds
    * @param userAccessToken optional user access token
    */
-  static async getTrack(
-    externalId: string,
+  static async getTracks(
+    externalIds: string[],
     userAccessToken?: string
-  ): Promise<TrackDbObject | null> {
+  ): Promise<(TrackDbObject | null)[]> {
     // We may offload some of the work using user's token
-    const accessToken = await userTokenOrOurs(userAccessToken);
-    const data = await SpotifyAPI.client
-      .get(`/v1/tracks/${externalId}`, {
-        headers: {
-          Authorization: `Authorization: Bearer ${accessToken}`,
-        },
-      })
-      .json<SpotifyApi.TrackObjectFull>();
-    return parseTrack(data);
+    const accessToken = userAccessToken || clientAccessToken;
+    return getFromIdsPerEveryNum<TrackDbObject | null>(
+      externalIds,
+      50,
+      async (ids) => {
+        const data = await SpotifyAPI.client
+          .get(`/v1/tracks/?ids=${ids.join(",")}`, {
+            headers: {
+              Authorization: `Authorization: Bearer ${accessToken}`,
+            },
+          })
+          .json<SpotifyApi.MultipleTracksResponse>();
+        return data.tracks.map((val) => (val ? parseTrack(val) : null));
+      }
+    );
   }
 
   /**
@@ -114,7 +116,7 @@ export class SpotifyAPI {
     externalId: string,
     userAccessToken?: string
   ): Promise<Playlist | null> {
-    const accessToken = await userTokenOrOurs(userAccessToken);
+    const accessToken = userAccessToken || clientAccessToken;
     const data = await SpotifyAPI.client
       .get(`/v1/playlists/${externalId}?fields=id,external_urls,images,name`, {
         headers: {
@@ -217,7 +219,7 @@ export class SpotifyAPI {
     externalId: string,
     userAccessToken?: string
   ): Promise<TrackDbObject[]> {
-    const accessToken = await userTokenOrOurs(userAccessToken);
+    const accessToken = userAccessToken || clientAccessToken;
 
     const tracks: TrackDbObject[] = [];
 
@@ -254,7 +256,7 @@ export class SpotifyAPI {
     searchQuery: string,
     userAccessToken?: string
   ): Promise<TrackDbObject[]> {
-    const accessToken = await userTokenOrOurs(userAccessToken);
+    const accessToken = userAccessToken || clientAccessToken;
 
     const SEARCH_MAX_RESULTS = 30;
 
@@ -274,27 +276,29 @@ export class SpotifyAPI {
   }
 
   /**
-   * Get Spotify artist
-   * @param externalId
+   * Get Spotify artists
+   * @param externalIds
    * @param userAccessToken optional user access token
    */
-  static async getArtist(
-    externalId: string,
+  static async getArtists(
+    externalIds: string[],
     userAccessToken?: string
-  ): Promise<ArtistDbObject | null> {
-    const accessToken = await userTokenOrOurs(userAccessToken);
-
-    const data = await this.client
-      .get(`/v1/artists/${externalId}`, {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-      })
-      .json<SpotifyApi.ArtistObjectFull | null>()
-      .catch(() => null);
-
-    if (!data) return null;
-    return parseArtist(data);
+  ): Promise<(ArtistDbObject | null)[]> {
+    const accessToken = userAccessToken || clientAccessToken;
+    return getFromIdsPerEveryNum<ArtistDbObject | null>(
+      externalIds,
+      50,
+      async (ids) => {
+        const data = await this.client
+          .get(`/v1/artists?ids=${ids.join(",")}`, {
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+            },
+          })
+          .json<SpotifyApi.MultipleArtistsResponse>();
+        return data.artists.map((val) => (val ? parseArtist(val) : null));
+      }
+    );
   }
 
   /**
@@ -306,7 +310,7 @@ export class SpotifyAPI {
     const data = await SpotifyAPI.client
       .get(`/v1/browse/featured-playlists`, {
         headers: {
-          Authorization: `Bearer ${await userTokenOrOurs(userAccessToken)}`,
+          Authorization: `Bearer ${userAccessToken || clientAccessToken}`,
         },
       })
       .json<SpotifyApi.ListOfFeaturedPlaylistsResponse>();

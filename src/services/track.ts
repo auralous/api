@@ -1,5 +1,4 @@
 import DataLoader from "dataloader";
-import fastJson from "fast-json-stringify";
 import { OdesliAPI } from "../data/odesli.js";
 import { redis } from "../data/redis.js";
 import { SpotifyAPI } from "../data/spotify.js";
@@ -14,95 +13,119 @@ import { PlatformName } from "../graphql/graphql.gen.js";
 import { CONFIG, REDIS_KEY } from "../utils/constant.js";
 import type { ServiceContext } from "./types.js";
 
-const stringifyTrack = fastJson({
-  title: "Track",
-  type: "object",
-  properties: {
-    id: { type: "string" },
-    externalId: { type: "string" },
-    platform: { type: "string" },
-    duration: { type: "number" },
-    title: { type: "string" },
-    image: { type: "string" },
-    artistIds: { type: "array", items: { type: "string" } },
-    albumId: { type: "string" },
-    url: { type: "string" },
-  },
-  required: [
-    "id",
-    "externalId",
-    "platform",
-    "duration",
-    "title",
-    "artistIds",
-    "albumId",
-    "url",
-  ],
-});
+// const stringifyTrack = fastJson({
+//   title: "Track",
+//   type: "object",
+//   properties: {
+//     id: { type: "string" },
+//     externalId: { type: "string" },
+//     platform: { type: "string" },
+//     duration: { type: "number" },
+//     title: { type: "string" },
+//     image: { type: "string" },
+//     artistIds: { type: "array", items: { type: "string" } },
+//     albumId: { type: "string" },
+//     url: { type: "string" },
+//   },
+//   required: [
+//     "id",
+//     "externalId",
+//     "platform",
+//     "duration",
+//     "title",
+//     "artistIds",
+//     "albumId",
+//     "url",
+//   ],
+// });
 
-const stringifyArtist = fastJson({
-  title: "Artist",
-  type: "object",
-  properties: {
-    id: { type: "string" },
-    platform: { type: "string" },
-    externalId: { type: "string" },
-    name: { type: "string" },
-    url: { type: "string" },
-    image: { type: "string" },
-  },
-  required: ["id", "platform", "externalId", "name", "url"],
-});
+// const stringifyArtist = fastJson({
+//   title: "Artist",
+//   type: "object",
+//   properties: {
+//     id: { type: "string" },
+//     platform: { type: "string" },
+//     externalId: { type: "string" },
+//     name: { type: "string" },
+//     url: { type: "string" },
+//     image: { type: "string" },
+//   },
+//   required: ["id", "platform", "externalId", "name", "url"],
+// });
 
 export class TrackService {
-  private loader: DataLoader<string, TrackDbObject | null>;
+  private trackLoader: DataLoader<string, TrackDbObject | null>;
   private artistLoader: DataLoader<string, ArtistDbObject | null>;
 
-  constructor(private context: ServiceContext) {
-    this.loader = this.artistLoader = new DataLoader(
-      (keys) => {
-        // REDIS_CLUSTER: mget not work without hash tags
-        return Promise.all(keys.map((key) => redis.get(key))).then((results) =>
-          results.map((r) => (r ? JSON.parse(r) : null))
+  createEntryLoader<T extends TrackDbObject | ArtistDbObject>(
+    getFnName: "getTracks" | "getArtists"
+  ) {
+    /**
+     * For the loader, we group all YouTube / Spotify / Apple Music
+     * into seperate sets. Then call getTracks() for each set using
+     * their respective APIs
+     */
+    return async (entryIds: readonly string[]) => {
+      const resultMap: Record<string, T | null> = {};
+      const idsBatches = {
+        [PlatformName.Youtube]: new Set<string>(),
+        [PlatformName.Spotify]: new Set<string>(),
+      };
+      entryIds.forEach((entryId) => {
+        const [platform, externalId] = entryId.split(":") as [
+          PlatformName,
+          string
+        ];
+        idsBatches[platform]?.add(externalId);
+      });
+
+      const promises: Promise<(T | null)[]>[] = [];
+
+      for (const platformName of Object.keys(idsBatches) as PlatformName[]) {
+        if (idsBatches[platformName].size > 0) {
+          promises.push(
+            this[platformName][getFnName](
+              Array.from(idsBatches[platformName])
+            ) as Promise<(T | null)[]>
+          );
+        }
+      }
+
+      await Promise.all(promises)
+        .then((promiseResults) => promiseResults.flat(1))
+        .then((results) =>
+          results.forEach((result) => result && (resultMap[result.id] = result))
         );
-      },
+
+      return entryIds.map((entryId) => resultMap[entryId] || null);
+    };
+  }
+
+  constructor(private context: ServiceContext) {
+    this.trackLoader = new DataLoader(
+      this.createEntryLoader<TrackDbObject>("getTracks").bind(this),
+      { cache: false }
+    );
+    this.artistLoader = new DataLoader(
+      this.createEntryLoader<ArtistDbObject>("getArtists").bind(this),
       { cache: false }
     );
   }
 
-  get youtube() {
+  get [PlatformName.Youtube]() {
     return YoutubeAPI;
   }
 
-  get spotify() {
+  get [PlatformName.Spotify]() {
     return SpotifyAPI;
   }
 
-  private find(id: string) {
-    return this.loader.load(REDIS_KEY.track(id));
-  }
-
-  async save(id: string, track: TrackDbObject) {
-    // update cache
-    this.loader.prime(REDIS_KEY.track(id), track);
-    await redis.set(REDIS_KEY.track(id), stringifyTrack(track));
-  }
-
-  async findOrCreate(
+  async findTrack(
     id: string,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     me?: UserDbObject | null
   ): Promise<TrackDbObject | null> {
-    let track = await this.find(id);
-    if (!track) {
-      const [platform, externalId] = id.split(":");
-      track = await this[platform as PlatformName]?.getTrack(
-        externalId,
-        (me?.oauth.provider === platform && me.oauth.accessToken) || undefined
-      );
-      if (!track) return null;
-      await this.save(id, track);
-    }
-    return track || null;
+    return this.trackLoader.load(id);
   }
 
   async crossFindTracks(
@@ -151,33 +174,9 @@ export class TrackService {
   }
 
   // Artists
-  private findArtist(id: string) {
-    return this.artistLoader.load(REDIS_KEY.artist(id));
-  }
-
-  async saveArtist(id: string, artist: ArtistDbObject) {
-    const keyId = REDIS_KEY.artist(id);
-    // update cache
-    this.artistLoader.prime(keyId, artist);
-    // stringifyArtist also remove the extra fields
-    await redis.set(keyId, stringifyArtist(artist));
-  }
-
-  async findOrCreateArtist(
-    id: string,
-    me?: UserDbObject | null
-  ): Promise<ArtistDbObject | null> {
-    let artist = await this.findArtist(id);
-    if (!artist) {
-      const [platform, externalId] = id.split(":");
-      artist = await this[platform as PlatformName].getArtist(
-        externalId,
-        (me?.oauth.provider === platform && me.oauth.accessToken) || undefined
-      );
-      if (!artist) return null;
-      await this.saveArtist(id, artist);
-    }
-    return artist;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  findArtist(id: string, me?: UserDbObject | null) {
+    return this.artistLoader.load(id);
   }
 
   // Playlist

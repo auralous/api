@@ -4,6 +4,7 @@ import type { Playlist } from "../graphql/graphql.gen.js";
 import { PlatformName } from "../graphql/graphql.gen.js";
 import { isDefined } from "../utils/utils.js";
 import type { ArtistDbObject, TrackDbObject, UserDbObject } from "./types.js";
+import { getFromIdsPerEveryNum } from "./utils.js";
 
 function parseDurationToMs(str: string) {
   // https://developers.google.com/youtube/v3/docs/videos#contentDetails.duration
@@ -106,6 +107,17 @@ function parseTrack(result: youtube_v3.Schema$Video): TrackDbObject {
   };
 }
 
+function parseArtist(result: youtube_v3.Schema$Channel): ArtistDbObject {
+  return {
+    id: `youtube:${result.id}`,
+    platform: PlatformName.Youtube,
+    externalId: result.id as string,
+    name: result.snippet!.title as string,
+    image: result.snippet!.thumbnails?.high?.url as string,
+    url: `https://www.youtube.com/channel/${result.id}`,
+  };
+}
+
 export class YoutubeAPI {
   static youtube = google.youtube({
     version: "v3",
@@ -114,21 +126,23 @@ export class YoutubeAPI {
 
   /**
    * Get YouTube track
-   * @param externalId
+   * @param externalIds
    */
-  static async getTrack(externalId: string): Promise<TrackDbObject | null> {
-    const { data: json } = await YoutubeAPI.youtube.videos.list({
-      part: ["contentDetails", "snippet", "status"],
-      fields:
-        "items(id,snippet(title,thumbnails/high,channelId),contentDetails/duration,status/embeddable)",
-      id: [externalId],
+  static async getTracks(
+    externalIds: string[]
+  ): Promise<(TrackDbObject | null)[]> {
+    return getFromIdsPerEveryNum(externalIds, 50, async (ids) => {
+      const { data: json } = await YoutubeAPI.youtube.videos.list({
+        part: ["contentDetails", "snippet", "status"],
+        fields:
+          "items(id,snippet(title,thumbnails/high,channelId),contentDetails/duration,status/embeddable)",
+        id: ids,
+        maxResults: 50,
+      });
+      return json.items!.map((val) =>
+        val?.status?.embeddable ? parseTrack(val) : null
+      );
     });
-    if (!json?.items?.[0]) return null;
-    const { contentDetails, snippet, status } = json.items[0];
-    if (!snippet || !status || !contentDetails) return null;
-    if (!status.embeddable) return null;
-
-    return parseTrack(json.items[0]);
   }
 
   /**
@@ -142,7 +156,7 @@ export class YoutubeAPI {
   ): Promise<Playlist | null> {
     const { data: json } = await YoutubeAPI.youtube.playlists.list({
       part: ["snippet"],
-      fields: "items(snippet(thumbnails,title))",
+      fields: "items(id,snippet(thumbnails,title))",
       id: [externalId],
       access_token: userAccessToken,
     });
@@ -249,11 +263,9 @@ export class YoutubeAPI {
       // TODO: We prefer not to do this
       tracks.push(
         ...(
-          await Promise.all(
-            (trackData.items || []).map((trackItemData) =>
-              YoutubeAPI.getTrack(
-                trackItemData.contentDetails?.videoId as string
-              )
+          await YoutubeAPI.getTracks(
+            trackData.items!.map(
+              (item) => item.contentDetails!.videoId as string
             )
           )
         ).filter(isDefined)
@@ -303,9 +315,8 @@ export class YoutubeAPI {
         musicResponsiveListItemRenderer.doubleTapCommand.watchEndpoint.videoId
     );
 
-    const promises = videoIds.map((i) => YoutubeAPI.getTrack(i));
-
-    return Promise.all<TrackDbObject | null>(promises).then((tracks) =>
+    // We prefer not to do this
+    return YoutubeAPI.getTracks(videoIds).then((tracks) =>
       // A track should only be less than 7 minutes... maybe. You know, 777
       tracks.filter(isDefined)
     );
@@ -313,25 +324,23 @@ export class YoutubeAPI {
 
   /**
    * Get YouTube artist
-   * @param externalId
+   * @param externalIds
    */
-  static async getArtist(externalId: string): Promise<ArtistDbObject | null> {
-    const { data: json } = await YoutubeAPI.youtube.channels.list({
-      id: [externalId],
-      part: ["snippet"],
-      fields: "items(snippet(title,thumbnails/high))",
-    });
-    if (!json?.items?.[0]) return null;
-    const { snippet } = json.items[0];
-    if (!snippet) return null;
-    return {
-      id: `youtube:${externalId}`,
-      platform: PlatformName.Youtube,
-      externalId,
-      name: snippet.title as string,
-      image: snippet.thumbnails?.high?.url as string,
-      url: `https://www.youtube.com/channel/${externalId}`,
-    };
+  static async getArtists(
+    externalIds: string[]
+  ): Promise<(ArtistDbObject | null)[]> {
+    return getFromIdsPerEveryNum<ArtistDbObject | null>(
+      externalIds,
+      50,
+      async (ids) => {
+        const { data: json } = await YoutubeAPI.youtube.channels.list({
+          id: ids,
+          part: ["snippet"],
+          fields: "items(id,snippet(title,thumbnails/high))",
+        });
+        return json.items!.map((val) => (val ? parseArtist(val) : null));
+      }
+    );
   }
 
   /**

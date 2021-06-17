@@ -2,7 +2,7 @@ import fastJson from "fast-json-stringify";
 import { nanoid } from "nanoid/non-secure";
 import { pubsub } from "../data/pubsub.js";
 import { redis } from "../data/redis.js";
-import type { MessageDbObject } from "../data/types.js";
+import type { Message } from "../graphql/graphql.gen.js";
 import { PUBSUB_CHANNELS, REDIS_KEY } from "../utils/constant.js";
 import type { ServiceContext } from "./types.js";
 
@@ -22,13 +22,13 @@ const messageStringify = fastJson({
 export class MessageService {
   constructor(private context: ServiceContext) {}
 
-  static parseMessage(str: string): MessageDbObject {
+  static parseMessage(str: string): Message {
     return JSON.parse(str, (key, value) =>
       key === "createdAt" ? new Date(value) : value
     );
   }
 
-  static stringifyMessage(message: Partial<MessageDbObject>) {
+  static stringifyMessage(message: Partial<Message>) {
     return messageStringify(message);
   }
 
@@ -41,7 +41,7 @@ export class MessageService {
    * @param id the id of message room
    * @param message message object to be notify
    */
-  private notifyMessage(id: string, message: MessageDbObject) {
+  private notifyMessage(id: string, message: Omit<Message, "creator">) {
     pubsub.publish(PUBSUB_CHANNELS.messageAdded, {
       id,
       messageAdded: message,
@@ -54,11 +54,7 @@ export class MessageService {
    * @param start
    * @param stop
    */
-  async findById(
-    id: string,
-    start = 0,
-    stop = -1
-  ): Promise<MessageDbObject[] | null> {
+  async findById(id: string, start = 0, stop = -1): Promise<Message[] | null> {
     return redis
       .lrange(REDIS_KEY.message(id), start, stop)
       .then((strs) => strs.map(MessageService.parseMessage));
@@ -71,9 +67,9 @@ export class MessageService {
    */
   async add(
     id: string,
-    message: Pick<MessageDbObject, "text" | "type" | "creatorId">
+    message: Pick<Message, "text" | "type" | "creatorId">
   ): Promise<number> {
-    const newMessage: MessageDbObject = {
+    const newMessage = {
       ...message,
       id: MessageService.randomMessageItemId(),
       createdAt: new Date(),

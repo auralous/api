@@ -4,8 +4,8 @@ import { db } from "../data/mongo.js";
 import type { PubSub } from "../data/pubsub.js";
 import { pubsub } from "../data/pubsub.js";
 import { redis } from "../data/redis.js";
-import { NowPlayingItemDbObject, StoryDbObject } from "../data/types.js";
-import { MessageType } from "../graphql/graphql.gen.js";
+import { StoryDbObject } from "../data/types.js";
+import { MessageType, NowPlayingQueueItem } from "../graphql/graphql.gen.js";
 import { PUBSUB_CHANNELS, REDIS_KEY } from "../utils/constant.js";
 import { MessageService } from "./message.js";
 import { NowPlayingService } from "./nowPlaying.js";
@@ -70,7 +70,7 @@ export class NowPlayingWorker {
     }
   }
 
-  private setNowPlayingById(id: string, queueItem: NowPlayingItemDbObject) {
+  private setNowPlayingById(id: string, queueItem: NowPlayingQueueItem) {
     return this.redis
       .set(REDIS_KEY.nowPlaying(id), NowPlayingService.stringifyItem(queueItem))
       .then(Boolean);
@@ -90,9 +90,7 @@ export class NowPlayingWorker {
     );
   }
 
-  private async resolve(
-    storyId: string
-  ): Promise<NowPlayingItemDbObject | null> {
+  private async resolve(storyId: string): Promise<NowPlayingQueueItem | null> {
     // Cancel previous job
     const prevTimer = this.timers.get(storyId);
     prevTimer && clearTimeout(prevTimer);
@@ -115,7 +113,7 @@ export class NowPlayingWorker {
       return prevCurrentTrack;
     }
 
-    let currentTrack: NowPlayingItemDbObject | null = null;
+    let currentTrack: NowPlayingQueueItem | null = null;
 
     const firstTrackInQueue = await this.queueService.shiftItem(storyId);
 
@@ -132,7 +130,6 @@ export class NowPlayingWorker {
 
       currentTrack = {
         ...firstTrackInQueue,
-        index: prevCurrentTrack ? prevCurrentTrack.index + 1 : 0,
         playedAt: now,
         endedAt: new Date(now.getTime() + detailNextTrack.duration),
       };

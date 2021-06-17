@@ -9,9 +9,7 @@ generates:
         Track: ../data/types#TrackDbObject
         Artist: ../data/types#ArtistDbObject
         Story: ../data/types#StoryDbObject
-        QueueItem: ../data/types#QueueItemDbObject
         Notification: ../data/types#NotificationDbObject
-        Message: ../data/types#MessageDbObject
       noSchemaStitching: true
     plugins:
       - typescript

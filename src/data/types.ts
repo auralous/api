@@ -1,5 +1,5 @@
 import mongodb from "mongodb";
-import type { MessageType, PlatformName } from "../graphql/graphql.gen.js";
+import type { PlatformName } from "../graphql/graphql.gen.js";
 
 export interface UserOauthProvider {
   provider: PlatformName;
@@ -17,17 +17,6 @@ export interface UserDbObject {
   bio?: string | null;
   createdAt: Date;
   oauth: UserOauthProvider;
-}
-
-export interface QueueItemDbObject {
-  trackId: string;
-  creatorId: string;
-}
-
-export interface NowPlayingItemDbObject extends QueueItemDbObject {
-  index: number;
-  playedAt: Date;
-  endedAt: Date;
 }
 
 export interface StoryDbObject {
@@ -68,15 +57,6 @@ export interface ArtistDbObject {
   name: string;
   url: string;
   image: string;
-}
-
-export interface MessageDbObject {
-  id: string;
-  creatorId: string;
-  createdAt: Date;
-  attachment?: undefined; // TODO: Implement
-  text?: string;
-  type: MessageType;
 }
 
 export interface FollowDbObject {

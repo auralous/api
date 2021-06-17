@@ -17,11 +17,11 @@ type Subscription {
   nowPlayingReactionsUpdated(id: ID!): [NowPlayingReactionItem!]
 }
 type NowPlayingQueueItem {
-  index: Int!
-  trackId: ID!
+  uid: ID!
+  trackId: String!
   playedAt: DateTime!
   endedAt: DateTime!
-  creatorId: ID!
+  creatorId: String!
 }
 type NowPlaying {
   id: ID!

@@ -8,8 +8,8 @@ export const REDIS_KEY = {
   nowPlaying(id: string) {
     return `nowPlaying:${id}:playing`;
   },
-  nowPlayingReaction(id: string, index: number) {
-    return `nowPlaying:${id}:reactions:${index}`;
+  nowPlayingReaction(id: string, uid: string) {
+    return `nowPlaying:${id}:reactions:${uid}`;
   },
   queue(id: string) {
     return `queue:${id}`;

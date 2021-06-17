@@ -1,13 +1,10 @@
 import fastJson from "fast-json-stringify";
 import { pubsub } from "../data/pubsub.js";
 import { redis } from "../data/redis.js";
-import type {
-  NowPlayingItemDbObject,
-  StoryDbObject,
-  UserDbObject,
-} from "../data/types.js";
+import type { StoryDbObject, UserDbObject } from "../data/types.js";
 import { AuthenticationError, ForbiddenError } from "../error/index.js";
 import type {
+  NowPlayingQueueItem,
   NowPlayingReactionItem,
   NowPlayingReactionType,
 } from "../graphql/graphql.gen.js";
@@ -20,19 +17,19 @@ const itemStringify = fastJson({
   title: "Now Playing Queue Item",
   type: "object",
   properties: {
-    index: { type: "number" },
+    uid: { type: "string" },
     trackId: { type: "string" },
     creatorId: { type: "string" },
     playedAt: { type: "string" },
     endedAt: { type: "string" },
   },
-  required: ["index", "trackId", "creatorId", "playedAt", "endedAt"],
+  required: ["uid", "trackId", "creatorId", "playedAt", "endedAt"],
 });
 
 export class NowPlayingService {
   constructor(private context: ServiceContext) {}
 
-  static stringifyItem(currentTrack: NowPlayingItemDbObject) {
+  static stringifyItem(currentTrack: NowPlayingQueueItem) {
     return itemStringify(currentTrack);
   }
 
@@ -44,14 +41,14 @@ export class NowPlayingService {
   async findById(
     id: string,
     showPlayed?: boolean
-  ): Promise<NowPlayingItemDbObject | null> {
-    const currTrack: NowPlayingItemDbObject | null = await redis
+  ): Promise<NowPlayingQueueItem | null> {
+    const currTrack: NowPlayingQueueItem | null = await redis
       .get(REDIS_KEY.nowPlaying(id))
       .then((npStr) =>
         npStr
           ? (JSON.parse(npStr, (key, value) =>
               key === "playedAt" || key === "endedAt" ? new Date(value) : value
-            ) as NowPlayingItemDbObject)
+            ) as NowPlayingQueueItem)
           : null
       );
     if (!currTrack) return null;
@@ -66,7 +63,7 @@ export class NowPlayingService {
    */
   async notifyNowPlayingChange(
     id: string,
-    currentTrack: NowPlayingItemDbObject | null
+    currentTrack: NowPlayingQueueItem | null
   ) {
     pubsub.publish(PUBSUB_CHANNELS.nowPlayingUpdated, {
       nowPlayingUpdated: {
@@ -124,7 +121,7 @@ export class NowPlayingService {
 
     // If the reaction already eists, the below returns 0 / does nothing
     const result = await redis.hset(
-      REDIS_KEY.nowPlayingReaction(String(story._id), currItem.index),
+      REDIS_KEY.nowPlayingReaction(String(story._id), currItem.uid),
       me._id,
       reaction
     );
@@ -139,7 +136,7 @@ export class NowPlayingService {
     const currentTrack = await this.findById(id);
     if (!currentTrack) return [];
     const o = await redis.hgetall(
-      REDIS_KEY.nowPlayingReaction(id, currentTrack.index)
+      REDIS_KEY.nowPlayingReaction(id, currentTrack.uid)
     );
     return Object.entries(o).map(([userId, reaction]) => ({
       userId,

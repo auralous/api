@@ -16,11 +16,11 @@ const resolvers: Resolvers = {
         { add: addArgs }
       );
     },
-    async queueRemove(parent, { id, ...removeArgs }, { user, services }) {
+    async queueRemove(parent, { id, uids }, { user, services }) {
       return services.Queue.executeQueueAction(
         user,
         await services.Story.findById(id),
-        { remove: removeArgs }
+        { remove: uids }
       );
     },
     async queueReorder(parent, { id, ...reorderArgs }, { user, services }) {

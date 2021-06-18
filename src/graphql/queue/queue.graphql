@@ -15,7 +15,7 @@ type Query {
 
 type Mutation {
   queueAdd(id: ID!, tracks: [ID!]!): Boolean!
-  queueRemove(id: ID!, uid: String!, trackId: String!, creatorId: String!): Boolean!
+  queueRemove(id: ID!, uids: [ID!]!): Boolean!
   queueReorder(id: ID!, position: Int!, insertPosition: Int!): Boolean!
 }
 

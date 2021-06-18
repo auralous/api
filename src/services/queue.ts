@@ -6,7 +6,6 @@ import type { StoryDbObject, UserDbObject } from "../data/types.js";
 import { AuthenticationError, ForbiddenError } from "../error/index.js";
 import type {
   MutationQueueAddArgs,
-  MutationQueueRemoveArgs,
   MutationQueueReorderArgs,
   QueueItem,
 } from "../graphql/graphql.gen.js";
@@ -40,6 +39,10 @@ export class QueueService {
     return queueItemStringify(item);
   }
 
+  static parseQueueItem(str: string): QueueItem {
+    return JSON.parse(str);
+  }
+
   private notifyUpdate(id: string) {
     pubsub.publish(PUBSUB_CHANNELS.queueUpdated, {
       queueUpdated: { id },
@@ -55,7 +58,7 @@ export class QueueService {
   async findById(id: string, start = 0, stop = -1): Promise<QueueItem[]> {
     return redis
       .lrange(REDIS_KEY.queue(id), start, stop)
-      .then((res) => res.map((it) => JSON.parse(it)));
+      .then((res) => res.map(QueueService.parseQueueItem));
   }
 
   /**
@@ -74,7 +77,7 @@ export class QueueService {
     const str = await redis.lpop(REDIS_KEY.queue(id));
     if (!str) return null;
     this.notifyUpdate(id);
-    return JSON.parse(str);
+    return QueueService.parseQueueItem(str);
   }
 
   /**
@@ -112,29 +115,33 @@ export class QueueService {
     await this.deleteById(id);
     const count = await redis.rpush(
       REDIS_KEY.queue(id),
-      reorder(allItems, origin, dest)
+      ...reorder(allItems, origin, dest)
     );
     this.notifyUpdate(id);
     return count;
   }
 
   /**
-   * Remove a queue item
-   * @param id
-   * @param pos
+   * Remove queue items
+   * @param ids
    */
-  async removeItem(
-    id: string,
-    removeArg: Omit<MutationQueueRemoveArgs, "id">
-  ): Promise<number> {
-    // redis does not have remove item from list by index
-    const count = await redis.lrem(
-      REDIS_KEY.queue(id),
-      1,
-      QueueService.stringifyQueueItem(removeArg)
-    );
-    if (count) this.notifyUpdate(id);
-    return count;
+  async removeItems(id: string, uids: string[]): Promise<number> {
+    // FIXME: Redis linked list is not the best
+    // data structure for this
+    const deleteCount = 0;
+    const allItems = await this.findById(id);
+    await this.deleteById(id);
+
+    const remainingItems = allItems
+      .filter((item) => !uids.includes(item.uid))
+      .map(QueueService.stringifyQueueItem);
+
+    if (remainingItems.length > 0) {
+      await redis.rpush(REDIS_KEY.queue(id), ...remainingItems);
+    }
+
+    if (remainingItems.length !== allItems.length) this.notifyUpdate(id);
+    return deleteCount;
   }
 
   /**
@@ -158,7 +165,7 @@ export class QueueService {
     actions: {
       add?: Omit<MutationQueueAddArgs, "id">;
       reorder?: Omit<MutationQueueReorderArgs, "id">;
-      remove?: Omit<MutationQueueRemoveArgs, "id">;
+      remove?: string[];
     }
   ) {
     if (!story) throw new ForbiddenError("Story does not exist");
@@ -186,7 +193,7 @@ export class QueueService {
 
       return true;
     } else if (actions.remove) {
-      return Boolean(await this.removeItem(id, actions.remove));
+      return Boolean(await this.removeItems(id, actions.remove));
     } else if (actions.reorder) {
       await this.reorderItems(
         id,

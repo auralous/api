@@ -1,3 +1,4 @@
+import { UserDbObject } from "../../data/types.js";
 import { PUBSUB_CHANNELS } from "../../utils/constant.js";
 import type { Resolvers } from "../graphql.gen.js";
 
@@ -10,25 +11,28 @@ const resolvers: Resolvers = {
   },
   Mutation: {
     async queueAdd(parent, { id, ...addArgs }, { user, services }) {
-      return services.Queue.executeQueueAction(
-        user,
-        await services.Story.findById(id),
-        { add: addArgs }
-      );
+      await services.Queue.assertStoryQueueActionable(user, id);
+      return services.Queue.executeQueueAction(user as UserDbObject, id, {
+        add: addArgs,
+      });
     },
     async queueRemove(parent, { id, uids }, { user, services }) {
-      return services.Queue.executeQueueAction(
-        user,
-        await services.Story.findById(id),
-        { remove: uids }
-      );
+      await services.Queue.assertStoryQueueActionable(user, id);
+      return services.Queue.executeQueueAction(user as UserDbObject, id, {
+        remove: uids,
+      });
     },
     async queueReorder(parent, { id, ...reorderArgs }, { user, services }) {
-      return services.Queue.executeQueueAction(
-        user,
-        await services.Story.findById(id),
-        { reorder: reorderArgs }
-      );
+      await services.Queue.assertStoryQueueActionable(user, id);
+      return services.Queue.executeQueueAction(user as UserDbObject, id, {
+        reorder: reorderArgs,
+      });
+    },
+    async queueToTop(parent, { id, ...toTopArgs }, { user, services }) {
+      await services.Queue.assertStoryQueueActionable(user, id);
+      return services.Queue.executeQueueAction(user as UserDbObject, id, {
+        toTop: toTopArgs,
+      });
     },
   },
   Subscription: {

@@ -153,9 +153,11 @@ export class StoryService {
       }),
     });
 
-    await new QueueService(this.context).executeQueueAction(me, story, {
-      add: { tracks },
-    });
+    await new QueueService(this.context).executeQueueAction(
+      me,
+      String(story._id),
+      { add: { tracks } }
+    );
 
     const notificationService = new NotificationService(this.context);
 

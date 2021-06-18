@@ -17,6 +17,7 @@ type Mutation {
   queueAdd(id: ID!, tracks: [ID!]!): Boolean!
   queueRemove(id: ID!, uids: [ID!]!): Boolean!
   queueReorder(id: ID!, position: Int!, insertPosition: Int!): Boolean!
+  queueToTop(id: ID!, uids: [ID!]!): Boolean!
 }
 
 type Subscription {

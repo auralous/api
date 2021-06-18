@@ -2,11 +2,12 @@ import fastJson from "fast-json-stringify";
 import { nanoid } from "nanoid/non-secure";
 import { pubsub } from "../data/pubsub.js";
 import { redis } from "../data/redis.js";
-import type { StoryDbObject, UserDbObject } from "../data/types.js";
+import { UserDbObject } from "../data/types.js";
 import { AuthenticationError, ForbiddenError } from "../error/index.js";
 import type {
   MutationQueueAddArgs,
   MutationQueueReorderArgs,
+  MutationQueueToTopArgs,
   QueueItem,
 } from "../graphql/graphql.gen.js";
 import { PUBSUB_CHANNELS, REDIS_KEY } from "../utils/constant.js";
@@ -145,11 +146,49 @@ export class QueueService {
   }
 
   /**
+   * Move some items to the top
+   */
+  async toTopItems(id: string, uids: string[]): Promise<number> {
+    const allItems = await this.findById(id);
+    const movingItems: QueueItem[] = [];
+    const resultingItems = allItems.filter((item) => {
+      if (uids.includes(item.uid)) {
+        movingItems.push(item);
+        return false;
+      }
+      return true;
+    });
+    if (movingItems.length > 0) {
+      resultingItems.unshift(...movingItems);
+      await this.deleteById(id);
+      await redis.rpush(
+        REDIS_KEY.queue(id),
+        ...resultingItems.map(QueueService.stringifyQueueItem)
+      );
+      this.notifyUpdate(id);
+    }
+    return movingItems.length;
+  }
+
+  /**
    * Delete a queue
    * @param id
    */
   async deleteById(id: string) {
     return redis.del(REDIS_KEY.queue(id));
+  }
+
+  async assertStoryQueueActionable<TMe extends UserDbObject | null>(
+    me: TMe,
+    storyId: string
+  ) {
+    if (!me) throw new AuthenticationError("");
+    const story = await new StoryService(this.context).findById(storyId);
+    if (!story) throw new ForbiddenError("Story does not exist");
+    if (!story.isLive) throw new ForbiddenError("Story is no longer live");
+    if (!StoryService.getPermission(me, story).isQueueable)
+      throw new ForbiddenError("You are not allowed to add to this queue");
+    return true;
   }
 
   /**
@@ -160,23 +199,16 @@ export class QueueService {
    * @param actions
    */
   async executeQueueAction(
-    me: UserDbObject | null,
-    story: StoryDbObject | null,
+    me: UserDbObject,
+    id: string,
     actions: {
       add?: Omit<MutationQueueAddArgs, "id">;
       reorder?: Omit<MutationQueueReorderArgs, "id">;
       remove?: string[];
+      toTop?: Omit<MutationQueueToTopArgs, "id">;
     }
   ) {
-    if (!story) throw new ForbiddenError("Story does not exist");
-
-    const id = String(story._id);
     if (!me) throw new AuthenticationError("");
-
-    if (!story.isLive) throw new ForbiddenError("Story is no longer live");
-
-    if (!StoryService.getPermission(me, story).isQueueable)
-      throw new ForbiddenError("You are not allowed to add to this queue");
 
     if (actions.add) {
       await this.pushItems(
@@ -189,7 +221,7 @@ export class QueueService {
       );
 
       // It is possible that adding a new item will restart nowPlaying
-      NowPlayingWorker.requestResolve(pubsub, String(story._id));
+      NowPlayingWorker.requestResolve(pubsub, id);
 
       return true;
     } else if (actions.remove) {
@@ -201,6 +233,8 @@ export class QueueService {
         actions.reorder.insertPosition
       );
       return true;
+    } else if (actions.toTop) {
+      await this.toTopItems(id, actions.toTop.uids);
     }
     return false;
   }

@@ -15,6 +15,7 @@ const resolvers: Resolvers = {
     },
   },
   Query: {
+    // @ts-ignore
     async messages(parent, { id, offset, limit }, { services }) {
       limit = limit || 20; // limit = 0 is invalid
       offset = offset || 0;

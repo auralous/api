@@ -19,4 +19,5 @@ type Playlist {
   name: String!
   image: String
   url: String!
+  total: Int!
 }

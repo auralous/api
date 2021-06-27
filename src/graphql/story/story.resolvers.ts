@@ -38,6 +38,18 @@ const resolvers: Resolvers = {
       if (!creatorId) return null;
       return services.Story.findLiveByCreatorId(creatorId);
     },
+    // @ts-ignore
+    async storyTracks(parent, { id }, { services, user }) {
+      const story = await services.Story.findById(id);
+      if (!story || !StoryService.getPermission(user, story).isViewable)
+        return null;
+      const queueItems = await services.Queue.findById(`${id}:played`, 0, -1);
+      return Promise.all(
+        queueItems.map((queueItem) =>
+          services.Track.findTrack(queueItem.trackId)
+        )
+      );
+    },
   },
   Mutation: {
     storyCreate(

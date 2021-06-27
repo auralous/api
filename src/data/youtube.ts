@@ -87,6 +87,7 @@ function parsePlaylist(result: youtube_v3.Schema$Playlist): Playlist {
     image: result.snippet?.thumbnails?.high?.url || undefined,
     name: result.snippet?.title as string,
     url: `https://www.youtube.com/playlist?list=${result.id}`,
+    total: result.contentDetails?.itemCount || 0,
   };
 }
 
@@ -155,8 +156,8 @@ export class YoutubeAPI {
     userAccessToken?: string
   ): Promise<Playlist | null> {
     const { data: json } = await YoutubeAPI.youtube.playlists.list({
-      part: ["snippet"],
-      fields: "items(id,snippet(thumbnails,title))",
+      part: ["snippet", "contentDetails"],
+      fields: "items(id,snippet(thumbnails,title),contentDetails(itemCount))",
       id: [externalId],
       access_token: userAccessToken,
     });

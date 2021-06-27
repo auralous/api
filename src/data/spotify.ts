@@ -74,6 +74,7 @@ function parsePlaylist(
     name: result.name,
     platform: PlatformName.Spotify,
     url: result.external_urls.spotify,
+    total: result?.tracks?.total || 0,
   };
 }
 
@@ -118,11 +119,14 @@ export class SpotifyAPI {
   ): Promise<Playlist | null> {
     const accessToken = userAccessToken || clientAccessToken;
     const data = await SpotifyAPI.client
-      .get(`/v1/playlists/${externalId}?fields=id,external_urls,images,name`, {
-        headers: {
-          Authorization: `Authorization: Bearer ${accessToken}`,
-        },
-      })
+      .get(
+        `/v1/playlists/${externalId}?fields=id,external_urls,images,name,tracks(total)`,
+        {
+          headers: {
+            Authorization: `Authorization: Bearer ${accessToken}`,
+          },
+        }
+      )
       .json<SpotifyApi.PlaylistObjectFull>();
 
     return parsePlaylist(data);

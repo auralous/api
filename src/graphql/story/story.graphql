@@ -4,6 +4,7 @@ type Query {
   stories(id: ID!, next: String, limit: Int!): [Story!]!
   storiesOnMap(lng: Float!, lat: Float!, radius: Float!): [Story!]!
   storyLive(creatorId: String): Story
+  storyTracks(id: ID!): [Track!]!
 }
 
 type Mutation {

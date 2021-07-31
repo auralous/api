@@ -8,17 +8,10 @@ type Query {
 }
 
 type Mutation {
-  storyCreate(
-    text: String!
-    isPublic: Boolean!
-    location: LocationInput
-    tracks: [ID!]!
-  ): Story!
+  storyCreate(text: String!, location: LocationInput, tracks: [ID!]!): Story!
   storyDelete(id: ID!): ID!
-  storyChangeQueueable(id: ID!, userId: String!, isRemoving: Boolean!): Boolean!
   storyUnlive(id: ID!): Story!
   storyPing(id: ID!): Boolean!
-  storySendInvites(id: ID!, invitedIds: [String!]!): Boolean!
 }
 
 input LocationInput {
@@ -34,11 +27,10 @@ type Subscription {
 type Story {
   id: ID!
   text: String!
-  isPublic: Boolean!
   image: String
   creatorId: ID!
   creator: User!
   createdAt: DateTime!
   isLive: Boolean!
-  queueable: [String!]!
+  collaboratorIds: [String!]!
 }

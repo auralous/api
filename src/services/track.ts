@@ -128,6 +128,16 @@ export class TrackService {
     return this.trackLoader.load(id);
   }
 
+  async findTracks(
+    ids: string[],
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    me?: UserDbObject | null
+  ) {
+    return (await this.trackLoader.loadMany(ids)).map((item) =>
+      item instanceof Error ? null : item
+    );
+  }
+
   async crossFindTracks(
     id: string
   ): Promise<Record<PlatformName, string | undefined>> {

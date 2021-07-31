@@ -24,12 +24,10 @@ export interface StoryDbObject {
   text: string;
   creatorId: string;
   createdAt: Date;
-  isPublic: boolean;
   isLive: boolean;
   image?: string | null;
   // Settings
-  queueable: string[];
-  viewable: string[];
+  collaboratorIds: string[];
   // Internal
   lastCreatorActivityAt: Date;
   location?: {

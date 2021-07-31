@@ -10,7 +10,6 @@ import type {
 } from "../graphql/graphql.gen.js";
 import { PUBSUB_CHANNELS, REDIS_KEY } from "../utils/constant.js";
 import { NowPlayingWorker } from "./nowPlayingWorker.js";
-import { StoryService } from "./story.js";
 import type { ServiceContext } from "./types.js";
 
 const itemStringify = fastJson({
@@ -113,8 +112,7 @@ export class NowPlayingService {
   ) {
     if (!me) throw new AuthenticationError("");
 
-    if (!story || !StoryService.getPermission(me, story).isViewable)
-      throw new ForbiddenError("");
+    if (!story) throw new ForbiddenError("Story is not found");
 
     const currItem = await this.findById(String(story._id));
     if (!currItem) return null;

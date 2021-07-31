@@ -11,7 +11,6 @@ import { AuthenticationError } from "../error/index.js";
 import { PUBSUB_CHANNELS } from "../utils/constant.js";
 import { FollowService } from "./follow.js";
 import type { ServiceContext } from "./types.js";
-import { UserService } from "./user.js";
 
 export class NotificationService {
   private collection = db.collection<NotificationDbObject>("notifications");
@@ -68,36 +67,6 @@ export class NotificationService {
       notificationAdded: newNotification,
     });
     return newNotification;
-  }
-
-  async addInvitesToStory(
-    me: UserDbObject | null,
-    story: StoryDbObject,
-    invitedIds: string[]
-  ) {
-    if (!me) throw new AuthenticationError("");
-
-    const promises: Promise<WithId<NotificationDbObject> | null>[] = [];
-
-    const userService = new UserService(this.context);
-
-    invitedIds.forEach((invitedId) => {
-      promises.push(
-        userService.findById(invitedId).then((user) =>
-          user
-            ? // TODO: We need a way to throttle this
-              this.add<Extract<NotificationDbObject, { type: "invite" }>>({
-                userId: invitedId,
-                storyId: String(story._id),
-                inviterId: me._id,
-                type: "invite",
-              })
-            : null
-        )
-      );
-    });
-
-    await Promise.all(promises);
   }
 
   async notifyFollowersOfNewStory(story: StoryDbObject) {

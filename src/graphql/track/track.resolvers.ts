@@ -4,10 +4,13 @@ import { PlatformName, Resolvers } from "../graphql.gen.js";
 
 const resolvers: Resolvers = {
   Query: {
-    async track(parent, { id }, { services, setCacheControl }) {
-      const track = await services.Track.findTrack(id);
+    async track(parent, { id }, { services, setCacheControl, user }) {
+      const track = await services.Track.findTrack(id, user);
       if (track) setCacheControl?.(CONFIG.trackMaxAge);
       return track;
+    },
+    async tracks(parent, { ids }, { services, user }) {
+      return services.Track.findTracks(ids, user);
     },
     playlist(parent, { id }, { services, user }) {
       return services.Track.findPlaylist(id, user);

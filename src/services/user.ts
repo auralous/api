@@ -42,6 +42,12 @@ export class UserService {
     return this.loader.load(id);
   }
 
+  async findManyByIds(ids: string[]) {
+    return (await this.loader.loadMany(ids)).map((item) =>
+      item instanceof Error ? null : item
+    );
+  }
+
   /**
    * Find a user by username
    * @param username

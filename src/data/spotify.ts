@@ -241,9 +241,12 @@ export class SpotifyAPI {
       if (trackData?.items)
         tracks.push(
           ...trackData.items
-            .map((trackItem) =>
-              !trackItem.is_local ? parseTrack(trackItem.track) : null
-            )
+            .map((trackItem) => {
+              // Sometimes track is null
+              return trackItem.track && !trackItem.is_local
+                ? parseTrack(trackItem.track)
+                : null;
+            })
             .filter(isDefined)
         );
     } while (trackData?.next);

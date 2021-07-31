@@ -186,7 +186,7 @@ export class QueueService {
     const story = await new StoryService(this.context).findById(storyId);
     if (!story) throw new ForbiddenError("Story does not exist");
     if (!story.isLive) throw new ForbiddenError("Story is no longer live");
-    if (!StoryService.getPermission(me, story).isQueueable)
+    if (!me || !story.collaboratorIds.includes(me._id))
       throw new ForbiddenError("You are not allowed to add to this queue");
     return true;
   }

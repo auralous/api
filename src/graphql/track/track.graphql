@@ -5,6 +5,7 @@ enum PlatformName {
 
 type Query {
   track(id: ID!): Track
+  tracks(ids: [ID!]!): [Track]!
   crossTracks(id: ID!): CrossTracks
   searchTrack(query: String!): [Track!]!
 }

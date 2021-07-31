@@ -46,7 +46,7 @@ export class StoryService {
 
   /**
    * Notify the story has changed
-   * Possibly because a new queueable, viewable, or isLive
+   * Possibly because a new collaboratorId, or isLive
    * @param story
    */
   private notifyUpdate(story: StoryDbObject) {
@@ -110,9 +110,8 @@ export class StoryService {
     me: UserDbObject | null,
     {
       text,
-      isPublic,
       location,
-    }: Pick<StoryDbObject, "text" | "isPublic"> & {
+    }: Pick<StoryDbObject, "text"> & {
       location: { lng: number; lat: number } | null | undefined;
     },
     tracks: string[]
@@ -140,13 +139,11 @@ export class StoryService {
       ops: [story],
     } = await this.collection.insertOne({
       text,
-      isPublic,
       creatorId: me._id,
       createdAt,
       isLive: true,
       image,
-      viewable: [],
-      queueable: [],
+      collaboratorIds: [me._id],
       lastCreatorActivityAt: createdAt,
       ...(location && {
         location: { type: "Point", coordinates: [location.lng, location.lat] },
@@ -236,7 +233,6 @@ export class StoryService {
   ): Promise<StoryDbObject[]> {
     return this.collection
       .find({
-        isPublic: true,
         ...(next && { _id: { $lt: new mongodb.ObjectID(next) } }),
       })
       .sort({ $natural: -1 })
@@ -254,7 +250,7 @@ export class StoryService {
   async updateById(
     me: UserDbObject | null,
     id: string,
-    { text, image, queueable, isLive }: NullablePartial<StoryDbObject>
+    { text, image, isLive }: NullablePartial<StoryDbObject>
   ): Promise<StoryDbObject> {
     if (!me) throw new AuthenticationError("");
     const { value: story } = await this.collection.findOneAndUpdate(
@@ -266,7 +262,6 @@ export class StoryService {
         $set: {
           ...(text && { text }),
           ...(image !== undefined && { image }),
-          ...(queueable && { queueable }),
           ...(typeof isLive === "boolean" && { isLive }),
         },
       },
@@ -295,35 +290,6 @@ export class StoryService {
   }
 
   /**
-   * Add or remove the queueable by id
-   * @param me the creator of that story
-   * @param id
-   * @param addingUser
-   * @param isRemoving
-   */
-  async addOrRemoveQueueable(
-    me: UserDbObject | null,
-    id: string,
-    addingUser: UserDbObject,
-    isRemoving: boolean
-  ) {
-    if (!me) throw new AuthenticationError("");
-    const { value: story } = await this.collection.findOneAndUpdate(
-      {
-        _id: new mongodb.ObjectID(id),
-        creatorId: me._id,
-      },
-      isRemoving
-        ? { $pull: { queueable: addingUser._id } }
-        : { $addToSet: { queueable: addingUser._id } },
-      { returnDocument: "after" }
-    );
-    if (!story) throw new ForbiddenError("Cannot update story");
-    this.notifyUpdate(story);
-    return true;
-  }
-
-  /**
    * Notify that the user is still in story
    * @param user
    * @param storyId
@@ -333,8 +299,7 @@ export class StoryService {
 
     const story = await this.findById(storyId);
 
-    if (!story || !StoryService.getPermission(user, story).isViewable)
-      throw new ForbiddenError("Cannot ping to this story");
+    if (!story) throw new ForbiddenError("Cannot ping to this story");
 
     // story presence does not apply to unlive story
     if (!story.isLive) return;
@@ -387,26 +352,5 @@ export class StoryService {
       Infinity,
       minRange
     );
-  }
-
-  /**
-   * Get a user's permission to a story
-   * @param user the user in question, possibly null
-   * @param story
-   */
-  static getPermission(
-    user: UserDbObject | null,
-    story: StoryDbObject
-  ): { isViewable: boolean; isQueueable: boolean } {
-    return {
-      isViewable:
-        story.isPublic ||
-        story.creatorId === user?._id ||
-        (!!user?._id && !!story.viewable.includes(user._id)),
-      isQueueable: Boolean(
-        !!user?._id &&
-          (story.creatorId === user._id || story.queueable.includes(user._id))
-      ),
-    };
   }
 }

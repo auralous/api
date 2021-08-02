@@ -1,7 +1,8 @@
 import fastJson from "fast-json-stringify";
+import { AuthState } from "../auth/types.js";
 import { pubsub } from "../data/pubsub.js";
 import { redis } from "../data/redis.js";
-import type { StoryDbObject, UserDbObject } from "../data/types.js";
+import type { StoryDbObject } from "../data/types.js";
 import { AuthenticationError, ForbiddenError } from "../error/index.js";
 import type {
   NowPlayingQueueItem,
@@ -78,14 +79,14 @@ export class NowPlayingService {
    * @param story
    */
   async skipCurrentTrack(
-    me: UserDbObject | null,
+    me: AuthState | null,
     story: StoryDbObject | null
   ): Promise<boolean> {
     if (!me) throw new AuthenticationError("");
     if (!story) throw new ForbiddenError("Story does not exist");
     const currentTrack = await this.findById(String(story._id));
     if (!currentTrack) return false;
-    if (story.creatorId !== me._id && currentTrack.creatorId !== me._id)
+    if (story.creatorId !== me.userId && currentTrack.creatorId !== me.userId)
       throw new AuthenticationError("You are not allowed to make changes");
     return Boolean(NowPlayingWorker.requestSkip(pubsub, String(story._id)));
   }
@@ -106,7 +107,7 @@ export class NowPlayingService {
    * @param reaction
    */
   async reactNowPlaying(
-    me: UserDbObject | null,
+    me: AuthState | null,
     story: StoryDbObject | null,
     reaction: NowPlayingReactionType
   ) {
@@ -120,7 +121,7 @@ export class NowPlayingService {
     // If the reaction already eists, the below returns 0 / does nothing
     const result = await redis.hset(
       REDIS_KEY.nowPlayingReaction(String(story._id), currItem.uid),
-      me._id,
+      me.userId,
       reaction
     );
 

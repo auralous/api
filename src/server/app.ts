@@ -1,7 +1,7 @@
 import { parseGraphQLBody } from "@benzene/http";
 import cors from "cors";
 import nc from "next-connect";
-import { getUserFromRequest } from "../auth/auth.js";
+import { getAuthFromRequest } from "../auth/auth.js";
 import auth from "../auth/handler.js";
 import { client as mongoClient } from "../data/mongo.js";
 import { redis } from "../data/redis.js";
@@ -65,7 +65,7 @@ app.all("/graphql", (req, res) => {
       query: req.query,
     },
     {
-      user: getUserFromRequest(req),
+      auth: getAuthFromRequest(req),
       setCacheControl:
         req.method === "GET" ? makeSetCacheControl(res) : undefined,
     }

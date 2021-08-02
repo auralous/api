@@ -1,10 +1,8 @@
 import nc from "next-connect";
 import un from "undecim";
 import { URLSearchParams } from "url";
-import type { UserDbObject } from "../data/types.js";
 import { ForbiddenError } from "../error/index.js";
 import { PlatformName } from "../graphql/graphql.gen.js";
-import type { UserService } from "../services/user.js";
 import { authCallback, authInit } from "./auth.js";
 
 /**
@@ -74,27 +72,23 @@ export class SpotifyAuth {
       );
   }
 
-  async getAccessToken(
-    me: UserDbObject,
-    userService: UserService
-  ): Promise<string | null> {
-    if (me.oauth.provider !== PlatformName.Spotify) return null;
-    if (await SpotifyAuth.checkToken(me.oauth.accessToken || undefined))
-      return me.oauth.accessToken as string;
-    return this.refreshAccessToken(me, userService);
+  static async getOrRefreshTokens(
+    accessToken: string,
+    refreshToken: string
+  ): Promise<{ accessToken: string; refreshToken: string } | null> {
+    if (await SpotifyAuth.checkToken(accessToken))
+      return { accessToken, refreshToken };
+    return this.refreshAccessToken(refreshToken);
   }
 
-  private async refreshAccessToken(
-    me: UserDbObject,
-    userService: UserService
-  ): Promise<string | null> {
-    if (!me.oauth.refreshToken) return null;
-
+  private static async refreshAccessToken(
+    refreshToken: string
+  ): Promise<{ accessToken: string; refreshToken: string } | null> {
     const data = await un
       .post(SpotifyAuth.tokenEndpoint, {
         data: new URLSearchParams({
           grant_type: "refresh_token",
-          refresh_token: me.oauth.refreshToken,
+          refresh_token: refreshToken,
         }),
         headers: {
           Authorization: SpotifyAuth.ClientAuthorizationHeader,
@@ -107,12 +101,10 @@ export class SpotifyAuth {
       return null;
     }
 
-    await userService.updateMeOauth(me, {
-      refreshToken: data.refresh_token,
+    return {
       accessToken: data.access_token,
-      expiredAt: new Date(Date.now() + data.expires_in * 1000),
-    });
-    return data.access_token;
+      refreshToken: data.refresh_token,
+    };
   }
 }
 
@@ -147,15 +139,16 @@ export const handler = nc()
       req,
       res,
       {
-        id: json.id,
+        oauthId: json.id,
         provider: PlatformName.Spotify,
-        accessToken: jsonToken.access_token,
-        refreshToken: jsonToken.refresh_token,
-        expiredAt: new Date(Date.now() + jsonToken.expires_in * 1000),
       },
       {
         email: json.email,
         profilePicture: json.images?.[0]?.url,
+      },
+      {
+        accessToken: jsonToken.access_token,
+        refreshToken: jsonToken.refresh_token,
       }
     );
   });

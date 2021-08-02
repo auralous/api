@@ -34,16 +34,16 @@ const resolvers: Resolvers = {
       const queueItems = await services.Queue.findById(`${id}:played`, 0, -1);
       return services.Track.findTracks(queueItems.map((item) => item.trackId));
     },
-    async storyInviteLink(parent, { id }, { user, services }) {
+    async storyInviteLink(parent, { id }, { auth, services }) {
       return `${
         process.env.APP_URI
-      }/story/${id}/invite/${await services.Story.getInviteToken(user, id)}`;
+      }/story/${id}/invite/${await services.Story.getInviteToken(auth, id)}`;
     },
   },
   Mutation: {
-    storyCreate(parent, { text, location, tracks }, { services, user }) {
+    storyCreate(parent, { text, location, tracks }, { services, auth }) {
       return services.Story.create(
-        user,
+        auth,
         {
           text,
           location,
@@ -51,24 +51,24 @@ const resolvers: Resolvers = {
         tracks
       );
     },
-    async storyUnlive(parent, { id }, { services, user }) {
+    async storyUnlive(parent, { id }, { services, auth }) {
       const story = await services.Story.findById(id);
       if (!story) throw new UserInputError("Story not found", ["id"]);
-      if (story.creatorId !== user?._id)
+      if (story.creatorId !== auth?.userId)
         throw new ForbiddenError("Story cannot be updated");
       return services.Story.unliveStory(id);
     },
-    async storyDelete(parent, { id }, { services, user }) {
-      await services.Story.deleteById(user, id);
+    async storyDelete(parent, { id }, { services, auth }) {
+      await services.Story.deleteById(auth, id);
       return id;
     },
-    storyPing(parent, { id }, { services, user }) {
-      if (!user) return false;
-      services.Story.pingPresence(user, id);
+    storyPing(parent, { id }, { services, auth }) {
+      if (!auth) return false;
+      services.Story.pingPresence(auth, id);
       return true;
     },
-    async storyCollabAddFromToken(parent, { id, token }, { services, user }) {
-      return services.Story.addCollabFromToken(user, id, token);
+    async storyCollabAddFromToken(parent, { id, token }, { services, auth }) {
+      return services.Story.addCollabFromToken(auth, id, token);
     },
   },
   Subscription: {
@@ -93,13 +93,13 @@ const resolvers: Resolvers = {
   },
   Story: {
     id: ({ _id }) => String(_id),
-    async image({ isLive, image, _id }, args, { services, user }) {
+    async image({ isLive, image, _id }, args, { services }) {
       if (image) return image;
       if (isLive) {
         const np = await services.NowPlaying.findById(String(_id), true);
         return (
           (np?.trackId &&
-            (await services.Track.findTrack(np.trackId, user))?.image) ||
+            (await services.Track.findTrack(np.trackId))?.image) ||
           null
         );
       }

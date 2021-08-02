@@ -1,4 +1,4 @@
-import { UserDbObject } from "../../data/types.js";
+import { AuthState } from "../../auth/types.js";
 import { PUBSUB_CHANNELS } from "../../utils/constant.js";
 import type { Resolvers } from "../graphql.gen.js";
 
@@ -10,27 +10,27 @@ const resolvers: Resolvers = {
     },
   },
   Mutation: {
-    async queueAdd(parent, { id, ...addArgs }, { user, services }) {
-      await services.Queue.assertStoryQueueActionable(user, id);
-      return services.Queue.executeQueueAction(user as UserDbObject, id, {
+    async queueAdd(parent, { id, ...addArgs }, { auth, services }) {
+      await services.Queue.assertStoryQueueActionable(auth, id);
+      return services.Queue.executeQueueAction(auth as AuthState, id, {
         add: addArgs,
       });
     },
-    async queueRemove(parent, { id, uids }, { user, services }) {
-      await services.Queue.assertStoryQueueActionable(user, id);
-      return services.Queue.executeQueueAction(user as UserDbObject, id, {
+    async queueRemove(parent, { id, uids }, { auth, services }) {
+      await services.Queue.assertStoryQueueActionable(auth, id);
+      return services.Queue.executeQueueAction(auth as AuthState, id, {
         remove: uids,
       });
     },
-    async queueReorder(parent, { id, ...reorderArgs }, { user, services }) {
-      await services.Queue.assertStoryQueueActionable(user, id);
-      return services.Queue.executeQueueAction(user as UserDbObject, id, {
+    async queueReorder(parent, { id, ...reorderArgs }, { auth, services }) {
+      await services.Queue.assertStoryQueueActionable(auth, id);
+      return services.Queue.executeQueueAction(auth as AuthState, id, {
         reorder: reorderArgs,
       });
     },
-    async queueToTop(parent, { id, ...toTopArgs }, { user, services }) {
-      await services.Queue.assertStoryQueueActionable(user, id);
-      return services.Queue.executeQueueAction(user as UserDbObject, id, {
+    async queueToTop(parent, { id, ...toTopArgs }, { auth, services }) {
+      await services.Queue.assertStoryQueueActionable(auth, id);
+      return services.Queue.executeQueueAction(auth as AuthState, id, {
         toTop: toTopArgs,
       });
     },

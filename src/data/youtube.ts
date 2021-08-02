@@ -3,7 +3,7 @@ import un from "undecim";
 import type { Playlist } from "../graphql/graphql.gen.js";
 import { PlatformName } from "../graphql/graphql.gen.js";
 import { isDefined } from "../utils/utils.js";
-import type { ArtistDbObject, TrackDbObject, UserDbObject } from "./types.js";
+import type { ArtistDbObject, TrackDbObject } from "./types.js";
 import { getFromIdsPerEveryNum } from "./utils.js";
 
 function parseDurationToMs(str: string) {
@@ -169,9 +169,9 @@ export class YoutubeAPI {
 
   /**
    * Get current user's YouTube playlists
-   * @param me
+   * @param accessToken
    */
-  static async getMyPlaylists(me: UserDbObject): Promise<Playlist[]> {
+  static async getMyPlaylists(accessToken: string): Promise<Playlist[]> {
     const playlists: Playlist[] = [];
 
     let data: youtube_v3.Schema$PlaylistListResponse | undefined;
@@ -182,7 +182,7 @@ export class YoutubeAPI {
           part: ["id", "snippet"],
           mine: true,
           fields: "nextPageToken,items(id,snippet(title,thumbnails.high.url))",
-          access_token: me.oauth.accessToken!,
+          access_token: accessToken,
           pageToken: data?.nextPageToken || undefined,
         })
       ).data;
@@ -194,12 +194,12 @@ export class YoutubeAPI {
 
   /**
    * Insert tracks to YouTube playlist
-   * @param me
+   * @param accessToken
    * @param externalId
    * @param externalTrackIds
    */
   static async insertPlaylistTracks(
-    me: UserDbObject,
+    accessToken: string,
     externalId: string,
     externalTrackIds: string[]
   ): Promise<boolean> {
@@ -215,25 +215,25 @@ export class YoutubeAPI {
             },
           },
         },
-        access_token: me.oauth.accessToken || undefined,
+        access_token: accessToken,
       });
     return true;
   }
 
   /**
    * Create a YouTube playlist
-   * @param me
+   * @param accessToken
    * @param name
    * @param externalTrackIds
    */
   static async createPlaylist(
-    me: UserDbObject,
+    accessToken: string,
     name: string
   ): Promise<Playlist> {
     const { data } = await YoutubeAPI.youtube.playlists.insert({
       part: ["snippet"],
       requestBody: { snippet: { title: name } },
-      access_token: me.oauth.accessToken || undefined,
+      access_token: accessToken,
     });
     return parsePlaylist(data);
   }

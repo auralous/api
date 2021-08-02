@@ -1,7 +1,7 @@
 import { parse as parseCookie } from "cookie";
 import { createServer } from "http";
 import WebSocket from "ws";
-import { getUserFromRequest } from "../auth/auth.js";
+import { getAuthFromRequest } from "../auth/auth.js";
 import { graphqlWS } from "../graphql/handler.js";
 import { NowPlayingWorker } from "../services/nowPlayingWorker.js";
 import app from "./app.js";
@@ -21,7 +21,7 @@ const wss = new WebSocket.Server({
 wss.on("connection", async (socket, req) => {
   req.cookies = parseCookie(req.headers.cookie || "");
   graphqlWS(socket, {
-    user: getUserFromRequest(req),
+    auth: getAuthFromRequest(req),
   });
 });
 

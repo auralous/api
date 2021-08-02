@@ -1,10 +1,11 @@
 import DataLoader from "dataloader";
 import mongodb from "mongodb";
 import { nanoid } from "nanoid";
+import { AuthState } from "../auth/types.js";
 import { db } from "../data/mongo.js";
 import { pubsub } from "../data/pubsub.js";
 import { deleteByPattern, redis } from "../data/redis.js";
-import { StoryDbObject, UserDbObject } from "../data/types.js";
+import { StoryDbObject } from "../data/types.js";
 import {
   AuthenticationError,
   ForbiddenError,
@@ -103,11 +104,11 @@ export class StoryService {
     return value;
   }
 
-  async getInviteToken(me: UserDbObject | null, storyId: string) {
+  async getInviteToken(me: AuthState | null, storyId: string) {
     if (!me) throw new AuthenticationError("");
     const story = await this.findById(storyId);
     if (!story) throw new UserInputError("Story not found", ["id"]);
-    if (!story.collaboratorIds.includes(me._id))
+    if (!story.collaboratorIds.includes(me.userId))
       throw new ForbiddenError("Not allowed to get invite link");
     const token = await redis.get(
       REDIS_KEY.storyInviteToken(String(story._id))
@@ -143,11 +144,11 @@ export class StoryService {
    * using an invite token
    */
   async addCollabFromToken(
-    user: UserDbObject | null,
+    me: AuthState | null,
     storyId: string,
     token: string
   ) {
-    if (!user) throw new AuthenticationError("");
+    if (!me) throw new AuthenticationError("");
     const story = await this.findById(storyId);
     if (!story) throw new UserInputError("Story not found", ["id"]);
     const verifyToken = await redis.get(
@@ -157,7 +158,7 @@ export class StoryService {
     if (verifyToken !== token) return false;
     const { modifiedCount } = await this.collection.updateOne(
       { _id: story._id, isLive: true },
-      { $addToSet: { collaboratorIds: user._id } }
+      { $addToSet: { collaboratorIds: me.userId } }
     );
     return Boolean(modifiedCount);
   }
@@ -168,7 +169,7 @@ export class StoryService {
    * @param param1 data of the new story
    */
   async create(
-    me: UserDbObject | null,
+    me: AuthState | null,
     {
       text,
       location,
@@ -183,7 +184,7 @@ export class StoryService {
       throw new UserInputError("Require at least 4 tracks", ["tracks"]);
 
     // use first track as image
-    const track = await new TrackService(this.context).findTrack(tracks[0], me);
+    const track = await new TrackService(this.context).findTrack(tracks[0]);
     const image = track?.image;
 
     const createdAt = new Date();
@@ -192,7 +193,7 @@ export class StoryService {
 
     // Unlive all other stories
     await this.collection.updateMany(
-      { isLive: true, creatorId: me._id },
+      { isLive: true, creatorId: me.userId },
       { $set: { isLive: false } }
     );
 
@@ -200,11 +201,11 @@ export class StoryService {
       ops: [story],
     } = await this.collection.insertOne({
       text,
-      creatorId: me._id,
+      creatorId: me.userId,
       createdAt,
       isLive: true,
       image,
-      collaboratorIds: [me._id],
+      collaboratorIds: [me.userId],
       lastCreatorActivityAt: createdAt,
       ...(location && {
         location: { type: "Point", coordinates: [location.lng, location.lat] },
@@ -312,7 +313,7 @@ export class StoryService {
    * @param param2
    */
   async updateById(
-    me: UserDbObject | null,
+    me: AuthState | null,
     id: string,
     { text, image, isLive }: NullablePartial<StoryDbObject>
   ): Promise<StoryDbObject> {
@@ -320,7 +321,7 @@ export class StoryService {
     const { value: story } = await this.collection.findOneAndUpdate(
       {
         _id: new mongodb.ObjectID(id),
-        creatorId: me._id,
+        creatorId: me.userId,
       },
       {
         $set: {
@@ -341,11 +342,11 @@ export class StoryService {
    * @param me the creator of that story
    * @param id
    */
-  async deleteById(me: UserDbObject | null, id: string) {
+  async deleteById(me: AuthState | null, id: string) {
     if (!me) throw new AuthenticationError("");
     const { deletedCount } = await this.collection.deleteOne({
       _id: new mongodb.ObjectID(id),
-      creatorId: me._id,
+      creatorId: me.userId,
     });
     if (!deletedCount) throw new ForbiddenError("Cannot delete story");
     // delete associated
@@ -358,7 +359,7 @@ export class StoryService {
    * @param user
    * @param storyId
    */
-  async pingPresence(user: UserDbObject, storyId: string): Promise<void> {
+  async pingPresence(me: AuthState, storyId: string): Promise<void> {
     const messageService = new MessageService(this.context);
 
     const story = await this.findById(storyId);
@@ -369,9 +370,9 @@ export class StoryService {
     if (!story.isLive) return;
 
     // update lastCreatorActivityAt since the pinging user is create
-    if (user?._id === story.creatorId) {
+    if (me.userId === story.creatorId) {
       await this.collection.updateOne(
-        { _id: new mongodb.ObjectID(storyId), creatorId: user._id },
+        { _id: new mongodb.ObjectID(storyId), creatorId: me.userId },
         { $set: { lastCreatorActivityAt: new Date() } }
       );
     }
@@ -379,7 +380,7 @@ export class StoryService {
     const now = Date.now();
     // when was user last in story or possibly NaN if never in
     const lastTimestamp: number = parseInt(
-      await redis.zscore(REDIS_KEY.storyUserStatus(storyId), user._id),
+      await redis.zscore(REDIS_KEY.storyUserStatus(storyId), me.userId),
       10
     );
 
@@ -387,14 +388,14 @@ export class StoryService {
       !lastTimestamp || now - lastTimestamp > CONFIG.activityTimeout;
 
     // Ping that user is still here
-    await redis.zadd(REDIS_KEY.storyUserStatus(storyId), now, user._id);
+    await redis.zadd(REDIS_KEY.storyUserStatus(storyId), now, me.userId);
 
     if (justJoined) {
       // notify that user just joined via message
       messageService.add(storyId, {
         text: storyId,
         type: MessageType.Join,
-        creatorId: user._id,
+        creatorId: me.userId,
       });
 
       // Notify story user update via subscription

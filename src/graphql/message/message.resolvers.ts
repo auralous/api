@@ -27,15 +27,15 @@ const resolvers: Resolvers = {
     },
   },
   Mutation: {
-    async messageAdd(parents, { id, text }, { user, services }) {
-      if (!user) throw new AuthenticationError("");
+    async messageAdd(parents, { id, text }, { auth, services }) {
+      if (!auth) throw new AuthenticationError("");
 
       // Check auth
 
       return !!(await services.Message.add(id, {
         text,
         type: MessageType.Message,
-        creatorId: user._id,
+        creatorId: auth.userId,
       }));
     },
   },

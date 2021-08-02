@@ -1,3 +1,4 @@
+import { AuthState } from "../auth/types.js";
 import { db } from "../data/mongo.js";
 import type {
   FollowDbObject,
@@ -52,7 +53,7 @@ export class FollowService {
    * @param me
    * @param followingUser
    */
-  async follow(me: UserDbObject | null, followingUser: UserDbObject | null) {
+  async follow(me: AuthState | null, followingUser: UserDbObject | null) {
     if (!me) throw new AuthenticationError("");
     if (!followingUser)
       throw new UserInputError("User does not exist to follow", ["id"]);
@@ -60,12 +61,12 @@ export class FollowService {
     const newFollow = await this.collection
       .findOneAndUpdate(
         {
-          follower: me._id,
+          follower: me.userId,
           following: followingUser._id,
         },
         {
           $set: {
-            follower: me._id,
+            follower: me.userId,
             following: followingUser._id,
             followedAt: new Date(),
             unfollowedAt: null,
@@ -84,7 +85,7 @@ export class FollowService {
       const notificationService = new NotificationService(this.context);
       notificationService.add({
         type: "follow",
-        followerId: me._id,
+        followerId: me.userId,
         userId: followingUser._id,
       } as Extract<NotificationDbObject, { type: "follow" }>);
     }
@@ -97,11 +98,11 @@ export class FollowService {
    * @param me
    * @param unfollowingUserId possibly an invalid one or deleted one
    */
-  async unfollow(me: UserDbObject | null, unfollowingUserId: string) {
+  async unfollow(me: AuthState | null, unfollowingUserId: string) {
     if (!me) throw new AuthenticationError("");
     const result = await this.collection.updateOne(
       {
-        follower: me._id,
+        follower: me.userId,
         following: unfollowingUserId,
       },
       { $set: { unfollowedAt: new Date() } }

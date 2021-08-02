@@ -2,28 +2,28 @@ import type { Resolvers } from "../graphql.gen.js";
 
 const resolvers: Resolvers = {
   Query: {
-    playlist(parent, { id }, { services, user }) {
-      return services.Track.findPlaylist(id, user);
+    playlist(parent, { id }, { services, auth }) {
+      return services.Track.findPlaylist(id, auth);
     },
-    myPlaylists(parent, args, { services, user }) {
-      return services.Track.findMyPlaylist(user);
+    myPlaylists(parent, args, { services, auth }) {
+      return services.Track.findMyPlaylist(auth);
     },
-    playlistTracks(parent, { id }, { services, user }) {
-      return services.Track.findPlaylistTracks(id, user);
+    playlistTracks(parent, { id }, { services, auth }) {
+      return services.Track.findPlaylistTracks(id, auth);
     },
-    playlistsFeatured(parent, args, { services, user }) {
-      return services.Track.findFeaturedPlaylists(user);
+    playlistsFeatured(parent, args, { services, auth }) {
+      return services.Track.findFeaturedPlaylists(auth);
     },
     playlistsFriends() {
       return [];
     },
   },
   Mutation: {
-    playlistCreate(parent, { name, trackIds }, { services, user }) {
-      return services.Track.createPlaylist(user, name, trackIds);
+    playlistCreate(parent, { name, trackIds }, { services, auth }) {
+      return services.Track.createPlaylist(auth, name, trackIds);
     },
-    playlistAddTracks(parent, { id, trackIds }, { services, user }) {
-      return services.Track.insertPlaylistTracks(user, id, trackIds);
+    playlistAddTracks(parent, { id, trackIds }, { services, auth }) {
+      return services.Track.insertPlaylistTracks(auth, id, trackIds);
     },
   },
 };

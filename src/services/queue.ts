@@ -1,8 +1,8 @@
 import fastJson from "fast-json-stringify";
 import { nanoid } from "nanoid/non-secure";
+import { AuthState } from "../auth/types.js";
 import { pubsub } from "../data/pubsub.js";
 import { redis } from "../data/redis.js";
-import { UserDbObject } from "../data/types.js";
 import { AuthenticationError, ForbiddenError } from "../error/index.js";
 import type {
   MutationQueueAddArgs,
@@ -178,7 +178,7 @@ export class QueueService {
     return redis.del(REDIS_KEY.queue(id));
   }
 
-  async assertStoryQueueActionable<TMe extends UserDbObject | null>(
+  async assertStoryQueueActionable<TMe extends AuthState | null>(
     me: TMe,
     storyId: string
   ) {
@@ -186,9 +186,8 @@ export class QueueService {
     const story = await new StoryService(this.context).findById(storyId);
     if (!story) throw new ForbiddenError("Story does not exist");
     if (!story.isLive) throw new ForbiddenError("Story is no longer live");
-    if (!me || !story.collaboratorIds.includes(me._id))
+    if (!me || !story.collaboratorIds.includes(me.userId))
       throw new ForbiddenError("You are not allowed to add to this queue");
-    return true;
   }
 
   /**
@@ -199,7 +198,7 @@ export class QueueService {
    * @param actions
    */
   async executeQueueAction(
-    me: UserDbObject,
+    me: AuthState,
     id: string,
     actions: {
       add?: Omit<MutationQueueAddArgs, "id">;
@@ -216,7 +215,7 @@ export class QueueService {
         ...actions.add.tracks.map((trackId) => ({
           uid: nanoid(6),
           trackId,
-          creatorId: me._id,
+          creatorId: me.userId,
         }))
       );
 

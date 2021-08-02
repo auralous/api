@@ -9,9 +9,9 @@
 - `MONGODB_URI`: The [MongoDB](https://www.mongodb.com/) [Connection String](https://docs.mongodb.com/manual/reference/connection-string/) URI with authentication and the MongoDB database to use.
 - `REDIS_URL`: A number of [Redis](http://redis.io/) connection strings for each node with authentication. Seperated with space ` ` where applicable. Usuall,y only one node is required to discover the rest of them.
 - `GOOGLE_API_KEY`: The API Key used for YouTube data ([
-YouTube Data API (v3)](https://developers.google.com/youtube/v3) must be enabled).
+  YouTube Data API (v3)](https://developers.google.com/youtube/v3) must be enabled).
 - `GOOGLE_CLIENT_KEY`, `GOOGLE_CLIENT_SECRET`: Google Client key and secret for OAuth.
-- `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET`: Spotify Client ID  and Secret for OAuth and Spotify data.Consumer key and secret for OAuth.
+- `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET`: Spotify Client ID and Secret for OAuth and Spotify data.Consumer key and secret for OAuth.
 - `SONGLINK_KEY`: [Songlink/Odesli](https://odesli.co/) API Key.
 - `SENTRY_DSN`: (optional) Sentry DSN for error reporting.
 - `LOG_LEVEL`: (optional) Set [log level](https://github.com/pinojs/pino/blob/master/docs/api.md#level-string) for [pino](https://github.com/pinojs/pino). Default: `info`.
@@ -130,7 +130,6 @@ data:
   mongodb-uri: "YOUR_MONGODB_CONNECTION_STRING"
   redis-url: "YOUR_REDIS_CONNECTION_STRING"
   songlink-key: "YOUR_SONGLINK_API_KEY"
-  jwk-private: 'jwk private'
 ```
 
 Authenticate with Docker to pull `hoangvvo/stereo-api`, which is a private image.

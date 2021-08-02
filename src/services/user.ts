@@ -1,6 +1,7 @@
 import DataLoader from "dataloader";
 import { nanoid } from "nanoid";
 import slug from "slug";
+import { AuthState } from "../auth/types.js";
 import { db } from "../data/mongo.js";
 import type { UserDbObject } from "../data/types.js";
 import {
@@ -61,9 +62,13 @@ export class UserService {
   async create({
     profilePicture,
     email,
-    oauth,
+    oauthId,
+    oauthProvider,
     bio,
-  }: Pick<UserDbObject, "profilePicture" | "email" | "oauth" | "bio">) {
+  }: Pick<
+    UserDbObject,
+    "profilePicture" | "email" | "oauthId" | "oauthProvider" | "bio"
+  >) {
     const _id = nanoid(12);
     const {
       ops: [user],
@@ -72,7 +77,8 @@ export class UserService {
       username: _id,
       profilePicture,
       email,
-      oauth,
+      oauthId,
+      oauthProvider,
       bio,
       createdAt: new Date(),
     });
@@ -85,33 +91,27 @@ export class UserService {
   }
 
   async authOrCreate(
-    oauth: UserDbObject["oauth"],
+    authState: Pick<AuthState, "oauthId" | "provider">,
     data: Pick<UserDbObject, "profilePicture" | "email">
   ) {
     let me = await this.collection.findOne({
-      "oauth.provider": oauth.provider,
-      "oauth.id": oauth.id,
+      oauthProvider: authState.provider,
+      oauthId: authState.oauthId,
     });
     if (!me) {
-      oauth.expiredAt =
-        oauth.expiredAt || new Date(Date.now() + 30 * 60 * 1000);
-      me = await this.create({ ...data, oauth });
+      me = await this.create({
+        ...data,
+        oauthProvider: authState.provider,
+        oauthId: authState.oauthId,
+      });
       // @ts-expect-error: isNew is a special field to check if user is newly registered
       me.isNew = true;
-    } else {
-      // If user exists, update OAuth tokens
-      // and profile pictures
-      await Promise.all<unknown>([
-        this.updateMeOauth(me, oauth),
-        data.profilePicture &&
-          this.updateMe(me, { profilePicture: data.profilePicture }),
-      ]);
     }
     return me;
   }
 
   async updateMe(
-    me: UserDbObject | null,
+    me: AuthState | null,
     {
       username: rawUsername,
       bio,
@@ -128,11 +128,11 @@ export class UserService {
       : null;
     if (username) {
       const checkUser = await this.findByUsername(username);
-      if (checkUser && checkUser._id !== me._id)
+      if (checkUser && checkUser._id !== me.userId)
         throw new UserInputError("This username has been taken", ["username"]);
     }
     const { value: user } = await this.collection.findOneAndUpdate(
-      { _id: me._id },
+      { _id: me.userId },
       {
         $set: {
           ...(username && { username }),
@@ -145,49 +145,21 @@ export class UserService {
     return user || null;
   }
 
-  async deleteMe(me: UserDbObject | null) {
+  async deleteMe(me: AuthState | null) {
     if (!me) throw new AuthenticationError("");
     const { deletedCount } = await this.collection.deleteOne({
-      _id: me._id,
+      _id: me.userId,
     });
     if (!deletedCount)
       throw new ForbiddenError("Cannot deactivate your account");
 
     // delete every story
     const storyService = new StoryService(this.context);
-    const allStories = await storyService.findByCreatorId(me._id);
+    const allStories = await storyService.findByCreatorId(me.userId);
     for (const story of allStories) {
       await storyService.deleteById(me, story._id.toHexString());
     }
 
     return true;
-  }
-
-  async updateMeOauth(
-    me: UserDbObject | null,
-    {
-      expiredAt,
-      accessToken,
-      refreshToken,
-    }: {
-      expiredAt?: Date | null;
-      accessToken?: string | null;
-      refreshToken?: string | null;
-    }
-  ) {
-    if (!me) return null;
-
-    me.oauth = {
-      ...me.oauth,
-      ...(accessToken !== undefined && { accessToken }),
-      ...(refreshToken !== undefined && { refreshToken }),
-      ...(expiredAt !== undefined && { expiredAt }),
-    };
-
-    await this.collection.updateOne(
-      { _id: me._id },
-      { $set: { oauth: me.oauth } }
-    );
-    return me;
   }
 }

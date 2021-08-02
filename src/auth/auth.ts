@@ -1,40 +1,14 @@
 import type { IncomingMessage, ServerResponse } from "http";
-import parseJwk from "jose/jwk/parse";
-import SignJWT from "jose/jwt/sign";
-import jwtVerify from "jose/jwt/verify";
+import { nanoid } from "nanoid";
 import { URL } from "url";
-import { db } from "../data/mongo.js";
+import { redis } from "../data/redis.js";
 import type { UserDbObject } from "../data/types.js";
+import { PlatformName } from "../graphql/graphql.gen.js";
 import { UserService } from "../services/user.js";
-import { setCookie } from "./cookie.js";
-
-/**
- * Authentication with JWT
- */
-
-const issuer = "auralous:api";
-
-const privateKey = await parseJwk(
-  JSON.parse(process.env.JWK_PRIVATE as string)
-);
-const publicKey = await parseJwk(JSON.parse(process.env.JWK_PUBLIC as string));
-
-/**
- * Route handlers for authentication
- */
-
-const authCookieName = "sid";
-
-export function setTokenToCookie(res: ServerResponse, token: string | null) {
-  setCookie(res, authCookieName, token, {
-    domain: new URL(process.env.APP_URI as string).hostname,
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    maxAge: 365 * 24 * 60 * 60,
-    path: "/",
-    sameSite: "lax" as const,
-  });
-}
+import { REDIS_KEY } from "../utils/constant.js";
+import { GoogleAuth } from "./google.js";
+import { SpotifyAuth } from "./spotify.js";
+import { AuthState } from "./types.js";
 
 /**
  * Create an auth initialization handler
@@ -60,22 +34,28 @@ export function authInit(
 export async function authCallback(
   req: IncomingMessage,
   res: ServerResponse,
-  oauth: UserDbObject["oauth"],
-  profile: Pick<UserDbObject, "profilePicture" | "email">
+  authState: Pick<AuthState, "oauthId" | "provider">,
+  profile: Pick<UserDbObject, "profilePicture" | "email">,
+  tokens: { accessToken: string; refreshToken: string }
 ) {
   const user = await new UserService({ loaders: {} }).authOrCreate(
-    oauth,
+    authState,
     profile
   );
 
-  const token = await encodeUserIdToToken(user._id);
+  // create token and save to session
+  const token = nanoid(32);
+
+  await redis.hmset(REDIS_KEY.auth(token), {
+    ...authState,
+    ...tokens,
+    userId: user._id,
+  });
 
   const redirectTarget =
     req.query.state === "app_login"
       ? `auralous://sign-in?access_token=${token}`
       : `${process.env.APP_URI}/auth/callback?success=1`;
-
-  setTokenToCookie(res, token);
 
   res
     .writeHead(307, {
@@ -86,36 +66,49 @@ export async function authCallback(
     .end();
 }
 
-export function getUserFromRequest(req: IncomingMessage, res?: ServerResponse) {
-  const token = req.headers.authorization || req.cookies[authCookieName];
+export async function getAuthFromRequest(
+  req: IncomingMessage
+): Promise<null | AuthState> {
+  const token = req.headers.authorization;
   if (!token) return null;
-  return decodeFromToken(token).then(async (payload) => {
-    if (!payload) {
-      // remove token
-      if (res) setTokenToCookie(res, null);
-      return null;
+
+  const redisAuthState = await redis.hgetall(REDIS_KEY.auth(token));
+
+  if (Object.keys(redisAuthState).length === 0) return null;
+
+  let cachedAccessTokenPromise: Promise<string | null> | undefined;
+
+  async function getAccessToken() {
+    const Auth = PlatformName.Spotify ? SpotifyAuth : GoogleAuth;
+    const result = await Auth.getOrRefreshTokens(
+      redisAuthState.accessToken,
+      redisAuthState.refreshToken
+    );
+    if (!result) return null;
+    if (
+      result.accessToken !== redisAuthState.accessToken ||
+      result.refreshToken !== redisAuthState.refreshToken
+    ) {
+      await redis.hmset(REDIS_KEY.auth(token!), {
+        accessToken: result.accessToken,
+        refreshToken: result.refreshToken,
+      });
     }
-    if (res && (payload.exp as number) - Date.now() / 1000 < 43200) {
-      // refresh jwt if remaining exp < 6 hours
-      setTokenToCookie(res, await encodeUserIdToToken(payload.sub as string));
-    }
-    return db.collection<UserDbObject>("users").findOne({ _id: payload.sub });
-  });
+    return result.accessToken;
+  }
+
+  return {
+    ...redisAuthState,
+    token,
+    get accessTokenPromise() {
+      return (
+        cachedAccessTokenPromise ||
+        (cachedAccessTokenPromise = getAccessToken())
+      );
+    },
+  } as AuthState;
 }
 
-async function encodeUserIdToToken(userId: string) {
-  return new SignJWT({})
-    .setProtectedHeader({ alg: "PS256" })
-    .setIssuedAt()
-    .setSubject(userId)
-    .setIssuer(issuer)
-    .setExpirationTime("24h")
-    .sign(privateKey);
-}
-
-async function decodeFromToken(jwt: string) {
-  const result = await jwtVerify(jwt, publicKey, {
-    issuer,
-  }).catch(() => null);
-  return result?.payload;
+export async function invalidateToken(token: string) {
+  return redis.del(REDIS_KEY.auth(token));
 }

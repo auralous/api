@@ -1,14 +1,6 @@
 import mongodb from "mongodb";
 import type { PlatformName } from "../graphql/graphql.gen.js";
 
-export interface UserOauthProvider {
-  provider: PlatformName;
-  accessToken?: string | null;
-  refreshToken?: string | null;
-  expiredAt?: Date | null;
-  id: string;
-}
-
 export interface UserDbObject {
   _id: string;
   email?: string;
@@ -16,7 +8,8 @@ export interface UserDbObject {
   profilePicture?: string;
   bio?: string | null;
   createdAt: Date;
-  oauth: UserOauthProvider;
+  oauthProvider: PlatformName;
+  oauthId: string;
 }
 
 export interface StoryDbObject {

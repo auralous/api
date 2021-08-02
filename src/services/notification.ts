@@ -1,12 +1,9 @@
 import type { WithId } from "mongodb";
 import mongodb from "mongodb";
+import { AuthState } from "../auth/types.js";
 import { db } from "../data/mongo.js";
 import { pubsub } from "../data/pubsub.js";
-import type {
-  NotificationDbObject,
-  StoryDbObject,
-  UserDbObject,
-} from "../data/types.js";
+import type { NotificationDbObject, StoryDbObject } from "../data/types.js";
 import { AuthenticationError } from "../error/index.js";
 import { PUBSUB_CHANNELS } from "../utils/constant.js";
 import { FollowService } from "./follow.js";
@@ -23,10 +20,10 @@ export class NotificationService {
    * @param limit
    * @param next
    */
-  findMine(me: UserDbObject, limit: number, next?: string | null) {
+  findMine(me: AuthState, limit: number, next?: string | null) {
     return this.collection
       .find({
-        userId: me._id,
+        userId: me.userId,
         ...(next && { _id: { $lt: new mongodb.ObjectID(next) } }),
       })
       .sort({ $natural: -1 })
@@ -39,12 +36,12 @@ export class NotificationService {
    * @param me
    * @param ids
    */
-  markRead(me: UserDbObject | null, ids: string[]) {
+  markRead(me: AuthState | null, ids: string[]) {
     if (!me) throw new AuthenticationError("");
     return this.collection
       .updateMany(
         {
-          userId: me._id,
+          userId: me.userId,
           _id: { $in: ids.map((id) => new mongodb.ObjectID(id)) },
         },
         { $set: { hasRead: true } }

@@ -21,6 +21,9 @@ export const REDIS_KEY = {
     return `message:${id}`;
   },
   crossTracks: (platformAndId: string) => `crossTracks:${platformAndId}`,
+  auth(token: string) {
+    return `auth:${token}`;
+  },
 } as const;
 
 export const CONFIG = {

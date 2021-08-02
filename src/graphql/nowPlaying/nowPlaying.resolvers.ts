@@ -12,17 +12,17 @@ const resolvers: Resolvers = {
     },
   },
   Mutation: {
-    async nowPlayingReact(parent, { id, reaction }, { services, user }) {
+    async nowPlayingReact(parent, { id, reaction }, { services, auth }) {
       await services.NowPlaying.reactNowPlaying(
-        user,
+        auth,
         await services.Story.findById(id),
         reaction
       );
       return true;
     },
-    async nowPlayingSkip(parent, { id }, { services, user }) {
+    async nowPlayingSkip(parent, { id }, { services, auth }) {
       return services.NowPlaying.skipCurrentTrack(
-        user,
+        auth,
         await services.Story.findById(id)
       );
     },

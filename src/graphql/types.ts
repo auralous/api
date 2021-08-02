@@ -1,5 +1,5 @@
+import { AuthState } from "../auth/types.js";
 import { PubSub } from "../data/pubsub.js";
-import { UserDbObject } from "../data/types.js";
 import type { SetCacheControl } from "../server/types.js";
 import type { FollowService } from "../services/follow.js";
 import type { MessageService } from "../services/message.js";
@@ -12,7 +12,7 @@ import type { UserService } from "../services/user.js";
 
 export type MyGQLContext = {
   pubsub: PubSub;
-  user: UserDbObject | null;
+  auth: AuthState | null;
   setCacheControl?: SetCacheControl;
   services: {
     User: UserService;

@@ -25,7 +25,7 @@ const serviceContext = { loaders: {} };
 interface BenzeneExtra {
   setCacheControl?: MyGQLContext["setCacheControl"];
   isWebSocket?: boolean;
-  user: MyGQLContext["user"] | Promise<MyGQLContext["user"]>; // promise only in WS. need better workaround
+  auth: MyGQLContext["auth"] | Promise<MyGQLContext["auth"]>; // promise only in WS. need better workaround
 }
 
 const services = {
@@ -45,8 +45,8 @@ const GQL = new Benzene<MyGQLContext, BenzeneExtra>({
     logError(error.originalError || error);
     return formatError(error);
   },
-  contextFn: async ({ extra: { user, setCacheControl } }) => ({
-    user: user ? ("then" in user ? await user : user) : null,
+  contextFn: async ({ extra: { auth, setCacheControl } }) => ({
+    auth: auth ? ("then" in auth ? await auth : auth) : null,
     pubsub,
     services,
     setCacheControl,

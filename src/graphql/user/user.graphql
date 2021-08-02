@@ -31,5 +31,4 @@ type Me {
   oauthId: String!
   platform: PlatformName!
   accessToken: String
-  expiredAt: DateTime
 }

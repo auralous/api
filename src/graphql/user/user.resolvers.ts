@@ -1,29 +1,23 @@
-import { GoogleAuth } from "../../auth/google.js";
-import { SpotifyAuth } from "../../auth/spotify.js";
 import type { UserDbObject } from "../../data/types.js";
-import { AuthenticationError } from "../../error/index.js";
 import { CONFIG } from "../../utils/constant.js";
-import { PlatformName, Resolvers } from "../graphql.gen.js";
+import { Resolvers } from "../graphql.gen.js";
 
 const resolvers: Resolvers = {
   Query: {
-    async me(parent, args, { user, services, setCacheControl }) {
+    async me(parent, args, { auth, services, setCacheControl }) {
       setCacheControl?.(0, "PRIVATE");
-      if (!user) return null;
+      if (!auth) return null;
 
-      const authService =
-        user.oauth.provider === PlatformName.Youtube
-          ? new GoogleAuth()
-          : new SpotifyAuth();
-
-      const accessToken = await authService.getAccessToken(user, services.User);
+      const [user, accessToken] = await Promise.all([
+        services.User.findById(auth.userId),
+        auth.accessTokenPromise,
+      ]);
 
       return {
-        user,
-        oauthId: user.oauth.id,
-        platform: user.oauth.provider,
-        accessToken,
-        expiredAt: user.oauth.expiredAt,
+        user: user!,
+        oauthId: auth.oauthId,
+        platform: auth.provider,
+        accessToken: accessToken,
       };
     },
     async user(parent, { username, id }, { services, setCacheControl }) {
@@ -51,20 +45,17 @@ const resolvers: Resolvers = {
     },
   },
   Mutation: {
-    async me(parent, { username, bio }, { user, services }) {
-      if (!user) throw new AuthenticationError("");
-
-      return services.User.updateMe(user, { username, bio });
+    async me(parent, { username, bio }, { auth, services }) {
+      return services.User.updateMe(auth, { username, bio });
     },
-    async meDelete(parent, args, { services, user }) {
-      if (!user) throw new AuthenticationError("");
-      return services.User.deleteMe(user);
+    async meDelete(parent, args, { services, auth }) {
+      return services.User.deleteMe(auth);
     },
-    async userFollow(parent, { id }, { services, user }) {
-      return services.Follow.follow(user, await services.User.findById(id));
+    async userFollow(parent, { id }, { services, auth }) {
+      return services.Follow.follow(auth, await services.User.findById(id));
     },
-    async userUnfollow(parent, { id }, { services, user }) {
-      return services.Follow.unfollow(user, id);
+    async userUnfollow(parent, { id }, { services, auth }) {
+      return services.Follow.unfollow(auth, id);
     },
   },
   User: {

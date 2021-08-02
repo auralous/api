@@ -3,7 +3,7 @@ import { URLSearchParams } from "url";
 import { SpotifyAuth, SpotifyTokenResponse } from "../auth/spotify.js";
 import { PlatformName, Playlist } from "../graphql/graphql.gen.js";
 import { isDefined } from "../utils/utils.js";
-import type { ArtistDbObject, TrackDbObject, UserDbObject } from "./types.js";
+import type { ArtistDbObject, TrackDbObject } from "./types.js";
 import { getFromIdsPerEveryNum } from "./utils.js";
 
 /// <reference path="spotify-api" />
@@ -134,11 +134,9 @@ export class SpotifyAPI {
 
   /**
    * Get current user's Spotify playlists
-   * @param me
+   * @param accessToken
    */
-  static async getMyPlaylists(me: UserDbObject): Promise<Playlist[]> {
-    const accessToken = me.oauth.accessToken;
-
+  static async getMyPlaylists(accessToken: string): Promise<Playlist[]> {
     let data: SpotifyApi.ListOfCurrentUsersPlaylistsResponse | undefined;
 
     const playlists: Playlist[] = [];
@@ -160,17 +158,15 @@ export class SpotifyAPI {
 
   /**
    * Insert tracks to Spotify playlist
-   * @param me
+   * @param accessToken
    * @param externalId
    * @param externalTrackIds
    */
   static async insertPlaylistTracks(
-    me: UserDbObject,
+    accessToken: string,
     externalId: string,
     externalTrackIds: string[]
   ): Promise<boolean> {
-    const accessToken = me.oauth.accessToken;
-
     return SpotifyAPI.client
       .post(`/v1/playlists/${externalId}/tracks`, {
         data: {
@@ -191,18 +187,20 @@ export class SpotifyAPI {
 
   /**
    * Create Spotify playlist
-   * @param me
+   * @param accessToken
    * @param name
    * @param externalTrackIds
    */
   static async createPlaylist(
-    me: UserDbObject,
+    accessToken: string,
     name: string
   ): Promise<Playlist> {
-    const accessToken = me.oauth.accessToken;
+    const spotifyUserResponse = await SpotifyAuth.getUser(accessToken);
+
+    if (!spotifyUserResponse?.id) throw new Error("Cannot get Spotify user");
 
     return SpotifyAPI.client
-      .post(`/v1/users/${me.oauth.id}/playlists`, {
+      .post(`/v1/users/${spotifyUserResponse.id}/playlists`, {
         data: { name },
         headers: {
           Authorization: `Authorization: Bearer ${accessToken}`,

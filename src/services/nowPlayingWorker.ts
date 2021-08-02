@@ -13,7 +13,7 @@ import { QueueService } from "./queue.js";
 import { TrackService } from "./track.js";
 
 export class NowPlayingWorker {
-  private timers = new Map<string, number>();
+  private timers = new Map<string, NodeJS.Timeout>();
 
   private nowPlayingService: NowPlayingService;
   private queueService: QueueService;

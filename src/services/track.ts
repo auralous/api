@@ -1,12 +1,9 @@
 import DataLoader from "dataloader";
+import { AuthState } from "../auth/types.js";
 import { OdesliAPI } from "../data/odesli.js";
 import { redis } from "../data/redis.js";
 import { SpotifyAPI } from "../data/spotify.js";
-import type {
-  ArtistDbObject,
-  TrackDbObject,
-  UserDbObject,
-} from "../data/types.js";
+import type { ArtistDbObject, TrackDbObject } from "../data/types.js";
 import { YoutubeAPI } from "../data/youtube.js";
 import { AuthenticationError } from "../error/index.js";
 import { PlatformName } from "../graphql/graphql.gen.js";
@@ -120,19 +117,11 @@ export class TrackService {
     return SpotifyAPI;
   }
 
-  async findTrack(
-    id: string,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    me?: UserDbObject | null
-  ): Promise<TrackDbObject | null> {
+  async findTrack(id: string): Promise<TrackDbObject | null> {
     return this.trackLoader.load(id);
   }
 
-  async findTracks(
-    ids: string[],
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    me?: UserDbObject | null
-  ) {
+  async findTracks(ids: string[]) {
     return (await this.trackLoader.loadMany(ids)).map((item) =>
       item instanceof Error ? null : item
     );
@@ -172,76 +161,87 @@ export class TrackService {
     return cache;
   }
 
-  search(
+  async search(
     platform: PlatformName,
     query: string,
-    me?: UserDbObject | null
+    authState?: AuthState | null
   ): Promise<TrackDbObject[]> {
     return this[platform].searchTracks(
       query,
-      (me?.oauth.provider === platform && me.oauth.accessToken) || undefined
+      (authState?.provider === platform &&
+        (await authState?.accessTokenPromise)) ||
+        undefined
     );
   }
 
   // Artists
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  findArtist(id: string, me?: UserDbObject | null) {
+  findArtist(id: string) {
     return this.artistLoader.load(id);
   }
 
   // Playlist
-  async findPlaylist(id: string, me?: UserDbObject | null) {
+  async findPlaylist(id: string, authState?: AuthState | null) {
     const [platform, externalId] = id.split(":");
     return this[platform as PlatformName].getPlaylist(
       externalId,
-      (me?.oauth.provider === platform && me.oauth.accessToken) || undefined
+      (authState?.provider === platform &&
+        (await authState?.accessTokenPromise)) ||
+        undefined
     );
   }
 
-  async findPlaylistTracks(id: string, me?: UserDbObject | null) {
+  async findPlaylistTracks(id: string, authState?: AuthState | null) {
     const [platform, externalId] = id.split(":");
     return this[platform as PlatformName].getPlaylistTracks(
       externalId,
-      (me?.oauth.provider === platform && me.oauth.accessToken) || undefined
+      (authState?.provider === platform &&
+        (await authState?.accessTokenPromise)) ||
+        undefined
     );
   }
 
-  async findMyPlaylist(me?: UserDbObject | null) {
+  async findMyPlaylist(me?: AuthState | null) {
     if (!me) throw new AuthenticationError("");
-    return this[me.oauth.provider].getMyPlaylists(me);
+    return this[me.provider].getMyPlaylists(
+      (await me?.accessTokenPromise) || ""
+    );
   }
 
   async insertPlaylistTracks(
-    me: UserDbObject | null,
+    me: AuthState | null,
     id: string,
     tracksIds: string[]
   ) {
     if (!me) throw new AuthenticationError("");
     const [platform, externalId] = id.split(":");
     return this[platform as PlatformName].insertPlaylistTracks(
-      me,
+      (await me?.accessTokenPromise) || "",
       externalId,
       tracksIds.map((trackId) => trackId.split(":")[1])
     );
   }
 
   async createPlaylist(
-    me: UserDbObject | null,
+    me: AuthState | null,
     name: string,
     tracksIds: string[]
   ) {
     if (!me) throw new AuthenticationError("");
 
-    const playlist = await this[me.oauth.provider].createPlaylist(me, name);
+    const playlist = await this[me.provider].createPlaylist(
+      (await me?.accessTokenPromise) || "",
+      name
+    );
 
     await this.insertPlaylistTracks(me, playlist.id, tracksIds);
 
     return playlist;
   }
 
-  async findFeaturedPlaylists(me?: UserDbObject | null) {
-    return this[
-      me?.oauth.provider || PlatformName.Youtube
-    ].getFeaturedPlaylists(me?.oauth.accessToken || undefined);
+  async findFeaturedPlaylists(me?: AuthState | null) {
+    return this[me?.provider || PlatformName.Youtube].getFeaturedPlaylists(
+      (await me?.accessTokenPromise) || ""
+    );
   }
 }

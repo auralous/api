@@ -22,24 +22,24 @@ const resolvers: Resolvers = {
     id: (obj) => String((obj as unknown as NotificationDbObject)._id),
   },
   Query: {
-    notifications(parent, { next, limit }, { services, user }) {
-      if (!user) return [];
-      return services.Notification.findMine(user, limit, next);
+    notifications(parent, { next, limit }, { services, auth }) {
+      if (!auth) return [];
+      return services.Notification.findMine(auth, limit, next);
     },
   },
   Mutation: {
-    notificationsMarkRead(parent, { ids }, { services, user }) {
-      return services.Notification.markRead(user, ids);
+    notificationsMarkRead(parent, { ids }, { services, auth }) {
+      return services.Notification.markRead(auth, ids);
     },
   },
   Subscription: {
     notificationAdded: {
-      async subscribe(parent, args, { user, pubsub }) {
-        if (!user) throw new AuthenticationError("");
+      async subscribe(parent, args, { auth, pubsub }) {
+        if (!auth) throw new AuthenticationError("");
 
         return pubsub.on(
           PUBSUB_CHANNELS.notificationAdded,
-          (payload) => payload.notificationAdded.userId === user._id
+          (payload) => payload.notificationAdded.userId === auth.userId
         );
       },
     },

@@ -24,7 +24,6 @@ const publicKey = await parseJwk(JSON.parse(process.env.JWK_PUBLIC as string));
  */
 
 const authCookieName = "sid";
-const isAppLoginCookieName = "is-app-login";
 
 export function setTokenToCookie(res: ServerResponse, token: string | null) {
   setCookie(res, authCookieName, token, {
@@ -46,11 +45,6 @@ export function authInit(
   res: ServerResponse,
   url: string
 ) {
-  setCookie(
-    res,
-    isAppLoginCookieName,
-    req.query["is_app_login"] === "1" ? "1" : null
-  );
   if (req.query["is_app_login"]) {
     // modify url to pass in state
     const urlObj = new URL(url);

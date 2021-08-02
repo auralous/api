@@ -1,5 +1,6 @@
 type Query {
   story(id: ID!): Story
+  storyInviteLink(id: ID!): String!
   storyUsers(id: ID!): [String!]
   stories(id: ID!, next: String, limit: Int!): [Story!]!
   storiesOnMap(lng: Float!, lat: Float!, radius: Float!): [Story!]!
@@ -12,6 +13,7 @@ type Mutation {
   storyDelete(id: ID!): ID!
   storyUnlive(id: ID!): Story!
   storyPing(id: ID!): Boolean!
+  storyCollabAddFromToken(id: ID!, token: String!): Boolean!
 }
 
 input LocationInput {

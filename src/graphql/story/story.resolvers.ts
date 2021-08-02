@@ -34,6 +34,11 @@ const resolvers: Resolvers = {
       const queueItems = await services.Queue.findById(`${id}:played`, 0, -1);
       return services.Track.findTracks(queueItems.map((item) => item.trackId));
     },
+    async storyInviteLink(parent, { id }, { user, services }) {
+      return `${
+        process.env.APP_URI
+      }/story/${id}/invite/${await services.Story.getInviteToken(user, id)}`;
+    },
   },
   Mutation: {
     storyCreate(parent, { text, location, tracks }, { services, user }) {
@@ -61,6 +66,9 @@ const resolvers: Resolvers = {
       if (!user) return false;
       services.Story.pingPresence(user, id);
       return true;
+    },
+    async storyCollabAddFromToken(parent, { id, token }, { services, user }) {
+      return services.Story.addCollabFromToken(user, id, token);
     },
   },
   Subscription: {

@@ -1,5 +1,6 @@
 import DataLoader from "dataloader";
 import mongodb from "mongodb";
+import { nanoid } from "nanoid";
 import { db } from "../data/mongo.js";
 import { pubsub } from "../data/pubsub.js";
 import { deleteByPattern, redis } from "../data/redis.js";
@@ -97,8 +98,68 @@ export class StoryService {
       { returnDocument: "after" }
     );
     if (!value) throw new ForbiddenError("Cannot delete this story");
+    this.invalidateInviteToken(value);
     this.notifyUpdate(value);
     return value;
+  }
+
+  async getInviteToken(me: UserDbObject | null, storyId: string) {
+    if (!me) throw new AuthenticationError("");
+    const story = await this.findById(storyId);
+    if (!story) throw new UserInputError("Story not found", ["id"]);
+    if (!story.collaboratorIds.includes(me._id))
+      throw new ForbiddenError("Not allowed to get invite link");
+    const token = await redis.get(
+      REDIS_KEY.storyInviteToken(String(story._id))
+    );
+    if (!token)
+      throw new Error(`Cannot get invite token for story ${story._id}`);
+    return token;
+  }
+
+  /**
+   * Create an invite token that can be used
+   * to add collaborators
+   * @param story
+   */
+  private async createInviteToken(story: StoryDbObject) {
+    const token = nanoid(21);
+    await redis.set(REDIS_KEY.storyInviteToken(String(story._id)), token);
+    return token;
+  }
+
+  /**
+   * Invalidate the invite token in case
+   * story is unlived
+   * @param story
+   * @returns
+   */
+  private async invalidateInviteToken(story: StoryDbObject) {
+    return redis.del(REDIS_KEY.storyInviteToken(String(story._id)));
+  }
+
+  /**
+   * Add oneself as a collaborator
+   * using an invite token
+   */
+  async addCollabFromToken(
+    user: UserDbObject | null,
+    storyId: string,
+    token: string
+  ) {
+    if (!user) throw new AuthenticationError("");
+    const story = await this.findById(storyId);
+    if (!story) throw new UserInputError("Story not found", ["id"]);
+    const verifyToken = await redis.get(
+      REDIS_KEY.storyInviteToken(String(story._id))
+    );
+    if (!verifyToken) return false;
+    if (verifyToken !== token) return false;
+    const { modifiedCount } = await this.collection.updateOne(
+      { _id: story._id, isLive: true },
+      { $addToSet: { collaboratorIds: user._id } }
+    );
+    return Boolean(modifiedCount);
   }
 
   /**
@@ -155,6 +216,9 @@ export class StoryService {
       String(story._id),
       { add: { tracks } }
     );
+
+    // create a secure invite link
+    await this.createInviteToken(story);
 
     const notificationService = new NotificationService(this.context);
 

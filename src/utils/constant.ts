@@ -3,7 +3,10 @@ export const MAX_TRACK_DURATION = 7 * 60 * 1000;
 export const REDIS_KEY = {
   story: (storyId: string) => `story:${storyId}`,
   storyUserStatus(storyId: string) {
-    return `${this.story(storyId)}:userStatus`;
+    return `story:${storyId}:userStatus`;
+  },
+  storyInviteToken(storyId: string) {
+    return `story:${storyId}:inviteToken`;
   },
   nowPlaying(id: string) {
     return `nowPlaying:${id}:playing`;
@@ -27,7 +30,7 @@ export const CONFIG = {
   searchMaxAge: 2 * 60 * 60,
   searchPlaylistMaxAge: 10 * 60,
   activityTimeout: 60 * 1000, // if user does not ping in 1 min, they are considered left
-  storyLiveTimeout: 15 * 60 * 1000, // if creator is not active in story in 15 min, unpublish it
+  storyLiveTimeout: 15 * 60 * 1000, // if creator is not active in story in 15 min, unlive it
   usernameMaxLength: 15,
   storyTextMaxLength: 60,
 } as const;

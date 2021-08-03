@@ -75,6 +75,8 @@ function parsePlaylist(
     platform: PlatformName.Spotify,
     url: result.external_urls.spotify,
     total: result?.tracks?.total || 0,
+    creatorName: result.owner.display_name || result.owner.id,
+    creatorImage: result.owner.images?.[0].url,
   };
 }
 
@@ -120,7 +122,7 @@ export class SpotifyAPI {
     const accessToken = userAccessToken || clientAccessToken;
     const data = await SpotifyAPI.client
       .get(
-        `/v1/playlists/${externalId}?fields=id,external_urls,images,name,tracks(total)`,
+        `/v1/playlists/${externalId}?fields=id,external_urls,images,name,tracks(total),owner`,
         {
           headers: {
             Authorization: `Authorization: Bearer ${accessToken}`,

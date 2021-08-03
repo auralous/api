@@ -20,4 +20,6 @@ type Playlist {
   image: String
   url: String!
   total: Int!
+  creatorName: String!
+  creatorImage: String
 }

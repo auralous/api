@@ -51,6 +51,9 @@ const resolvers: Resolvers = {
         tracks
       );
     },
+    storyUpdate(parent, { id, text, location }, { services, auth }) {
+      return services.Story.updateById(auth, id, { text, location });
+    },
     async storyUnlive(parent, { id }, { services, auth }) {
       const story = await services.Story.findById(id);
       if (!story) throw new UserInputError("Story not found", ["id"]);
@@ -107,6 +110,11 @@ const resolvers: Resolvers = {
     },
     async creator({ creatorId }, args, { services }) {
       return (await services.User.findById(creatorId)) as UserDbObject;
+    },
+    onMap({ creatorId, location }, args, { auth }) {
+      // only visible to creator
+      if (creatorId === auth?.userId) return Boolean(location);
+      return null;
     },
   },
 };

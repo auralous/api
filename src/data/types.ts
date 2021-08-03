@@ -26,7 +26,7 @@ export interface StoryDbObject {
   location?: {
     type: "Point";
     coordinates: [longitude: number, latitude: number];
-  };
+  } | null;
 }
 
 export interface TrackDbObject {

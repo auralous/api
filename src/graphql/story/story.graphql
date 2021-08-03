@@ -10,6 +10,7 @@ type Query {
 
 type Mutation {
   storyCreate(text: String!, location: LocationInput, tracks: [ID!]!): Story!
+  storyUpdate(id: ID!, text: String, location: LocationInput): Story!
   storyDelete(id: ID!): ID!
   storyUnlive(id: ID!): Story!
   storyPing(id: ID!): Boolean!
@@ -35,4 +36,5 @@ type Story {
   createdAt: DateTime!
   isLive: Boolean!
   collaboratorIds: [String!]!
+  onMap: Boolean
 }

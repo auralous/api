@@ -11,7 +11,7 @@ import {
   ForbiddenError,
   UserInputError,
 } from "../error/index.js";
-import { MessageType } from "../graphql/graphql.gen.js";
+import { LocationInput, MessageType } from "../graphql/graphql.gen.js";
 import { CONFIG, PUBSUB_CHANNELS, REDIS_KEY } from "../utils/constant.js";
 import type { NullablePartial } from "../utils/types.js";
 import { MessageService } from "./message.js";
@@ -44,6 +44,10 @@ export class StoryService {
       },
       { cache: false }
     );
+  }
+
+  private loaderUpdateCache(story: StoryDbObject) {
+    this.loader.clear(String(story._id)).prime(String(story._id), story);
   }
 
   /**
@@ -101,6 +105,7 @@ export class StoryService {
     if (!value) throw new ForbiddenError("Cannot delete this story");
     this.invalidateInviteToken(value);
     this.notifyUpdate(value);
+    this.loaderUpdateCache(value);
     return value;
   }
 
@@ -156,11 +161,13 @@ export class StoryService {
     );
     if (!verifyToken) return false;
     if (verifyToken !== token) return false;
-    const { modifiedCount } = await this.collection.updateOne(
+    const { value } = await this.collection.findOneAndUpdate(
       { _id: story._id, isLive: true },
-      { $addToSet: { collaboratorIds: me.userId } }
+      { $addToSet: { collaboratorIds: me.userId } },
+      { returnDocument: "after" }
     );
-    return Boolean(modifiedCount);
+    if (value) this.loaderUpdateCache(value);
+    return Boolean(value);
   }
 
   /**
@@ -174,14 +181,14 @@ export class StoryService {
       text,
       location,
     }: Pick<StoryDbObject, "text"> & {
-      location: { lng: number; lat: number } | null | undefined;
+      location: LocationInput | null | undefined;
     },
     tracks: string[]
   ) {
     if (!me) throw new AuthenticationError("");
 
-    if (tracks.length < 4)
-      throw new UserInputError("Require at least 4 tracks", ["tracks"]);
+    if (tracks.length < 1)
+      throw new UserInputError("Require at least a track", ["tracks"]);
 
     // use first track as image
     const track = await new TrackService(this.context).findTrack(tracks[0]);
@@ -218,6 +225,8 @@ export class StoryService {
       { add: { tracks } }
     );
 
+    this.loaderUpdateCache(story);
+
     // create a secure invite link
     await this.createInviteToken(story);
 
@@ -226,6 +235,70 @@ export class StoryService {
     notificationService.notifyFollowersOfNewStory(story);
 
     return story;
+  }
+
+  /**
+   * Update a story by id
+   * @param me the creator of this story
+   * @param id
+   * @param param2
+   */
+  async updateById(
+    me: AuthState | null,
+    id: string,
+    {
+      text,
+      image,
+      isLive,
+      location,
+    }: NullablePartial<Omit<StoryDbObject, "location">> & {
+      location: LocationInput | null | undefined;
+    }
+  ): Promise<StoryDbObject> {
+    if (!me) throw new AuthenticationError("");
+    const { value: story } = await this.collection.findOneAndUpdate(
+      {
+        _id: new mongodb.ObjectID(id),
+        creatorId: me.userId,
+      },
+      {
+        $set: {
+          ...(text && { text }),
+          ...(image !== undefined && { image }),
+          ...(typeof isLive === "boolean" && { isLive }),
+          ...(location !== undefined && {
+            location: location
+              ? {
+                  type: "Point",
+                  coordinates: [location.lng, location.lat],
+                }
+              : null,
+          }),
+        },
+      },
+      { returnDocument: "after" }
+    );
+    if (!story) throw new ForbiddenError("Cannot update story");
+    this.loaderUpdateCache(story);
+    this.notifyUpdate(story);
+    return story;
+  }
+
+  /**
+   * Delete a story by id
+   * @param me the creator of that story
+   * @param id
+   */
+  async deleteById(me: AuthState | null, id: string) {
+    if (!me) throw new AuthenticationError("");
+    const { deletedCount } = await this.collection.deleteOne({
+      _id: new mongodb.ObjectID(id),
+      creatorId: me.userId,
+    });
+    if (!deletedCount) throw new ForbiddenError("Cannot delete story");
+    // delete associated
+    await Promise.all([deleteByPattern(redis, `${REDIS_KEY.queue(id)}:*`)]);
+    return true;
   }
 
   /**
@@ -304,54 +377,6 @@ export class StoryService {
       .limit(limit)
       .toArray()
       .then((stories) => stories.map((s) => this.checkStoryStatus(s)));
-  }
-
-  /**
-   * Update a story by id
-   * @param me the creator of this story
-   * @param id
-   * @param param2
-   */
-  async updateById(
-    me: AuthState | null,
-    id: string,
-    { text, image, isLive }: NullablePartial<StoryDbObject>
-  ): Promise<StoryDbObject> {
-    if (!me) throw new AuthenticationError("");
-    const { value: story } = await this.collection.findOneAndUpdate(
-      {
-        _id: new mongodb.ObjectID(id),
-        creatorId: me.userId,
-      },
-      {
-        $set: {
-          ...(text && { text }),
-          ...(image !== undefined && { image }),
-          ...(typeof isLive === "boolean" && { isLive }),
-        },
-      },
-      { returnDocument: "after" }
-    );
-    if (!story) throw new ForbiddenError("Cannot update story");
-    this.notifyUpdate(story);
-    return story;
-  }
-
-  /**
-   * Delete a story by id
-   * @param me the creator of that story
-   * @param id
-   */
-  async deleteById(me: AuthState | null, id: string) {
-    if (!me) throw new AuthenticationError("");
-    const { deletedCount } = await this.collection.deleteOne({
-      _id: new mongodb.ObjectID(id),
-      creatorId: me.userId,
-    });
-    if (!deletedCount) throw new ForbiddenError("Cannot delete story");
-    // delete associated
-    await Promise.all([deleteByPattern(redis, `${REDIS_KEY.queue(id)}:*`)]);
-    return true;
   }
 
   /**

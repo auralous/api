@@ -8,7 +8,7 @@ import { UserService } from "../services/user.js";
 import { REDIS_KEY } from "../utils/constant.js";
 import { GoogleAuth } from "./google.js";
 import { SpotifyAuth } from "./spotify.js";
-import { AuthState } from "./types.js";
+import { AuthState, RedisAuthHash } from "./types.js";
 
 /**
  * Create an auth initialization handler
@@ -46,11 +46,13 @@ export async function authCallback(
   // create token and save to session
   const token = nanoid(32);
 
-  await redis.hmset(REDIS_KEY.auth(token), {
+  const value: RedisAuthHash = {
     ...authState,
     ...tokens,
     userId: user._id,
-  });
+  };
+
+  await redis.hmset(REDIS_KEY.auth(token), value);
 
   const redirectTarget =
     req.query.state === "app_login"
@@ -66,44 +68,54 @@ export async function authCallback(
     .end();
 }
 
+async function getAccessTokenFromRedisAuthState(
+  token: string,
+  redisAuthValue: RedisAuthHash
+) {
+  const Auth =
+    redisAuthValue.provider === PlatformName.Spotify ? SpotifyAuth : GoogleAuth;
+  const result = await Auth.getOrRefreshTokens(
+    redisAuthValue.accessToken,
+    redisAuthValue.refreshToken
+  );
+  if (!result) return null;
+  if (
+    result.accessToken !== redisAuthValue.accessToken ||
+    result.refreshToken !== redisAuthValue.refreshToken
+  ) {
+    await redis.hmset(REDIS_KEY.auth(token), {
+      accessToken: result.accessToken,
+      ...(result.refreshToken && { refreshToken: result.refreshToken }),
+    } as Pick<RedisAuthHash, "accessToken" | "refreshToken">);
+  }
+  return result.accessToken;
+}
+
 export async function getAuthFromRequest(
   req: IncomingMessage
 ): Promise<null | AuthState> {
   const token = req.headers.authorization;
   if (!token) return null;
 
-  const redisAuthState = await redis.hgetall(REDIS_KEY.auth(token));
+  const redisAuthState = (await redis.hgetall(
+    REDIS_KEY.auth(token)
+  )) as RedisAuthHash;
 
   if (Object.keys(redisAuthState).length === 0) return null;
 
   let cachedAccessTokenPromise: Promise<string | null> | undefined;
 
-  async function getAccessToken() {
-    const Auth = PlatformName.Spotify ? SpotifyAuth : GoogleAuth;
-    const result = await Auth.getOrRefreshTokens(
-      redisAuthState.accessToken,
-      redisAuthState.refreshToken
-    );
-    if (!result) return null;
-    if (
-      result.accessToken !== redisAuthState.accessToken ||
-      result.refreshToken !== redisAuthState.refreshToken
-    ) {
-      await redis.hmset(REDIS_KEY.auth(token!), {
-        accessToken: result.accessToken,
-        refreshToken: result.refreshToken,
-      });
-    }
-    return result.accessToken;
-  }
-
   return {
     ...redisAuthState,
     token,
     get accessTokenPromise() {
+      if (!token) return null;
       return (
         cachedAccessTokenPromise ||
-        (cachedAccessTokenPromise = getAccessToken())
+        (cachedAccessTokenPromise = getAccessTokenFromRedisAuthState(
+          token,
+          redisAuthState
+        ))
       );
     },
   } as AuthState;

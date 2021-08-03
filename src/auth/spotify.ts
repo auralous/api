@@ -74,11 +74,11 @@ export class SpotifyAuth {
 
   static async getOrRefreshTokens(
     accessToken: string,
-    refreshToken: string
-  ): Promise<{ accessToken: string; refreshToken: string } | null> {
+    refreshToken: string | undefined
+  ): Promise<{ accessToken: string; refreshToken: string | undefined } | null> {
     if (await SpotifyAuth.checkToken(accessToken))
       return { accessToken, refreshToken };
-    return this.refreshAccessToken(refreshToken);
+    return refreshToken ? this.refreshAccessToken(refreshToken) : null;
   }
 
   private static async refreshAccessToken(
@@ -117,8 +117,10 @@ const scopesStr = [
   "playlist-read-private",
   "playlist-modify-public",
   "playlist-modify-private",
-  "user-read-currently-playing",
   "streaming",
+  "app-remote-control",
+  "user-read-playback-state",
+  "user-read-currently-playing",
 ].join(" ");
 
 const authUrl =

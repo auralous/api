@@ -4,18 +4,12 @@ import { ForbiddenError } from "../error/index.js";
 import { PlatformName } from "../graphql/graphql.gen.js";
 import { authCallback, authInit } from "./auth.js";
 
-const oauth2Client = new google.auth.OAuth2(
-  process.env.GOOGLE_CLIENT_KEY,
-  process.env.GOOGLE_CLIENT_SECRET,
-  `${process.env.API_URI}/auth/google/callback`
-);
-
 /** Auth Service */
 export class GoogleAuth {
   static async getOrRefreshTokens(
     accessToken: string,
-    refreshToken: string
-  ): Promise<{ accessToken: string; refreshToken: string } | null> {
+    refreshToken: string | undefined
+  ): Promise<{ accessToken: string; refreshToken: string | undefined } | null> {
     const oauth2Client = new google.auth.OAuth2(
       process.env.GOOGLE_CLIENT_KEY,
       process.env.GOOGLE_CLIENT_SECRET,
@@ -48,6 +42,12 @@ export class GoogleAuth {
       .catch(() => null);
   }
 }
+
+const oauth2Client = new google.auth.OAuth2(
+  process.env.GOOGLE_CLIENT_KEY,
+  process.env.GOOGLE_CLIENT_SECRET,
+  `${process.env.API_URI}/auth/google/callback`
+);
 
 /** router handler */
 export const handler = nc()

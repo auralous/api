@@ -44,9 +44,12 @@ export class QueueService {
     return JSON.parse(str);
   }
 
-  private notifyUpdate(id: string) {
+  private async notifyUpdate(id: string, queueItems?: QueueItem[]) {
     pubsub.publish(PUBSUB_CHANNELS.queueUpdated, {
-      queueUpdated: { id },
+      queueUpdated: {
+        id,
+        items: queueItems || (await this.findById(id, 0, -1)),
+      },
     });
   }
 
@@ -114,11 +117,11 @@ export class QueueService {
     // data structure for reordering
     const allItems = await redis.lrange(REDIS_KEY.queue(id), 0, -1);
     await this.deleteById(id);
-    const count = await redis.rpush(
-      REDIS_KEY.queue(id),
-      ...reorder(allItems, origin, dest)
-    );
-    this.notifyUpdate(id);
+
+    const reorderedItems = reorder(allItems, origin, dest);
+
+    const count = await redis.rpush(REDIS_KEY.queue(id), ...reorderedItems);
+    this.notifyUpdate(id, reorderedItems.map(QueueService.parseQueueItem));
     return count;
   }
 
@@ -141,7 +144,10 @@ export class QueueService {
       await redis.rpush(REDIS_KEY.queue(id), ...remainingItems);
     }
 
-    if (remainingItems.length !== allItems.length) this.notifyUpdate(id);
+    if (remainingItems.length !== allItems.length) {
+      this.notifyUpdate(id, remainingItems.map(QueueService.parseQueueItem));
+    }
+
     return deleteCount;
   }
 
@@ -165,7 +171,7 @@ export class QueueService {
         REDIS_KEY.queue(id),
         ...resultingItems.map(QueueService.stringifyQueueItem)
       );
-      this.notifyUpdate(id);
+      this.notifyUpdate(id, resultingItems);
     }
     return movingItems.length;
   }

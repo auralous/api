@@ -8,14 +8,13 @@ const resolvers: Resolvers = {
     story(parent, { id }, { services }) {
       return services.Story.findById(id);
     },
-    async stories(parent, { id, limit, next }, { services }) {
+    async stories(parent, { creatorId, limit, next }, { services }) {
       if (limit > 20) throw new ForbiddenError("Too large limit");
       let stories: StoryDbObject[] = [];
-      if (id === "PUBLIC")
-        stories = await services.Story.findForFeedPublic(limit, next);
-      else if (id.startsWith("creatorId:")) {
-        const creatorId = id.substring(10);
+      if (creatorId) {
         stories = await services.Story.findByCreatorId(creatorId, limit, next);
+      } else {
+        stories = await services.Story.findForFeedPublic(limit, next);
       }
       return stories;
     },
@@ -30,9 +29,13 @@ const resolvers: Resolvers = {
       return services.Story.findLiveByCreatorId(creatorId);
     },
     // @ts-ignore
-    async storyTracks(parent, { id }, { services }) {
-      const queueItems = await services.Queue.findById(`${id}:played`, 0, -1);
-      return services.Track.findTracks(queueItems.map((item) => item.trackId));
+    async storyTracks(parent, { id, from, to }, { services }) {
+      const storyTrackIds = await services.Story.getTrackIds(
+        id,
+        from || undefined,
+        to || undefined
+      );
+      return services.Track.findTracks(storyTrackIds);
     },
     async storyInviteLink(parent, { id }, { auth, services }) {
       return `${
@@ -115,6 +118,9 @@ const resolvers: Resolvers = {
       // only visible to creator
       if (creatorId === auth?.userId) return Boolean(location);
       return null;
+    },
+    trackTotal({ trackIds }) {
+      return trackIds.length;
     },
   },
 };

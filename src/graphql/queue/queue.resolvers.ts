@@ -4,9 +4,11 @@ import type { Resolvers } from "../graphql.gen.js";
 
 const resolvers: Resolvers = {
   Query: {
-    async queue(parent, { id }) {
-      // FIXME: Check auth
-      return { id, items: [] };
+    async queue(parent, { id, from, to }, { services }) {
+      return {
+        id,
+        items: await services.Queue.findById(id, from ?? 0, to ?? -1),
+      };
     },
   },
   Mutation: {
@@ -44,11 +46,6 @@ const resolvers: Resolvers = {
           (payload) => payload.queueUpdated.id === id
         );
       },
-    },
-  },
-  Queue: {
-    async items({ id }, args, { services }) {
-      return services.Queue.findById(id, 0, -1);
     },
   },
 };

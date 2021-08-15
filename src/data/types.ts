@@ -27,6 +27,8 @@ export interface StoryDbObject {
     type: "Point";
     coordinates: [longitude: number, latitude: number];
   } | null;
+  // Store tracks after unlive
+  trackIds: string[];
 }
 
 export interface TrackDbObject {

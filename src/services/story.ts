@@ -96,10 +96,19 @@ export class StoryService {
     await redis.del(REDIS_KEY.queue(storyId));
     // Skip/Stop nowPlaying
     NowPlayingWorker.requestSkip(pubsub, storyId);
-    // Unlive it
+    // Extract played tracks into story.trackIds
+    const queueItems = await new QueueService(this.context).findById(
+      `${storyId}:played`
+    );
+    // Unlive it and set tracks
     const { value } = await this.collection.findOneAndUpdate(
       { _id: new mongodb.ObjectID(storyId) },
-      { $set: { isLive: false } },
+      {
+        $set: {
+          isLive: false,
+          trackIds: queueItems.map((queueItem) => queueItem.trackId),
+        },
+      },
       { returnDocument: "after" }
     );
     if (!value) throw new ForbiddenError("Cannot delete this story");
@@ -217,6 +226,7 @@ export class StoryService {
       ...(location && {
         location: { type: "Point", coordinates: [location.lng, location.lat] },
       }),
+      trackIds: [],
     });
 
     await new QueueService(this.context).executeQueueAction(
@@ -249,9 +259,8 @@ export class StoryService {
     {
       text,
       image,
-      isLive,
       location,
-    }: NullablePartial<Omit<StoryDbObject, "location">> & {
+    }: NullablePartial<Pick<StoryDbObject, "text" | "image">> & {
       location: LocationInput | null | undefined;
     }
   ): Promise<StoryDbObject> {
@@ -265,7 +274,6 @@ export class StoryService {
         $set: {
           ...(text && { text }),
           ...(image !== undefined && { image }),
-          ...(typeof isLive === "boolean" && { isLive }),
           ...(location !== undefined && {
             location: location
               ? {
@@ -442,5 +450,16 @@ export class StoryService {
       Infinity,
       minRange
     );
+  }
+
+  async getTrackIds(
+    _id: string,
+    from?: number,
+    to?: number
+  ): Promise<string[]> {
+    const story = await this.findById(_id);
+    if (!story) return [];
+    // JS slice's "end" is not included so we +1
+    return story?.trackIds.slice(from, typeof to === "number" ? to + 1 : to);
   }
 }

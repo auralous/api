@@ -7,7 +7,7 @@ type Query {
 }
 
 type Mutation {
-  me(name: String, username: String, bio: String): User
+  me(username: String, bio: String): User
   userFollow(id: ID!): Boolean!
   userUnfollow(id: ID!): Boolean!
   meDelete: Boolean!

@@ -2,10 +2,10 @@ type Query {
   story(id: ID!): Story
   storyInviteLink(id: ID!): String!
   storyUsers(id: ID!): [String!]
-  stories(id: ID!, next: String, limit: Int!): [Story!]!
+  stories(creatorId: String, next: String, limit: Int!): [Story!]!
   storiesOnMap(lng: Float!, lat: Float!, radius: Float!): [Story!]!
   storyLive(creatorId: String): Story
-  storyTracks(id: ID!): [Track!]!
+  storyTracks(id: ID!, from: Int, to: Int): [Track!]!
 }
 
 type Mutation {
@@ -37,4 +37,5 @@ type Story {
   isLive: Boolean!
   collaboratorIds: [String!]!
   onMap: Boolean
+  trackTotal: Int!
 }

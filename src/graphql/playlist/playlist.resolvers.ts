@@ -11,8 +11,8 @@ const resolvers: Resolvers = {
     playlistTracks(parent, { id }, { services, auth }) {
       return services.Track.findPlaylistTracks(id, auth);
     },
-    playlistsFeatured(parent, args, { services, auth }) {
-      return services.Track.findFeaturedPlaylists(auth);
+    playlistsFeatured(parent, { limit }, { services, auth }) {
+      return services.Track.findFeaturedPlaylists(auth, limit);
     },
     playlistsFriends() {
       return [];

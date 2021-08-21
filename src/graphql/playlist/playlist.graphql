@@ -2,7 +2,7 @@ type Query {
   playlist(id: ID!): Playlist
   myPlaylists: [Playlist!]
   playlistTracks(id: ID!): [Track!]!
-  playlistsFeatured: [Playlist!]!
+  playlistsFeatured(limit: Int): [Playlist!]!
   playlistsFriends: [Playlist!]!
   playlistsSearch(query: String!): [Playlist!]!
 }

@@ -239,8 +239,9 @@ export class TrackService {
     return playlist;
   }
 
-  async findFeaturedPlaylists(me?: AuthState | null) {
+  async findFeaturedPlaylists(me?: AuthState | null, limit = 10) {
     return this[me?.provider || PlatformName.Youtube].getFeaturedPlaylists(
+      limit,
       (await me?.accessTokenPromise) || ""
     );
   }

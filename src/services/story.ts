@@ -393,8 +393,6 @@ export class StoryService {
    * @param storyId
    */
   async pingPresence(me: AuthState, storyId: string): Promise<void> {
-    const messageService = new MessageService(this.context);
-
     const story = await this.findById(storyId);
 
     if (!story) throw new ForbiddenError("Cannot ping to this story");
@@ -424,6 +422,8 @@ export class StoryService {
     await redis.zadd(REDIS_KEY.storyUserStatus(storyId), now, me.userId);
 
     if (justJoined) {
+      const messageService = new MessageService(this.context);
+
       // notify that user just joined via message
       messageService.add(storyId, {
         text: storyId,

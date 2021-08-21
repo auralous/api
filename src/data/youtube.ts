@@ -2,7 +2,8 @@ import { google, youtube_v3 } from "googleapis";
 import un from "undecim";
 import type { Playlist } from "../graphql/graphql.gen.js";
 import { PlatformName } from "../graphql/graphql.gen.js";
-import { isDefined } from "../utils/utils.js";
+import { isDefined, shuffle } from "../utils/utils.js";
+import { DataConfigs } from "./config.js";
 import type { ArtistDbObject, TrackDbObject } from "./types.js";
 import { getFromIdsPerEveryNum } from "./utils.js";
 
@@ -84,7 +85,12 @@ function parsePlaylist(result: youtube_v3.Schema$Playlist): Playlist {
     id: `youtube:${result.id}`,
     platform: PlatformName.Youtube,
     externalId: result.id as string,
-    image: result.snippet?.thumbnails?.high?.url || undefined,
+    image:
+      (
+        result.snippet?.thumbnails?.high ||
+        result.snippet?.thumbnails?.maxres ||
+        result.snippet?.thumbnails?.standard
+      )?.url || undefined,
     name: result.snippet?.title as string,
     url: `https://www.youtube.com/playlist?list=${result.id}`,
     total: result.contentDetails?.itemCount || 0,
@@ -162,6 +168,7 @@ export class YoutubeAPI {
         "items(id,snippet(thumbnails,title,channelTitle),contentDetails(itemCount))",
       id: [externalId],
       access_token: userAccessToken,
+      maxResults: 50,
     });
 
     if (!json.items?.[0]) return null;
@@ -187,6 +194,7 @@ export class YoutubeAPI {
             "nextPageToken,items(id,snippet(title,thumbnails,channelTitle))",
           access_token: accessToken,
           pageToken: data?.nextPageToken || undefined,
+          maxResults: 50,
         })
       ).data;
       if (data.items) playlists.push(...data.items.map(parsePlaylist));
@@ -261,6 +269,7 @@ export class YoutubeAPI {
           playlistId: externalId,
           access_token: userAccessToken,
           pageToken: trackData?.nextPageToken || undefined,
+          maxResults: 50,
         })
       ).data;
 
@@ -341,6 +350,7 @@ export class YoutubeAPI {
           id: ids,
           part: ["snippet"],
           fields: "items(id,snippet(title,thumbnails/high))",
+          maxResults: 50,
         });
         return json.items!.map((val) => (val ? parseArtist(val) : null));
       }
@@ -350,7 +360,48 @@ export class YoutubeAPI {
   /**
    * Get Featured Playlists by scrapping YouTube API
    */
-  static async getFeaturedPlaylists(): Promise<Playlist[]> {
-    return [];
+  static async getFeaturedPlaylists(
+    limit: number,
+    userAccessToken?: string
+  ): Promise<Playlist[]> {
+    // We have not yet been able to scrap the data so we add them manually
+    // using the below script
+    //
+    // function getFeaturedPlaylists() {
+    //   const results = [];
+    //   // https://www.youtube.com/channel/UC-9-kyTW8ZkZNDHQJ6FgpwQ/playlists
+    //   const arr = document.getElementsByTagName("ytd-compact-station-renderer");
+    //   for (let i = 0; i < arr.length; i += 1) {
+    //     const arrr = arr[i].getElementsByClassName(
+    //       "yt-simple-endpoint style-scope ytd-compact-station-renderer"
+    //     );
+    //     for (let j = 0; j < arrr.length; j += 1) {
+    //       results.push(new URL(arrr[j].href).searchParams.get("list"));
+    //     }
+    //   }
+    //   return results;
+    // }
+
+    const feedConfigs = await new DataConfigs().getFeedConfigs();
+    if (!feedConfigs) return [];
+
+    // shuffle and select limit
+    const playlistIds = shuffle(feedConfigs.youtubeFeaturedPlaylists).slice(
+      0,
+      limit
+    );
+
+    const { data: json } = await YoutubeAPI.youtube.playlists.list({
+      part: ["snippet", "contentDetails"],
+      fields:
+        "items(id,snippet(thumbnails,title,channelTitle),contentDetails(itemCount))",
+      id: playlistIds,
+      access_token: userAccessToken,
+      maxResults: 50,
+    });
+
+    if (!json.items?.[0]) return [];
+
+    return json.items.map(parsePlaylist);
   }
 }

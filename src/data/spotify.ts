@@ -312,10 +312,11 @@ export class SpotifyAPI {
    * Get Featured Playlists using Spotify API
    */
   static async getFeaturedPlaylists(
+    limit: number,
     userAccessToken?: string
   ): Promise<Playlist[]> {
     const data = await SpotifyAPI.client
-      .get(`/v1/browse/featured-playlists`, {
+      .get(`/v1/browse/featured-playlists?limit=${limit}`, {
         headers: {
           Authorization: `Bearer ${userAccessToken || clientAccessToken}`,
         },

@@ -1,6 +1,7 @@
 import type { StoryDbObject, UserDbObject } from "../../data/types.js";
 import { ForbiddenError, UserInputError } from "../../error/index.js";
 import { PUBSUB_CHANNELS } from "../../utils/constant.js";
+import { isDefined } from "../../utils/utils.js";
 import type { Resolvers } from "../graphql.gen.js";
 
 const resolvers: Resolvers = {
@@ -24,18 +25,23 @@ const resolvers: Resolvers = {
     async storyUsers(parent, { id }, { services }) {
       return services.Story.getPresences(id);
     },
-    async storyLive(parent, { creatorId }, { services }) {
-      if (!creatorId) return null;
-      return services.Story.findLiveByCreatorId(creatorId);
-    },
     // @ts-ignore
+    async storyCurrentLive(parent, { creatorId }, { services }) {
+      if (!creatorId) return null;
+      const story = await services.Story.findLiveByCreatorId(creatorId);
+      if (!story) return null;
+      return {
+        creatorId,
+        storyId: story._id,
+      };
+    },
     async storyTracks(parent, { id, from, to }, { services }) {
       const storyTrackIds = await services.Story.getTrackIds(
         id,
         from || undefined,
         to || undefined
       );
-      return services.Track.findTracks(storyTrackIds);
+      return (await services.Track.findTracks(storyTrackIds)).filter(isDefined);
     },
     async storyInviteLink(parent, { id }, { auth, services }) {
       return `${

@@ -88,3 +88,7 @@ export type NotificationDbObject =
   | NotificationDbObjectInvite
   | NotificationDbObjectFollow
   | NotificationDbObjectNewStory;
+
+export interface FeedConfig {
+  youtubeFeaturedPlaylists: string[];
+}

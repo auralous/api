@@ -5,7 +5,8 @@ import { MessageType, Resolvers } from "../graphql.gen.js";
 const resolvers: Resolvers = {
   Subscription: {
     messageAdded: {
-      async subscribe(parent, { id }, { pubsub }) {
+      async subscribe(parent, { id }, { pubsub, auth }) {
+        if (auth) throw new ForbiddenError("");
         // FIXME: Check auth
         return pubsub.on(
           PUBSUB_CHANNELS.messageAdded,
@@ -16,7 +17,8 @@ const resolvers: Resolvers = {
   },
   Query: {
     // @ts-ignore
-    async messages(parent, { id, offset, limit }, { services }) {
+    async messages(parent, { id, offset, limit }, { services, auth }) {
+      if (auth) return null;
       limit = limit || 20; // limit = 0 is invalid
       offset = offset || 0;
       if (limit > 20) throw new ForbiddenError("Too large limit");

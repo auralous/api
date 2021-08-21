@@ -12,7 +12,7 @@ const resolvers: Resolvers = {
       return services.Track.findPlaylistTracks(id, auth);
     },
     playlistsFeatured(parent, { limit }, { services, auth }) {
-      return services.Track.findFeaturedPlaylists(auth, limit);
+      return services.Track.findFeaturedPlaylists(auth, limit || 10);
     },
     playlistsFriends() {
       return [];

@@ -12,7 +12,6 @@ generates:
         Notification: ../data/types#NotificationDbObjectUnion
         NotificationFollow: ../data/types#NotificationDbObjectFollow
         NotificationNewSession: ../data/types#NotificationDbObjectNewSession
-      noSchemaStitching: true
     plugins:
       - typescript
       - typescript-resolvers

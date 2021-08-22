@@ -1,4 +1,3 @@
-import { parse as parseCookie } from "cookie";
 import type { IncomingMessage, ServerResponse } from "http";
 import { Options } from "next-connect";
 import { parse as parseQS } from "querystring";
@@ -22,7 +21,7 @@ export function rawBody(
 /**
  * Middleware to parse cookie and query string
  */
-export function cookieAndQuery(
+export function queryParser(
   req: IncomingMessage,
   res: ServerResponse,
   next: () => void
@@ -35,8 +34,6 @@ export function cookieAndQuery(
   } else {
     req.query = {};
   }
-
-  req.cookies = parseCookie(req.headers.cookie || "");
   next();
 }
 

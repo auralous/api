@@ -8,7 +8,7 @@ import { UserService } from "../services/user.js";
 import { REDIS_KEY } from "../utils/constant.js";
 import { GoogleAuth } from "./google.js";
 import { SpotifyAuth } from "./spotify.js";
-import { AuthState, RedisAuthHash } from "./types.js";
+import type { AuthState, RedisAuthHash } from "./types.js";
 
 /**
  * Create an auth initialization handler

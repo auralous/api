@@ -16,7 +16,7 @@ const resolvers: Resolvers = {
       String(
         (
           obj as unknown as {
-            _id: mongodb.ObjectID;
+            _id: mongodb.ObjectId;
           }
         )._id
       ),
@@ -29,7 +29,7 @@ const resolvers: Resolvers = {
       String(
         (
           obj as unknown as {
-            _id: mongodb.ObjectID;
+            _id: mongodb.ObjectId;
           }
         )._id
       ),

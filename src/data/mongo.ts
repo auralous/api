@@ -30,10 +30,7 @@ async function applyIndex(db: Db) {
     .createIndexes([{ key: { userId: 1 } }]);
 }
 
-const client = new mongodb.MongoClient(process.env.MONGODB_URI as string, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-});
+const client = new mongodb.MongoClient(process.env.MONGODB_URI as string);
 
 await client.connect();
 

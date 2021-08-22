@@ -29,7 +29,7 @@ export class NotificationService {
     return this.collection
       .find({
         userId: me.userId,
-        ...(next && { _id: { $lt: new mongodb.ObjectID(next) } }),
+        ...(next && { _id: { $lt: new mongodb.ObjectId(next) } }),
       })
       .sort({ $natural: -1 })
       .limit(limit)
@@ -47,20 +47,19 @@ export class NotificationService {
       .updateMany(
         {
           userId: me.userId,
-          _id: { $in: ids.map((id) => new mongodb.ObjectID(id)) },
+          _id: { $in: ids.map((id) => new mongodb.ObjectId(id)) },
         },
         { $set: { hasRead: true } }
       )
       .then((result) => result.modifiedCount);
   }
 
-  async add(notification: NotificationDbObjectUnion) {
+  async add(
+    notification: NotificationDbObjectUnion
+  ): Promise<WithId<NotificationDbObjectUnion>> {
     const newNotification = await this.collection
-      .insertOne({
-        ...notification,
-        hasRead: false,
-      })
-      .then((result) => result.ops[0]);
+      .insertOne(notification)
+      .then((result) => ({ _id: result.insertedId, ...notification }));
     pubsub.publish(PUBSUB_CHANNELS.notificationAdded, {
       notificationAdded: newNotification,
     });
@@ -68,12 +67,12 @@ export class NotificationService {
   }
 
   async notifyUserOfNewFollower(newFollow: FollowDbObject) {
-    this.add({
+    await this.add({
       type: "follow",
       userId: newFollow.following,
       hasRead: false,
-      followedBy: newFollow.follower,
       createdAt: newFollow.followedAt,
+      followedBy: newFollow.follower,
     });
   }
 
@@ -86,11 +85,11 @@ export class NotificationService {
     follows.forEach((follow) => {
       promises.push(
         this.add({
+          type: "new-session",
           userId: follow.follower,
           hasRead: false,
-          sessionId: String(session._id),
-          type: "new-session",
           createdAt: session.createdAt,
+          sessionId: String(session._id),
         })
       );
     });

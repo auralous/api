@@ -30,7 +30,7 @@ export class SessionService {
       async (keys) => {
         const sessions = await this.collection
           .find({
-            _id: { $in: keys.map(mongodb.ObjectID.createFromHexString) },
+            _id: { $in: keys.map(mongodb.ObjectId.createFromHexString) },
           })
           .toArray()
           .then((sessions) => sessions.map((s) => this.checkSessionStatus(s)));
@@ -102,7 +102,7 @@ export class SessionService {
     );
     // Unlive it and set tracks
     const { value } = await this.collection.findOneAndUpdate(
-      { _id: new mongodb.ObjectID(sessionId) },
+      { _id: new mongodb.ObjectId(sessionId) },
       {
         $set: {
           isLive: false,
@@ -193,7 +193,7 @@ export class SessionService {
       location: LocationInput | null | undefined;
     },
     tracks: string[]
-  ) {
+  ): Promise<SessionDbObject> {
     if (!me) throw new AuthenticationError("");
 
     if (tracks.length < 1)
@@ -213,9 +213,7 @@ export class SessionService {
       { $set: { isLive: false } }
     );
 
-    const {
-      ops: [session],
-    } = await this.collection.insertOne({
+    const session: Omit<SessionDbObject, "_id"> = {
       text,
       creatorId: me.userId,
       createdAt,
@@ -224,27 +222,34 @@ export class SessionService {
       collaboratorIds: [me.userId],
       lastCreatorActivityAt: createdAt,
       ...(location && {
-        location: { type: "Point", coordinates: [location.lng, location.lat] },
+        location: {
+          type: "Point",
+          coordinates: [location.lng, location.lat],
+        },
       }),
       trackIds: [],
-    });
+    };
+
+    const { insertedId } = await this.collection.insertOne(session);
+
+    const insertedSession: SessionDbObject = { ...session, _id: insertedId };
 
     await new QueueService(this.context).executeQueueAction(
       me,
-      String(session._id),
+      String(insertedSession._id),
       { add: { tracks } }
     );
 
-    this.loaderUpdateCache(session);
+    this.loaderUpdateCache(insertedSession);
 
     // create a secure invite link
-    await this.createInviteToken(session);
+    await this.createInviteToken(insertedSession);
 
     const notificationService = new NotificationService(this.context);
 
-    notificationService.notifyFollowersOfNewSession(session);
+    notificationService.notifyFollowersOfNewSession(insertedSession);
 
-    return session;
+    return insertedSession;
   }
 
   /**
@@ -267,7 +272,7 @@ export class SessionService {
     if (!me) throw new AuthenticationError("");
     const { value: session } = await this.collection.findOneAndUpdate(
       {
-        _id: new mongodb.ObjectID(id),
+        _id: new mongodb.ObjectId(id),
         creatorId: me.userId,
       },
       {
@@ -300,7 +305,7 @@ export class SessionService {
   async deleteById(me: AuthState | null, id: string) {
     if (!me) throw new AuthenticationError("");
     const { deletedCount } = await this.collection.deleteOne({
-      _id: new mongodb.ObjectID(id),
+      _id: new mongodb.ObjectId(id),
       creatorId: me.userId,
     });
     if (!deletedCount) throw new ForbiddenError("Cannot delete session");
@@ -331,7 +336,7 @@ export class SessionService {
     return this.collection
       .find({
         creatorId,
-        ...(next && { _id: { $lt: new mongodb.ObjectID(next) } }),
+        ...(next && { _id: { $lt: new mongodb.ObjectId(next) } }),
       })
       .sort({ $natural: -1 })
       .limit(limit || 99999)
@@ -379,7 +384,7 @@ export class SessionService {
   ): Promise<SessionDbObject[]> {
     return this.collection
       .find({
-        ...(next && { _id: { $lt: new mongodb.ObjectID(next) } }),
+        ...(next && { _id: { $lt: new mongodb.ObjectId(next) } }),
       })
       .sort({ $natural: -1 })
       .limit(limit)
@@ -403,7 +408,7 @@ export class SessionService {
     // update lastCreatorActivityAt since the pinging user is create
     if (me.userId === session.creatorId) {
       await this.collection.updateOne(
-        { _id: new mongodb.ObjectID(sessionId), creatorId: me.userId },
+        { _id: new mongodb.ObjectId(sessionId), creatorId: me.userId },
         { $set: { lastCreatorActivityAt: new Date() } }
       );
     }

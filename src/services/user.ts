@@ -70,9 +70,7 @@ export class UserService {
     "profilePicture" | "email" | "oauthId" | "oauthProvider" | "bio"
   >) {
     const _id = nanoid(12);
-    const {
-      ops: [user],
-    } = await this.collection.insertOne({
+    const user: UserDbObject = {
       _id,
       username: _id,
       profilePicture,
@@ -81,7 +79,8 @@ export class UserService {
       oauthProvider,
       bio,
       createdAt: new Date(),
-    });
+    };
+    await this.collection.insertOne(user);
     this.loader.prime(user._id, user);
     // send onboarding email
     if (email) {

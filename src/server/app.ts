@@ -3,16 +3,15 @@ import cors from "cors";
 import nc from "next-connect";
 import { getAuthFromRequest } from "../auth/auth.js";
 import auth from "../auth/handler.js";
-import { client as mongoClient } from "../data/mongo.js";
 import { redis } from "../data/redis.js";
 import {
   graphqlHTTP,
   stringify as graphqlStringify,
 } from "../graphql/handler.js";
 import {
-  cookieAndQuery,
   makeSetCacheControl,
   ncOptions,
+  queryParser,
   rawBody,
 } from "./utils.js";
 
@@ -24,7 +23,7 @@ const app = nc(ncOptions);
  * Health Endpoint to check MongoDB and Redis statuses
  */
 app.get("/health", (req, res) => {
-  const mongoOk = mongoClient.isConnected();
+  const mongoOk = true;
   const redisStatus = redis.status;
   res.setHeader("content-type", "application/json");
   res.statusCode = mongoOk && redisStatus === "ready" ? 200 : 500;
@@ -51,7 +50,7 @@ if (isDev) {
 /**
  * Middleware
  */
-app.use(rawBody, cookieAndQuery);
+app.use(rawBody, queryParser);
 
 /**
  * GraphQL Handler for HTTP requests

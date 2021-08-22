@@ -13,7 +13,7 @@ export interface UserDbObject {
 }
 
 export interface SessionDbObject {
-  _id: mongodb.ObjectID;
+  _id: mongodb.ObjectId;
   text: string;
   creatorId: string;
   createdAt: Date;
@@ -53,7 +53,7 @@ export interface ArtistDbObject {
 }
 
 export interface FollowDbObject {
-  _id: mongodb.ObjectID;
+  _id: mongodb.ObjectId;
   follower: string;
   following: string;
   followedAt: Date;

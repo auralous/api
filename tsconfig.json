@@ -1,13 +1,14 @@
 {
   "compilerOptions": {
     "outDir": "./dist",
-    "lib": ["ESNext"],
+    "lib": ["ES2021"],
     "module": "ESNext",
-    "target": "ESNext",
+    "target": "ES2021",
     "strict": true,
     "skipLibCheck": true,
     "esModuleInterop": true,
-    "moduleResolution": "node"
+    "moduleResolution": "node",
+    "allowSyntheticDefaultImports": true
   },
   "include": ["./src/**/*"],
   "ts-node": {

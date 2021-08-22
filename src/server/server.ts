@@ -1,6 +1,7 @@
-import { parse as parseCookie } from "cookie";
 import { createServer } from "http";
-import WebSocket from "ws";
+import type WebSocket from "ws";
+// @ts-ignore
+import { WebSocketServer } from "ws";
 import { getAuthFromRequest } from "../auth/auth.js";
 import { graphqlWS } from "../graphql/handler.js";
 import { NowPlayingWorker } from "../services/nowPlayingWorker.js";
@@ -13,13 +14,12 @@ interface ExtWebSocket extends WebSocket {
   isAlive: boolean;
 }
 
-const wss = new WebSocket.Server({
+const wss: WebSocket.Server = new WebSocketServer({
   server,
   path: "/graphql",
 });
 
 wss.on("connection", async (socket, req) => {
-  req.cookies = parseCookie(req.headers.cookie || "");
   graphqlWS(socket, {
     auth: getAuthFromRequest(req),
   });

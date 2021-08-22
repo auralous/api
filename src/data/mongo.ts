@@ -34,8 +34,6 @@ const client = new mongodb.MongoClient(process.env.MONGODB_URI as string);
 
 await client.connect();
 
-const db = client.db();
+export const db = client.db();
 
 await applyIndex(db);
-
-export { client, db };

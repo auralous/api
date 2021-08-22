@@ -1,4 +1,4 @@
-schema: 'src/graphql/*/*.graphql'
+schema: "src/graphql/*/*.graphql"
 generates:
   ./src/graphql/graphql.gen.ts:
     config:
@@ -9,7 +9,9 @@ generates:
         Track: ../data/types#TrackDbObject
         Artist: ../data/types#ArtistDbObject
         Story: ../data/types#StoryDbObject
-        Notification: ../data/types#NotificationDbObject
+        Notification: ../data/types#NotificationDbObjectUnion
+        NotificationFollow: ../data/types#NotificationDbObjectFollow
+        NotificationNewStory: ../data/types#NotificationDbObjectNewStory
       noSchemaStitching: true
     plugins:
       - typescript

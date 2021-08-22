@@ -411,7 +411,7 @@ export class StoryService {
     const now = Date.now();
     // when was user last in story or possibly NaN if never in
     const lastTimestamp: number = parseInt(
-      await redis.zscore(REDIS_KEY.storyUserStatus(storyId), me.userId),
+      await redis.zscore(REDIS_KEY.storyListenerPresences(storyId), me.userId),
       10
     );
 
@@ -419,7 +419,7 @@ export class StoryService {
       !lastTimestamp || now - lastTimestamp > CONFIG.activityTimeout;
 
     // Ping that user is still here
-    await redis.zadd(REDIS_KEY.storyUserStatus(storyId), now, me.userId);
+    await redis.zadd(REDIS_KEY.storyListenerPresences(storyId), now, me.userId);
 
     if (justJoined) {
       const messageService = new MessageService(this.context);
@@ -432,9 +432,9 @@ export class StoryService {
       });
 
       // Notify story user update via subscription
-      pubsub.publish(PUBSUB_CHANNELS.storyUsersUpdated, {
+      pubsub.publish(PUBSUB_CHANNELS.storyListenersUpdated, {
         id: storyId,
-        storyUsersUpdated: await this.getPresences(storyId),
+        storyListenersUpdated: await this.getCurrentListeners(storyId),
       });
     }
   }
@@ -443,10 +443,11 @@ export class StoryService {
    * Get all user currently in a room
    * @param _id
    */
-  async getPresences(_id: string): Promise<string[]> {
+  async getCurrentListeners(_id: string): Promise<string[]> {
+    // user is considered present if they still ping within activityTimeout
     const minRange = Date.now() - CONFIG.activityTimeout;
     return redis.zrevrangebyscore(
-      REDIS_KEY.storyUserStatus(_id),
+      REDIS_KEY.storyListenerPresences(_id),
       Infinity,
       minRange
     );

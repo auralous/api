@@ -4,27 +4,18 @@ interface Notification {
   createdAt: DateTime!
 }
 
-type NotificationInvite implements Notification {
-  id: ID!
-  hasRead: Boolean!
-  createdAt: DateTime!
-  inviterId: String!
-  storyId: String!
-}
-
 type NotificationFollow implements Notification {
   id: ID!
   hasRead: Boolean!
   createdAt: DateTime!
-  followerId: String!
+  follower: User
 }
 
 type NotificationNewStory implements Notification {
   id: ID!
   hasRead: Boolean!
   createdAt: DateTime!
-  storyId: String!
-  creatorId: String!
+  story: Story
 }
 
 type Query {

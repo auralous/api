@@ -61,31 +61,22 @@ export interface FollowDbObject {
 }
 
 interface NotificationDbObjectBase {
-  _id: mongodb.ObjectID;
   userId: string;
   createdAt: Date;
   hasRead: boolean;
 }
 
-interface NotificationDbObjectInvite extends NotificationDbObjectBase {
-  inviterId: string;
-  storyId: string;
-  type: "invite";
-}
-
-interface NotificationDbObjectFollow extends NotificationDbObjectBase {
-  followerId: string;
+export interface NotificationDbObjectFollow extends NotificationDbObjectBase {
+  followedBy: string;
   type: "follow";
 }
 
-interface NotificationDbObjectNewStory extends NotificationDbObjectBase {
+export interface NotificationDbObjectNewStory extends NotificationDbObjectBase {
   storyId: string;
-  creatorId: string;
   type: "new-story";
 }
 
-export type NotificationDbObject =
-  | NotificationDbObjectInvite
+export type NotificationDbObjectUnion =
   | NotificationDbObjectFollow
   | NotificationDbObjectNewStory;
 

@@ -1,7 +1,7 @@
 type Query {
   story(id: ID!): Story
   storyInviteLink(id: ID!): String!
-  storyUsers(id: ID!): [String!]
+  storyListeners(id: ID!): [String!]
   storyCurrentLive(creatorId: ID!): StoryCurrentLive
   stories(creatorId: String, next: String, limit: Int!): [Story!]!
   storiesOnMap(lng: Float!, lat: Float!, radius: Float!): [Story!]!
@@ -24,7 +24,7 @@ input LocationInput {
 
 type Subscription {
   storyUpdated(id: ID!): Story!
-  storyUsersUpdated(id: ID!): [String!]!
+  storyListenersUpdated(id: ID!): [String!]!
 }
 
 type Story {

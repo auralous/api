@@ -22,8 +22,8 @@ const resolvers: Resolvers = {
     async storiesOnMap(parent, { lng, lat, radius }, { services }) {
       return services.Story.findByLocation(lng, lat, radius);
     },
-    async storyUsers(parent, { id }, { services }) {
-      return services.Story.getPresences(id);
+    async storyListeners(parent, { id }, { services }) {
+      return services.Story.getCurrentListeners(id);
     },
     // @ts-ignore
     async storyCurrentLive(parent, { creatorId }, { services }) {
@@ -84,10 +84,10 @@ const resolvers: Resolvers = {
     },
   },
   Subscription: {
-    storyUsersUpdated: {
+    storyListenersUpdated: {
       subscribe(parent, { id }, { pubsub }) {
         return pubsub.on(
-          PUBSUB_CHANNELS.storyUsersUpdated,
+          PUBSUB_CHANNELS.storyListenersUpdated,
           (payload) => payload.id === id
         );
       },

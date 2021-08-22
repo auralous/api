@@ -3,14 +3,19 @@ import mongodb from "mongodb";
 import { AuthState } from "../auth/types.js";
 import { db } from "../data/mongo.js";
 import { pubsub } from "../data/pubsub.js";
-import type { NotificationDbObject, StoryDbObject } from "../data/types.js";
+import type {
+  FollowDbObject,
+  NotificationDbObjectUnion,
+  StoryDbObject,
+} from "../data/types.js";
 import { AuthenticationError } from "../error/index.js";
 import { PUBSUB_CHANNELS } from "../utils/constant.js";
 import { FollowService } from "./follow.js";
 import type { ServiceContext } from "./types.js";
 
 export class NotificationService {
-  private collection = db.collection<NotificationDbObject>("notifications");
+  private collection =
+    db.collection<NotificationDbObjectUnion>("notifications");
 
   constructor(private context: ServiceContext) {}
 
@@ -49,14 +54,10 @@ export class NotificationService {
       .then((result) => result.modifiedCount);
   }
 
-  async add<T extends NotificationDbObject>(
-    notification: Omit<T, "createdAt" | "hasRead" | "_id">
-  ) {
+  async add(notification: NotificationDbObjectUnion) {
     const newNotification = await this.collection
-      // @ts-ignore
       .insertOne({
         ...notification,
-        createdAt: new Date(),
         hasRead: false,
       })
       .then((result) => result.ops[0]);
@@ -66,19 +67,30 @@ export class NotificationService {
     return newNotification;
   }
 
+  async notifyUserOfNewFollower(newFollow: FollowDbObject) {
+    this.add({
+      type: "follow",
+      userId: newFollow.following,
+      hasRead: false,
+      followedBy: newFollow.follower,
+      createdAt: newFollow.followedAt,
+    });
+  }
+
   async notifyFollowersOfNewStory(story: StoryDbObject) {
     const followService = new FollowService(this.context);
     const follows = await followService.findFollows(story.creatorId);
 
-    const promises: Promise<WithId<NotificationDbObject> | null>[] = [];
+    const promises: Promise<WithId<NotificationDbObjectUnion> | null>[] = [];
 
     follows.forEach((follow) => {
       promises.push(
-        this.add<Extract<NotificationDbObject, { type: "new-story" }>>({
+        this.add({
           userId: follow.follower,
-          creatorId: story.creatorId,
+          hasRead: false,
           storyId: String(story._id),
           type: "new-story",
+          createdAt: story.createdAt,
         })
       );
     });

@@ -1,0 +1,50 @@
+type Query {
+  session(id: ID!): Session
+  sessionInviteLink(id: ID!): String!
+  sessionListeners(id: ID!): [String!]
+  sessionCurrentLive(creatorId: ID!): SessionCurrentLive
+  sessions(creatorId: String, next: String, limit: Int!): [Session!]!
+  sessionsOnMap(lng: Float!, lat: Float!, radius: Float!): [Session!]!
+  sessionTracks(id: ID!, from: Int, to: Int): [Track!]!
+}
+
+type Mutation {
+  sessionCreate(
+    text: String!
+    location: LocationInput
+    tracks: [ID!]!
+  ): Session!
+  sessionUpdate(id: ID!, text: String, location: LocationInput): Session!
+  sessionDelete(id: ID!): ID!
+  sessionUnlive(id: ID!): Session!
+  sessionPing(id: ID!): Boolean!
+  sessionCollabAddFromToken(id: ID!, token: String!): Boolean!
+}
+
+input LocationInput {
+  lng: Float!
+  lat: Float!
+}
+
+type Subscription {
+  sessionUpdated(id: ID!): Session!
+  sessionListenersUpdated(id: ID!): [String!]!
+}
+
+type Session {
+  id: ID!
+  text: String!
+  image: String
+  creatorId: ID!
+  creator: User!
+  createdAt: DateTime!
+  isLive: Boolean!
+  collaboratorIds: [String!]!
+  onMap: Boolean
+  trackTotal: Int!
+}
+
+type SessionCurrentLive {
+  creatorId: ID!
+  sessionId: ID!
+}

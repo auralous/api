@@ -12,7 +12,7 @@ export interface UserDbObject {
   oauthId: string;
 }
 
-export interface StoryDbObject {
+export interface SessionDbObject {
   _id: mongodb.ObjectID;
   text: string;
   creatorId: string;
@@ -71,14 +71,15 @@ export interface NotificationDbObjectFollow extends NotificationDbObjectBase {
   type: "follow";
 }
 
-export interface NotificationDbObjectNewStory extends NotificationDbObjectBase {
-  storyId: string;
-  type: "new-story";
+export interface NotificationDbObjectNewSession
+  extends NotificationDbObjectBase {
+  sessionId: string;
+  type: "new-session";
 }
 
 export type NotificationDbObjectUnion =
   | NotificationDbObjectFollow
-  | NotificationDbObjectNewStory;
+  | NotificationDbObjectNewSession;
 
 export interface FeedConfig {
   youtubeFeaturedPlaylists: string[];

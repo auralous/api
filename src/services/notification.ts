@@ -6,7 +6,7 @@ import { pubsub } from "../data/pubsub.js";
 import type {
   FollowDbObject,
   NotificationDbObjectUnion,
-  StoryDbObject,
+  SessionDbObject,
 } from "../data/types.js";
 import { AuthenticationError } from "../error/index.js";
 import { PUBSUB_CHANNELS } from "../utils/constant.js";
@@ -77,9 +77,9 @@ export class NotificationService {
     });
   }
 
-  async notifyFollowersOfNewStory(story: StoryDbObject) {
+  async notifyFollowersOfNewSession(session: SessionDbObject) {
     const followService = new FollowService(this.context);
-    const follows = await followService.findFollows(story.creatorId);
+    const follows = await followService.findFollows(session.creatorId);
 
     const promises: Promise<WithId<NotificationDbObjectUnion> | null>[] = [];
 
@@ -88,9 +88,9 @@ export class NotificationService {
         this.add({
           userId: follow.follower,
           hasRead: false,
-          storyId: String(story._id),
-          type: "new-story",
-          createdAt: story.createdAt,
+          sessionId: String(session._id),
+          type: "new-session",
+          createdAt: session.createdAt,
         })
       );
     });

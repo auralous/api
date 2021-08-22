@@ -5,7 +5,7 @@ import { AuthState } from "../auth/types.js";
 import { db } from "../data/mongo.js";
 import { pubsub } from "../data/pubsub.js";
 import { deleteByPattern, redis } from "../data/redis.js";
-import { StoryDbObject } from "../data/types.js";
+import { SessionDbObject } from "../data/types.js";
 import {
   AuthenticationError,
   ForbiddenError,
@@ -21,24 +21,24 @@ import { QueueService } from "./queue.js";
 import { TrackService } from "./track.js";
 import type { ServiceContext } from "./types.js";
 
-export class StoryService {
-  private collection = db.collection<StoryDbObject>("stories");
-  private loader: DataLoader<string, StoryDbObject | null>;
+export class SessionService {
+  private collection = db.collection<SessionDbObject>("sessions");
+  private loader: DataLoader<string, SessionDbObject | null>;
 
   constructor(private context: ServiceContext) {
     this.loader = new DataLoader(
       async (keys) => {
-        const stories = await this.collection
+        const sessions = await this.collection
           .find({
             _id: { $in: keys.map(mongodb.ObjectID.createFromHexString) },
           })
           .toArray()
-          .then((stories) => stories.map((s) => this.checkStoryStatus(s)));
+          .then((sessions) => sessions.map((s) => this.checkSessionStatus(s)));
         // retain order
         return keys.map(
           (key) =>
-            stories.find(
-              (story: StoryDbObject) => story._id.toHexString() === key
+            sessions.find(
+              (session: SessionDbObject) => session._id.toHexString() === key
             ) || null
         );
       },
@@ -46,63 +46,63 @@ export class StoryService {
     );
   }
 
-  private loaderUpdateCache(story: StoryDbObject) {
-    this.loader.clear(String(story._id)).prime(String(story._id), story);
+  private loaderUpdateCache(session: SessionDbObject) {
+    this.loader.clear(String(session._id)).prime(String(session._id), session);
   }
 
   /**
-   * Notify the story has changed
+   * Notify the session has changed
    * Possibly because a new collaboratorId, or isLive
-   * @param story
+   * @param session
    */
-  private notifyUpdate(story: StoryDbObject) {
-    pubsub.publish(PUBSUB_CHANNELS.storyUpdated, {
-      id: story._id.toHexString(),
-      storyUpdated: story,
+  private notifyUpdate(session: SessionDbObject) {
+    pubsub.publish(PUBSUB_CHANNELS.sessionUpdated, {
+      id: session._id.toHexString(),
+      sessionUpdated: session,
     });
   }
 
   /**
-   * Check a story to see if it needs to be unlived
-   * Sometimes, the creator does not unlive a story manually
-   * We define a inactivity duration to unlive the story (CONFIG.storyLiveTimeout)
-   * This is often run everytime a story is accessed (either by itself or as part of a collection)
-   * Return the story itself for convenience passing into callbacks
-   * @param story
+   * Check a session to see if it needs to be unlived
+   * Sometimes, the creator does not unlive a session manually
+   * We define a inactivity duration to unlive the session (CONFIG.sessionLiveTimeout)
+   * This is often run everytime a session is accessed (either by itself or as part of a collection)
+   * Return the session itself for convenience passing into callbacks
+   * @param session
    */
-  private checkStoryStatus(story: StoryDbObject): StoryDbObject {
+  private checkSessionStatus(session: SessionDbObject): SessionDbObject {
     if (
-      story.isLive &&
-      Date.now() - story.lastCreatorActivityAt.getTime() >
-        CONFIG.storyLiveTimeout
+      session.isLive &&
+      Date.now() - session.lastCreatorActivityAt.getTime() >
+        CONFIG.sessionLiveTimeout
     ) {
-      // creator is not active in awhile unlive story
-      story.isLive = false;
+      // creator is not active in awhile unlive session
+      session.isLive = false;
       // async update it
-      this.unliveStory(story._id.toHexString());
+      this.unliveSession(session._id.toHexString());
     }
-    return story;
+    return session;
   }
 
   /**
-   * Unlive a story (aka archieved)
-   * An unlived stories can be replayed at any time
+   * Unlive a session (aka archieved)
+   * An unlived sessions can be replayed at any time
    * but no new songs can be added to it
-   * @param storyId
+   * @param sessionId
    */
-  async unliveStory(storyId: string): Promise<StoryDbObject> {
+  async unliveSession(sessionId: string): Promise<SessionDbObject> {
     // WARN: this does not check auth
     // Delete queue. See QueueService#deleteById
-    await redis.del(REDIS_KEY.queue(storyId));
+    await redis.del(REDIS_KEY.queue(sessionId));
     // Skip/Stop nowPlaying
-    NowPlayingWorker.requestSkip(pubsub, storyId);
-    // Extract played tracks into story.trackIds
+    NowPlayingWorker.requestSkip(pubsub, sessionId);
+    // Extract played tracks into session.trackIds
     const queueItems = await new QueueService(this.context).findById(
-      `${storyId}:played`
+      `${sessionId}:played`
     );
     // Unlive it and set tracks
     const { value } = await this.collection.findOneAndUpdate(
-      { _id: new mongodb.ObjectID(storyId) },
+      { _id: new mongodb.ObjectID(sessionId) },
       {
         $set: {
           isLive: false,
@@ -111,46 +111,46 @@ export class StoryService {
       },
       { returnDocument: "after" }
     );
-    if (!value) throw new ForbiddenError("Cannot delete this story");
+    if (!value) throw new ForbiddenError("Cannot delete this session");
     this.invalidateInviteToken(value);
     this.notifyUpdate(value);
     this.loaderUpdateCache(value);
     return value;
   }
 
-  async getInviteToken(me: AuthState | null, storyId: string) {
+  async getInviteToken(me: AuthState | null, sessionId: string) {
     if (!me) throw new AuthenticationError("");
-    const story = await this.findById(storyId);
-    if (!story) throw new UserInputError("Story not found", ["id"]);
-    if (!story.collaboratorIds.includes(me.userId))
+    const session = await this.findById(sessionId);
+    if (!session) throw new UserInputError("Session not found", ["id"]);
+    if (!session.collaboratorIds.includes(me.userId))
       throw new ForbiddenError("Not allowed to get invite link");
     const token = await redis.get(
-      REDIS_KEY.storyInviteToken(String(story._id))
+      REDIS_KEY.sessionInviteToken(String(session._id))
     );
     if (!token)
-      throw new Error(`Cannot get invite token for story ${story._id}`);
+      throw new Error(`Cannot get invite token for session ${session._id}`);
     return token;
   }
 
   /**
    * Create an invite token that can be used
    * to add collaborators
-   * @param story
+   * @param session
    */
-  private async createInviteToken(story: StoryDbObject) {
+  private async createInviteToken(session: SessionDbObject) {
     const token = nanoid(21);
-    await redis.set(REDIS_KEY.storyInviteToken(String(story._id)), token);
+    await redis.set(REDIS_KEY.sessionInviteToken(String(session._id)), token);
     return token;
   }
 
   /**
    * Invalidate the invite token in case
-   * story is unlived
-   * @param story
+   * session is unlived
+   * @param session
    * @returns
    */
-  private async invalidateInviteToken(story: StoryDbObject) {
-    return redis.del(REDIS_KEY.storyInviteToken(String(story._id)));
+  private async invalidateInviteToken(session: SessionDbObject) {
+    return redis.del(REDIS_KEY.sessionInviteToken(String(session._id)));
   }
 
   /**
@@ -159,19 +159,19 @@ export class StoryService {
    */
   async addCollabFromToken(
     me: AuthState | null,
-    storyId: string,
+    sessionId: string,
     token: string
   ) {
     if (!me) throw new AuthenticationError("");
-    const story = await this.findById(storyId);
-    if (!story) throw new UserInputError("Story not found", ["id"]);
+    const session = await this.findById(sessionId);
+    if (!session) throw new UserInputError("Session not found", ["id"]);
     const verifyToken = await redis.get(
-      REDIS_KEY.storyInviteToken(String(story._id))
+      REDIS_KEY.sessionInviteToken(String(session._id))
     );
     if (!verifyToken) return false;
     if (verifyToken !== token) return false;
     const { value } = await this.collection.findOneAndUpdate(
-      { _id: story._id, isLive: true },
+      { _id: session._id, isLive: true },
       { $addToSet: { collaboratorIds: me.userId } },
       { returnDocument: "after" }
     );
@@ -180,16 +180,16 @@ export class StoryService {
   }
 
   /**
-   * Create a story
+   * Create a session
    * @param me
-   * @param param1 data of the new story
+   * @param param1 data of the new session
    */
   async create(
     me: AuthState | null,
     {
       text,
       location,
-    }: Pick<StoryDbObject, "text"> & {
+    }: Pick<SessionDbObject, "text"> & {
       location: LocationInput | null | undefined;
     },
     tracks: string[]
@@ -205,16 +205,16 @@ export class StoryService {
 
     const createdAt = new Date();
 
-    text = text.trim().substring(0, CONFIG.storyTextMaxLength);
+    text = text.trim().substring(0, CONFIG.sessionTextMaxLength);
 
-    // Unlive all other stories
+    // Unlive all other sessions
     await this.collection.updateMany(
       { isLive: true, creatorId: me.userId },
       { $set: { isLive: false } }
     );
 
     const {
-      ops: [story],
+      ops: [session],
     } = await this.collection.insertOne({
       text,
       creatorId: me.userId,
@@ -231,25 +231,25 @@ export class StoryService {
 
     await new QueueService(this.context).executeQueueAction(
       me,
-      String(story._id),
+      String(session._id),
       { add: { tracks } }
     );
 
-    this.loaderUpdateCache(story);
+    this.loaderUpdateCache(session);
 
     // create a secure invite link
-    await this.createInviteToken(story);
+    await this.createInviteToken(session);
 
     const notificationService = new NotificationService(this.context);
 
-    notificationService.notifyFollowersOfNewStory(story);
+    notificationService.notifyFollowersOfNewSession(session);
 
-    return story;
+    return session;
   }
 
   /**
-   * Update a story by id
-   * @param me the creator of this story
+   * Update a session by id
+   * @param me the creator of this session
    * @param id
    * @param param2
    */
@@ -260,12 +260,12 @@ export class StoryService {
       text,
       image,
       location,
-    }: NullablePartial<Pick<StoryDbObject, "text" | "image">> & {
+    }: NullablePartial<Pick<SessionDbObject, "text" | "image">> & {
       location: LocationInput | null | undefined;
     }
-  ): Promise<StoryDbObject> {
+  ): Promise<SessionDbObject> {
     if (!me) throw new AuthenticationError("");
-    const { value: story } = await this.collection.findOneAndUpdate(
+    const { value: session } = await this.collection.findOneAndUpdate(
       {
         _id: new mongodb.ObjectID(id),
         creatorId: me.userId,
@@ -286,15 +286,15 @@ export class StoryService {
       },
       { returnDocument: "after" }
     );
-    if (!story) throw new ForbiddenError("Cannot update story");
-    this.loaderUpdateCache(story);
-    this.notifyUpdate(story);
-    return story;
+    if (!session) throw new ForbiddenError("Cannot update session");
+    this.loaderUpdateCache(session);
+    this.notifyUpdate(session);
+    return session;
   }
 
   /**
-   * Delete a story by id
-   * @param me the creator of that story
+   * Delete a session by id
+   * @param me the creator of that session
    * @param id
    */
   async deleteById(me: AuthState | null, id: string) {
@@ -303,14 +303,14 @@ export class StoryService {
       _id: new mongodb.ObjectID(id),
       creatorId: me.userId,
     });
-    if (!deletedCount) throw new ForbiddenError("Cannot delete story");
+    if (!deletedCount) throw new ForbiddenError("Cannot delete session");
     // delete associated
     await Promise.all([deleteByPattern(redis, `${REDIS_KEY.queue(id)}:*`)]);
     return true;
   }
 
   /**
-   * Find a story by id
+   * Find a session by id
    * @param id
    */
   findById(id: string) {
@@ -318,7 +318,7 @@ export class StoryService {
   }
 
   /**
-   * Find stories created by a user
+   * Find sessions created by a user
    * @param creatorId
    * @param limit
    * @param next
@@ -336,20 +336,20 @@ export class StoryService {
       .sort({ $natural: -1 })
       .limit(limit || 99999)
       .toArray()
-      .then((stories) => stories.map((s) => this.checkStoryStatus(s)));
+      .then((sessions) => sessions.map((s) => this.checkSessionStatus(s)));
   }
 
   /**
-   * Find first live story by creatorId
+   * Find first live session by creatorId
    * @param creatorId
    */
   async findLiveByCreatorId(creatorId: string) {
     return this.collection
       .findOne({ creatorId, isLive: true })
-      .then((story) => {
-        if (!story) return null;
-        story = this.checkStoryStatus(story);
-        return story.isLive ? story : null;
+      .then((session) => {
+        if (!session) return null;
+        session = this.checkSessionStatus(session);
+        return session.isLive ? session : null;
       });
   }
 
@@ -369,14 +369,14 @@ export class StoryService {
   }
 
   /**
-   * Find all public stories
+   * Find all public sessions
    * @param limit
    * @param next
    */
   async findForFeedPublic(
     limit: number,
     next?: string | null
-  ): Promise<StoryDbObject[]> {
+  ): Promise<SessionDbObject[]> {
     return this.collection
       .find({
         ...(next && { _id: { $lt: new mongodb.ObjectID(next) } }),
@@ -384,34 +384,37 @@ export class StoryService {
       .sort({ $natural: -1 })
       .limit(limit)
       .toArray()
-      .then((stories) => stories.map((s) => this.checkStoryStatus(s)));
+      .then((sessions) => sessions.map((s) => this.checkSessionStatus(s)));
   }
 
   /**
-   * Notify that the user is still in story
+   * Notify that the user is still in session
    * @param user
-   * @param storyId
+   * @param sessionId
    */
-  async pingPresence(me: AuthState, storyId: string): Promise<void> {
-    const story = await this.findById(storyId);
+  async pingPresence(me: AuthState, sessionId: string): Promise<void> {
+    const session = await this.findById(sessionId);
 
-    if (!story) throw new ForbiddenError("Cannot ping to this story");
+    if (!session) throw new ForbiddenError("Cannot ping to this session");
 
-    // story presence does not apply to unlive story
-    if (!story.isLive) return;
+    // session presence does not apply to unlive session
+    if (!session.isLive) return;
 
     // update lastCreatorActivityAt since the pinging user is create
-    if (me.userId === story.creatorId) {
+    if (me.userId === session.creatorId) {
       await this.collection.updateOne(
-        { _id: new mongodb.ObjectID(storyId), creatorId: me.userId },
+        { _id: new mongodb.ObjectID(sessionId), creatorId: me.userId },
         { $set: { lastCreatorActivityAt: new Date() } }
       );
     }
 
     const now = Date.now();
-    // when was user last in story or possibly NaN if never in
+    // when was user last in session or possibly NaN if never in
     const lastTimestamp: number = parseInt(
-      await redis.zscore(REDIS_KEY.storyListenerPresences(storyId), me.userId),
+      await redis.zscore(
+        REDIS_KEY.sessionListenerPresences(sessionId),
+        me.userId
+      ),
       10
     );
 
@@ -419,22 +422,26 @@ export class StoryService {
       !lastTimestamp || now - lastTimestamp > CONFIG.activityTimeout;
 
     // Ping that user is still here
-    await redis.zadd(REDIS_KEY.storyListenerPresences(storyId), now, me.userId);
+    await redis.zadd(
+      REDIS_KEY.sessionListenerPresences(sessionId),
+      now,
+      me.userId
+    );
 
     if (justJoined) {
       const messageService = new MessageService(this.context);
 
       // notify that user just joined via message
-      messageService.add(storyId, {
-        text: storyId,
+      messageService.add(sessionId, {
+        text: sessionId,
         type: MessageType.Join,
         creatorId: me.userId,
       });
 
-      // Notify story user update via subscription
-      pubsub.publish(PUBSUB_CHANNELS.storyListenersUpdated, {
-        id: storyId,
-        storyListenersUpdated: await this.getCurrentListeners(storyId),
+      // Notify session user update via subscription
+      pubsub.publish(PUBSUB_CHANNELS.sessionListenersUpdated, {
+        id: sessionId,
+        sessionListenersUpdated: await this.getCurrentListeners(sessionId),
       });
     }
   }
@@ -447,7 +454,7 @@ export class StoryService {
     // user is considered present if they still ping within activityTimeout
     const minRange = Date.now() - CONFIG.activityTimeout;
     return redis.zrevrangebyscore(
-      REDIS_KEY.storyListenerPresences(_id),
+      REDIS_KEY.sessionListenerPresences(_id),
       Infinity,
       minRange
     );
@@ -458,9 +465,9 @@ export class StoryService {
     from?: number,
     to?: number
   ): Promise<string[]> {
-    const story = await this.findById(_id);
-    if (!story) return [];
+    const session = await this.findById(_id);
+    if (!session) return [];
     // JS slice's "end" is not included so we +1
-    return story?.trackIds.slice(from, typeof to === "number" ? to + 1 : to);
+    return session?.trackIds.slice(from, typeof to === "number" ? to + 1 : to);
   }
 }

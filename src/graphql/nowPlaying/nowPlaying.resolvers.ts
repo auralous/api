@@ -15,7 +15,7 @@ const resolvers: Resolvers = {
     async nowPlayingReact(parent, { id, reaction }, { services, auth }) {
       await services.NowPlaying.reactNowPlaying(
         auth,
-        await services.Story.findById(id),
+        await services.Session.findById(id),
         reaction
       );
       return true;
@@ -23,7 +23,7 @@ const resolvers: Resolvers = {
     async nowPlayingSkip(parent, { id }, { services, auth }) {
       return services.NowPlaying.skipCurrentTrack(
         auth,
-        await services.Story.findById(id)
+        await services.Session.findById(id)
       );
     },
   },

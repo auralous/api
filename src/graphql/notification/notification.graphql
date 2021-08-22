@@ -11,11 +11,11 @@ type NotificationFollow implements Notification {
   follower: User
 }
 
-type NotificationNewStory implements Notification {
+type NotificationNewSession implements Notification {
   id: ID!
   hasRead: Boolean!
   createdAt: DateTime!
-  story: Story
+  session: Session
 }
 
 type Query {

@@ -11,7 +11,7 @@ import {
 } from "../error/index.js";
 import { CONFIG } from "../utils/constant.js";
 import type { NullablePartial } from "../utils/types.js";
-import { StoryService } from "./story.js";
+import { SessionService } from "./session.js";
 import type { ServiceContext } from "./types.js";
 
 export class UserService {
@@ -153,11 +153,11 @@ export class UserService {
     if (!deletedCount)
       throw new ForbiddenError("Cannot deactivate your account");
 
-    // delete every story
-    const storyService = new StoryService(this.context);
-    const allStories = await storyService.findByCreatorId(me.userId);
-    for (const story of allStories) {
-      await storyService.deleteById(me, story._id.toHexString());
+    // delete every session
+    const sessionService = new SessionService(this.context);
+    const allSessions = await sessionService.findByCreatorId(me.userId);
+    for (const session of allSessions) {
+      await sessionService.deleteById(me, session._id.toHexString());
     }
 
     return true;

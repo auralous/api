@@ -8,10 +8,10 @@ generates:
         User: ../data/types#UserDbObject
         Track: ../data/types#TrackDbObject
         Artist: ../data/types#ArtistDbObject
-        Story: ../data/types#StoryDbObject
+        Session: ../data/types#SessionDbObject
         Notification: ../data/types#NotificationDbObjectUnion
         NotificationFollow: ../data/types#NotificationDbObjectFollow
-        NotificationNewStory: ../data/types#NotificationDbObjectNewStory
+        NotificationNewSession: ../data/types#NotificationDbObjectNewSession
       noSchemaStitching: true
     plugins:
       - typescript

@@ -7,7 +7,7 @@ const resolvers: Resolvers = {
   Notification: {
     __resolveType(obj) {
       if (obj.type === "follow") return "NotificationFollow";
-      else if (obj.type === "new-story") return "NotificationNewStory";
+      else if (obj.type === "new-session") return "NotificationNewSession";
       return null;
     },
   },
@@ -24,7 +24,7 @@ const resolvers: Resolvers = {
       return services.User.findById(followedBy);
     },
   },
-  NotificationNewStory: {
+  NotificationNewSession: {
     id: (obj) =>
       String(
         (
@@ -33,8 +33,8 @@ const resolvers: Resolvers = {
           }
         )._id
       ),
-    story({ storyId }, args, { services }) {
-      return services.Story.findById(storyId);
+    session({ sessionId }, args, { services }) {
+      return services.Session.findById(sessionId);
     },
   },
   Query: {

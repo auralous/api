@@ -12,7 +12,7 @@ import type {
 } from "../graphql/graphql.gen.js";
 import { PUBSUB_CHANNELS, REDIS_KEY } from "../utils/constant.js";
 import { NowPlayingWorker } from "./nowPlayingWorker.js";
-import { StoryService } from "./story.js";
+import { SessionService } from "./session.js";
 import type { ServiceContext } from "./types.js";
 
 const queueItemStringify = fastJson({
@@ -184,15 +184,15 @@ export class QueueService {
     return redis.del(REDIS_KEY.queue(id));
   }
 
-  async assertStoryQueueActionable<TMe extends AuthState | null>(
+  async assertSessionQueueActionable<TMe extends AuthState | null>(
     me: TMe,
-    storyId: string
+    sessionId: string
   ) {
     if (!me) throw new AuthenticationError("");
-    const story = await new StoryService(this.context).findById(storyId);
-    if (!story) throw new ForbiddenError("Story does not exist");
-    if (!story.isLive) throw new ForbiddenError("Story is no longer live");
-    if (!me || !story.collaboratorIds.includes(me.userId))
+    const session = await new SessionService(this.context).findById(sessionId);
+    if (!session) throw new ForbiddenError("Session does not exist");
+    if (!session.isLive) throw new ForbiddenError("Session is no longer live");
+    if (!me || !session.collaboratorIds.includes(me.userId))
       throw new ForbiddenError("You are not allowed to add to this queue");
   }
 
@@ -200,7 +200,7 @@ export class QueueService {
    * Execute a queue action
    * Usually a public API to GraphQL
    * @param me
-   * @param story
+   * @param session
    * @param actions
    */
   async executeQueueAction(

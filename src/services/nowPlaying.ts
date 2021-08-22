@@ -2,7 +2,7 @@ import fastJson from "fast-json-stringify";
 import { AuthState } from "../auth/types.js";
 import { pubsub } from "../data/pubsub.js";
 import { redis } from "../data/redis.js";
-import type { StoryDbObject } from "../data/types.js";
+import type { SessionDbObject } from "../data/types.js";
 import { AuthenticationError, ForbiddenError } from "../error/index.js";
 import type {
   NowPlayingQueueItem,
@@ -34,8 +34,8 @@ export class NowPlayingService {
   }
 
   /**
-   * Find the nowPlaying by story id
-   * @param id the story id
+   * Find the nowPlaying by session id
+   * @param id the session id
    * @param showPlayed should show played nowPlaying (those with endedAt > now)
    */
   async findById(
@@ -58,7 +58,7 @@ export class NowPlayingService {
 
   /**
    * Notify a change in nowPlaying
-   * @param id the story id
+   * @param id the session id
    * @param currentTrack
    */
   async notifyNowPlayingChange(
@@ -75,20 +75,20 @@ export class NowPlayingService {
 
   /**
    * Skip current track
-   * @param me The story creator or queue item owner
-   * @param story
+   * @param me The session creator or queue item owner
+   * @param session
    */
   async skipCurrentTrack(
     me: AuthState | null,
-    story: StoryDbObject | null
+    session: SessionDbObject | null
   ): Promise<boolean> {
     if (!me) throw new AuthenticationError("");
-    if (!story) throw new ForbiddenError("Story does not exist");
-    const currentTrack = await this.findById(String(story._id));
+    if (!session) throw new ForbiddenError("Session does not exist");
+    const currentTrack = await this.findById(String(session._id));
     if (!currentTrack) return false;
-    if (story.creatorId !== me.userId && currentTrack.creatorId !== me.userId)
+    if (session.creatorId !== me.userId && currentTrack.creatorId !== me.userId)
       throw new AuthenticationError("You are not allowed to make changes");
-    return Boolean(NowPlayingWorker.requestSkip(pubsub, String(story._id)));
+    return Boolean(NowPlayingWorker.requestSkip(pubsub, String(session._id)));
   }
 
   // NowPlaying Reaction
@@ -103,31 +103,31 @@ export class NowPlayingService {
   /**
    * React to a nowPlaying
    * @param me
-   * @param story
+   * @param session
    * @param reaction
    */
   async reactNowPlaying(
     me: AuthState | null,
-    story: StoryDbObject | null,
+    session: SessionDbObject | null,
     reaction: NowPlayingReactionType
   ) {
     if (!me) throw new AuthenticationError("");
 
-    if (!story) throw new ForbiddenError("Story is not found");
+    if (!session) throw new ForbiddenError("Session is not found");
 
-    const currItem = await this.findById(String(story._id));
+    const currItem = await this.findById(String(session._id));
     if (!currItem) return null;
 
     // If the reaction already eists, the below returns 0 / does nothing
     const result = await redis.hset(
-      REDIS_KEY.nowPlayingReaction(String(story._id), currItem.uid),
+      REDIS_KEY.nowPlayingReaction(String(session._id), currItem.uid),
       me.userId,
       reaction
     );
 
     if (result) {
       // Only publish if a reaction is added
-      this.notifyReactionUpdate(String(story._id));
+      this.notifyReactionUpdate(String(session._id));
     }
   }
 

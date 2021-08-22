@@ -14,7 +14,7 @@ import { MessageService } from "../services/message.js";
 import { NotificationService } from "../services/notification.js";
 import { NowPlayingService } from "../services/nowPlaying.js";
 import { QueueService } from "../services/queue.js";
-import { StoryService } from "../services/story.js";
+import { SessionService } from "../services/session.js";
 import { TrackService } from "../services/track.js";
 import { UserService } from "../services/user.js";
 import schema from "./schema.js";
@@ -32,7 +32,7 @@ const services = {
   Message: new MessageService(serviceContext),
   NowPlaying: new NowPlayingService(serviceContext),
   Queue: new QueueService(serviceContext),
-  Story: new StoryService(serviceContext),
+  Session: new SessionService(serviceContext),
   Track: new TrackService(serviceContext),
   User: new UserService(serviceContext),
   Follow: new FollowService(serviceContext),

@@ -1,12 +1,12 @@
 export const MAX_TRACK_DURATION = 7 * 60 * 1000;
 
 export const REDIS_KEY = {
-  story: (storyId: string) => `story:${storyId}`,
-  storyListenerPresences(storyId: string) {
-    return `story:${storyId}:listenerPresences`;
+  session: (sessionId: string) => `session:${sessionId}`,
+  sessionListenerPresences(sessionId: string) {
+    return `session:${sessionId}:listenerPresences`;
   },
-  storyInviteToken(storyId: string) {
-    return `story:${storyId}:inviteToken`;
+  sessionInviteToken(sessionId: string) {
+    return `session:${sessionId}:inviteToken`;
   },
   nowPlaying(id: string) {
     return `nowPlaying:${id}:playing`;
@@ -33,17 +33,17 @@ export const CONFIG = {
   searchMaxAge: 2 * 60 * 60,
   searchPlaylistMaxAge: 10 * 60,
   activityTimeout: 120 * 1000, // if user does not ping in 2 min, they are considered left
-  storyLiveTimeout: 15 * 60 * 1000, // if creator is not active in story in 15 min, unlive it
+  sessionLiveTimeout: 15 * 60 * 1000, // if creator is not active in session in 15 min, unlive it
   usernameMaxLength: 15,
-  storyTextMaxLength: 60,
+  sessionTextMaxLength: 60,
 } as const;
 
 export const PUBSUB_CHANNELS = {
   nowPlayingWorker: "NOW_PLAYING_WORKER",
   nowPlayingUpdated: "NOW_PLAYING_UPDATED",
   nowPlayingReactionsUpdated: "NOW_PLAYING_REACTIONS_UPDATED",
-  storyUpdated: "STORY_UPDATED",
-  storyListenersUpdated: "STORY_LISTENERS_UPDATED",
+  sessionUpdated: "SESSION_UPDATED",
+  sessionListenersUpdated: "SESSION_LISTENERS_UPDATED",
   messageAdded: "MESSAGE_ADDED",
   queueUpdated: "QUEUE_UPDATED",
   notificationAdded: "NOTIFICATION_ADDED",

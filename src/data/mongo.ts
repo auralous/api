@@ -2,8 +2,8 @@ import type { Db } from "mongodb";
 import mongodb from "mongodb";
 import type {
   FollowDbObject,
-  NotificationDbObject,
-  StoryDbObject,
+  NotificationDbObjectUnion,
+  SessionDbObject,
   UserDbObject,
 } from "./types.js";
 
@@ -12,9 +12,9 @@ async function applyIndex(db: Db) {
   await db
     .collection<UserDbObject>("users")
     .createIndexes([{ key: { username: 1 }, unique: true }]);
-  // story
+  // session
   await db
-    .collection<StoryDbObject>("stories")
+    .collection<SessionDbObject>("sessions")
     .createIndexes([
       { key: { creatorId: 1 } },
       { key: { isLive: 1 } },
@@ -26,7 +26,7 @@ async function applyIndex(db: Db) {
     .createIndexes([{ key: { follower: 1 } }, { key: { following: 1 } }]);
   // notification
   await db
-    .collection<NotificationDbObject>("notifications")
+    .collection<NotificationDbObjectUnion>("notifications")
     .createIndexes([{ key: { userId: 1 } }]);
 }
 

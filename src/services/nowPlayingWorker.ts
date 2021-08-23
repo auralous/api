@@ -1,163 +1,231 @@
-import type Redis from "ioredis";
-import type { Db } from "mongodb";
-import { db } from "../data/mongo.js";
-import type { PubSub } from "../data/pubsub.js";
 import { pubsub } from "../data/pubsub.js";
 import { redis } from "../data/redis.js";
-import { SessionDbObject } from "../data/types.js";
-import { MessageType, NowPlayingQueueItem } from "../graphql/graphql.gen.js";
+import type {
+  NowPlayingState,
+  NowPlayingStateRedisValue,
+} from "../data/types.js";
+import type { NowPlayingQueueItem } from "../graphql/graphql.gen.js";
 import { PUBSUB_CHANNELS, REDIS_KEY } from "../utils/constant.js";
-import { MessageService } from "./message.js";
-import { NowPlayingService } from "./nowPlaying.js";
 import { QueueService } from "./queue.js";
 import { TrackService } from "./track.js";
 
 export class NowPlayingWorker {
-  private timers = new Map<string, NodeJS.Timeout>();
-
-  private nowPlayingService: NowPlayingService;
   private queueService: QueueService;
   private trackService: TrackService;
-  private messageService: MessageService;
 
-  static start() {
-    return new NowPlayingWorker(db, redis, pubsub);
-  }
+  static PubSubChannel = "NowPlayingWorker";
 
-  static requestResolve(pubsub: PubSub, id: string) {
+  // Consumer API
+  static skipForward(id: string) {
     return pubsub.pub.publish(
-      PUBSUB_CHANNELS.nowPlayingWorker,
-      `resolve|${id}`
+      NowPlayingWorker.PubSubChannel,
+      `skipForward|${id}`
     );
   }
 
-  static requestSkip(pubsub: PubSub, id: string) {
-    const a = pubsub.pub.publish(
-      PUBSUB_CHANNELS.nowPlayingWorker,
-      `skip|${id}`
+  static skipBackward(id: string) {
+    return pubsub.pub.publish(
+      NowPlayingWorker.PubSubChannel,
+      `skipBackward|${id}`
     );
-    return a;
   }
 
-  constructor(db: Db, private redis: Redis.Cluster, private pubsub: PubSub) {
-    this.resolve = this.resolve.bind(this);
-    pubsub.sub.subscribe(PUBSUB_CHANNELS.nowPlayingWorker);
-    pubsub.sub.on("message", (channel, message: string) => {
-      // message has a format of action|sessionId where action can either be 'skip' or 'resolve'
-      const [action, sessionId] = message.split("|");
-      if (action === "resolve") this.resolve(sessionId);
-      else if (action === "skip") this.skip(sessionId);
+  static playIndex(id: string, index: number) {
+    return pubsub.pub.publish(
+      NowPlayingWorker.PubSubChannel,
+      `playIndex|${id}:${index}`
+    );
+  }
+
+  static playUid(id: string, uid: string) {
+    return pubsub.pub.publish(
+      NowPlayingWorker.PubSubChannel,
+      `playUid|${id}:${uid}`
+    );
+  }
+
+  static async getFormattedNowPlayingState(
+    id: string
+  ): Promise<NowPlayingState> {
+    const nowPlayingState = (await redis.hgetall(
+      REDIS_KEY.nowPlayingState(id)
+    )) as NowPlayingStateRedisValue;
+
+    return {
+      playingIndex: Number(nowPlayingState.playingIndex),
+      queuePlayingUid: nowPlayingState.queuePlayingUid,
+      playedAt: new Date(nowPlayingState.playedAt),
+      endedAt: new Date(nowPlayingState.endedAt),
+    };
+  }
+
+  // Worker API
+  static async startWorker() {
+    const worker = new NowPlayingWorker();
+    await worker.startScheduler();
+    return worker;
+  }
+
+  private static async setNowPlayingState(id: string, state: NowPlayingState) {
+    const value: Partial<NowPlayingStateRedisValue> = {};
+    value.playingIndex = state.playingIndex.toString();
+    value.queuePlayingUid = state.queuePlayingUid;
+    value.playedAt = state.playedAt.toJSON();
+    value.endedAt = state.endedAt.toJSON();
+
+    const pipeline = redis.pipeline();
+    // Set the value to nowPlayingState
+    pipeline.hset(REDIS_KEY.nowPlayingState(id), value);
+    // Schedule the next skip forward to zset
+    pipeline.zadd(REDIS_KEY.npSkipScheduler, state.endedAt.getTime(), id);
+
+    await pipeline.exec();
+  }
+
+  private async setNewPlayingIndexOrUid(
+    id: string,
+    indexOrUid: number | string
+  ) {
+    let uid: string;
+    let index: number;
+    if (typeof indexOrUid === "string") {
+      uid = indexOrUid;
+      const findIndex = await this.queueService.getIndexByUid(id, uid);
+      if (!findIndex)
+        throw new Error(`Cannot find index of uid ${uid} for id = ${id}`);
+      index = findIndex;
+    } else {
+      index = indexOrUid;
+      const findUid = await this.queueService.getUidAtIndex(id, index);
+      if (!findUid)
+        throw new Error(
+          `Cannot find queue uid at index ${index} for id = ${id}`
+        );
+      uid = findUid;
+    }
+
+    const queueItem = await this.queueService.findQueueItemData(id, uid);
+    if (!queueItem)
+      throw new Error(`Cannot get queue item data for id = ${id} and ${uid}`);
+
+    const track = await this.trackService.findTrack(queueItem.trackId);
+    if (!track) throw new Error(`Cannot find track ${queueItem.trackId}`);
+
+    const playedAt = new Date();
+    const endedAt = new Date(playedAt.getTime() + track.duration);
+
+    await NowPlayingWorker.setNowPlayingState(id, {
+      playingIndex: index,
+      queuePlayingUid: uid,
+      playedAt,
+      endedAt,
     });
-    this.init(db);
+
+    const currentTrack: NowPlayingQueueItem = {
+      trackId: queueItem.trackId,
+      uid,
+      creatorId: queueItem.creatorId,
+      playedAt,
+      endedAt,
+    };
+    // Notify nowPlaying changes
+    pubsub.publish(PUBSUB_CHANNELS.nowPlayingUpdated, {
+      nowPlayingUpdated: {
+        id,
+        currentTrack,
+      },
+    });
+  }
+
+  private async executeSkipForward(id: string, isManual?: boolean) {
+    const [nowPlayingState, queueLength] = await Promise.all<
+      NowPlayingState,
+      number,
+      boolean | number
+    >([
+      NowPlayingWorker.getFormattedNowPlayingState(id),
+      this.queueService.getQueueLength(id),
+      !!isManual && NowPlayingWorker.cancelSkipJob(id),
+    ]);
+
+    // Either go back to first track if at end or go to the next
+    const nextPlayingIndex =
+      nowPlayingState.playingIndex >= queueLength - 1
+        ? 0
+        : nowPlayingState.playingIndex + 1;
+
+    await this.setNewPlayingIndexOrUid(id, nextPlayingIndex);
+  }
+
+  private async executeSkipBackward(id: string, isManual?: boolean) {
+    const [nowPlayingState] = await Promise.all<
+      NowPlayingState,
+      boolean | number
+    >([
+      NowPlayingWorker.getFormattedNowPlayingState(id),
+      !!isManual && NowPlayingWorker.cancelSkipJob(id),
+    ]);
+
+    const nextPlayingIndex = Math.max(nowPlayingState.playingIndex - 1, 0);
+
+    await this.setNewPlayingIndexOrUid(id, nextPlayingIndex);
+  }
+
+  constructor() {
     const context = { loaders: {} };
-    this.nowPlayingService = new NowPlayingService(context);
     this.queueService = new QueueService(context);
     this.trackService = new TrackService(context);
-    this.messageService = new MessageService(context);
+    this.startScheduler = this.startScheduler.bind(this);
+    this.processSkipJob = this.processSkipJob.bind(this);
+    this.registerListeners();
   }
 
-  private async init(db: Db) {
-    console.log("Initializing NowPlaying jobs...");
-    // This is called upon service startup to set up delay jobs
-    // To process NowPlaying for all sessions in database
-    const sessionArray = await db
-      .collection<SessionDbObject>("sessions")
-      .find({})
-      .toArray();
-
-    for (const session of sessionArray) {
-      this.resolve(session._id.toHexString());
-    }
-  }
-
-  private setNowPlayingById(id: string, queueItem: NowPlayingQueueItem) {
-    return this.redis
-      .set(REDIS_KEY.nowPlaying(id), NowPlayingService.stringifyItem(queueItem))
-      .then(Boolean);
-  }
-
-  private schedule(sessionId: string, ms: number) {
-    this.timers.set(sessionId, setTimeout(this.resolve, ms, sessionId));
-  }
-
-  private async skip(sessionId: string): Promise<boolean> {
-    const lastPlaying = await this.nowPlayingService.findById(sessionId);
-    if (!lastPlaying) return false;
-    // Make it end right now
-    lastPlaying.endedAt = new Date();
-    return this.setNowPlayingById(sessionId, lastPlaying).then(() =>
-      this.resolve(sessionId).then(Boolean)
-    );
-  }
-
-  private async resolve(
-    sessionId: string
-  ): Promise<NowPlayingQueueItem | null> {
-    // Cancel previous job
-    const prevTimer = this.timers.get(sessionId);
-    prevTimer && clearTimeout(prevTimer);
-
-    // Now timestamp
-    const now = new Date();
-
-    const prevCurrentTrack = await this.nowPlayingService.findById(
-      sessionId,
-      true
-    );
-
-    if (prevCurrentTrack && prevCurrentTrack.endedAt > now) {
-      // No need to execute, there is still a nowPlaying track
-      const retryIn = Math.max(
-        0,
-        prevCurrentTrack.endedAt.getTime() - now.getTime()
-      );
-      this.schedule(sessionId, retryIn);
-      return prevCurrentTrack;
-    }
-
-    let currentTrack: NowPlayingQueueItem | null = null;
-
-    const firstTrackInQueue = await this.queueService.shiftItem(sessionId);
-
-    if (firstTrackInQueue) {
-      const detailNextTrack = await this.trackService.findTrack(
-        firstTrackInQueue.trackId
-      );
-
-      if (!detailNextTrack) {
-        throw new Error(
-          `An error has occurred in trying to get NowPlaying track: ${firstTrackInQueue.trackId}`
-        );
+  private registerListeners() {
+    pubsub.sub.subscribe(NowPlayingWorker.PubSubChannel);
+    pubsub.sub.on("message", (channel, message: string) => {
+      // message has a format of action|sessionId where action can either be 'skipForward' or 'skipBackward'
+      const [action, value] = message.split("|");
+      if (action === "skipForward") this.executeSkipForward(value, true);
+      else if (action === "skipBackward") this.executeSkipBackward(value, true);
+      else if (action === "playIndex") {
+        const [id, index] = value.split(":");
+        this.setNewPlayingIndexOrUid(id, Number(index));
+      } else if (action === "playUid") {
+        const [id, uid] = value.split(":");
+        this.setNewPlayingIndexOrUid(id, uid);
       }
+    });
+  }
 
-      currentTrack = {
-        ...firstTrackInQueue,
-        playedAt: now,
-        endedAt: new Date(now.getTime() + detailNextTrack.duration),
-      };
+  static async cancelSkipJob(id: string) {
+    return redis.zrem(REDIS_KEY.npSkipScheduler, id);
+  }
+
+  private async processSkipJob(id: string) {
+    const removeResult = await NowPlayingWorker.cancelSkipJob(id);
+    if (removeResult === 0) {
+      // Try to take on this job but it might have been taken elsewhere
+      return;
     }
+    console.log(`process skip job for id ${id}`);
+    await this.executeSkipForward(id);
+  }
 
-    if (currentTrack) {
-      // Push previous nowPlaying to played queue
-      if (prevCurrentTrack)
-        await this.queueService.pushItemsPlayed(sessionId, prevCurrentTrack);
-      // Save currentTrack
-      await this.setNowPlayingById(sessionId, currentTrack);
-      // Send message
-      await this.messageService.add(sessionId, {
-        creatorId: currentTrack.creatorId,
-        type: MessageType.Play,
-        text: currentTrack.trackId,
-      });
-      // Setup future job
-      this.schedule(sessionId, currentTrack.endedAt.getTime() - now.getTime());
-    } else {
-      // Cannot figure out a current track
+  async startScheduler() {
+    console.log("NowPlaying scheduler has started");
+    const processSkipJob = this.processSkipJob.bind(this);
+    async function check() {
+      const result = await redis.zrangebyscore(
+        REDIS_KEY.npSkipScheduler,
+        "-inf",
+        Date.now()
+      );
+      console.log("scheduler check result: ", result);
+      if (result.length) {
+        result.map(processSkipJob);
+      }
+      setTimeout(check, 1000);
     }
-
-    // Publish to subscription
-    this.nowPlayingService.notifyNowPlayingChange(sessionId, currentTrack);
-
-    return currentTrack;
+    check();
   }
 }

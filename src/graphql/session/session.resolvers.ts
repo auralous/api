@@ -117,7 +117,10 @@ const resolvers: Resolvers = {
     async image({ isLive, image, _id }, args, { services }) {
       if (image) return image;
       if (isLive) {
-        const np = await services.NowPlaying.findById(String(_id), true);
+        const np = await services.NowPlaying.findCurrentItemById(
+          String(_id),
+          true
+        );
         return (
           (np?.trackId &&
             (await services.Track.findTrack(np.trackId))?.image) ||

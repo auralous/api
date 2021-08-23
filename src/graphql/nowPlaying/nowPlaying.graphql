@@ -4,29 +4,36 @@ enum NowPlayingReactionType {
   fire
   cry
 }
+
 type Query {
   nowPlaying(id: ID!): NowPlaying
   nowPlayingReactions(id: ID!): [NowPlayingReactionItem!]
 }
+
 type Mutation {
   nowPlayingReact(id: ID!, reaction: NowPlayingReactionType!): Boolean
-  nowPlayingSkip(id: ID!): Boolean
+  nowPlayingSkip(id: ID!, isBackward: Boolean!): Boolean
+  nowPlayingPlayUid(id: ID!, uid: String!): Boolean
 }
+
 type Subscription {
   nowPlayingUpdated(id: ID!): NowPlaying
   nowPlayingReactionsUpdated(id: ID!): [NowPlayingReactionItem!]
 }
+
 type NowPlayingQueueItem {
   uid: ID!
   trackId: String!
+  creatorId: String!
   playedAt: DateTime!
   endedAt: DateTime!
-  creatorId: String!
 }
+
 type NowPlaying {
   id: ID!
   currentTrack: NowPlayingQueueItem
 }
+
 type NowPlayingReactionItem {
   userId: String!
   reaction: NowPlayingReactionType!

@@ -8,14 +8,18 @@ export const REDIS_KEY = {
   sessionInviteToken(sessionId: string) {
     return `session:${sessionId}:inviteToken`;
   },
-  nowPlaying(id: string) {
-    return `nowPlaying:${id}:playing`;
+  nowPlayingState(id: string) {
+    return `nowPlaying:${id}:state`;
   },
+  npSkipScheduler: "npSkipScheduler",
   nowPlayingReaction(id: string, uid: string) {
     return `nowPlaying:${id}:reactions:${uid}`;
   },
-  queue(id: string) {
-    return `queue:${id}`;
+  queueList(id: string) {
+    return `queue:${id}:list`;
+  },
+  queueData(id: string) {
+    return `queue:${id}:data`;
   },
   message(id: string) {
     return `message:${id}`;
@@ -39,7 +43,6 @@ export const CONFIG = {
 } as const;
 
 export const PUBSUB_CHANNELS = {
-  nowPlayingWorker: "NOW_PLAYING_WORKER",
   nowPlayingUpdated: "NOW_PLAYING_UPDATED",
   nowPlayingReactionsUpdated: "NOW_PLAYING_REACTIONS_UPDATED",
   sessionUpdated: "SESSION_UPDATED",

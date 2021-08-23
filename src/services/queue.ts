@@ -1,3 +1,19 @@
+/**
+ * QUEUE SERVICE
+ *
+ * QueueService maintains a queue of tracks to be used
+ * by LIVE sessions
+ *
+ * A queue is stored in two redis keys:
+ *
+ * queue:{id}:list
+ * which is a list of uid strings
+ *
+ * queue:{id}:data
+ * which is a hash in which the field key is the uid
+ * and the field value is an stringify object containing trackId and creatorId
+ */
+
 import fastJson from "fast-json-stringify";
 import { nanoid } from "nanoid/non-secure";
 import { AuthState } from "../auth/types.js";
@@ -11,7 +27,6 @@ import type {
   QueueItem,
 } from "../graphql/graphql.gen.js";
 import { PUBSUB_CHANNELS, REDIS_KEY } from "../utils/constant.js";
-import { NowPlayingWorker } from "./nowPlayingWorker.js";
 import { SessionService } from "./session.js";
 import type { ServiceContext } from "./types.js";
 
@@ -19,11 +34,10 @@ const queueItemStringify = fastJson({
   title: "Queue Item",
   type: "object",
   properties: {
-    uid: { type: "string" },
     trackId: { type: "string" },
     creatorId: { type: "string" },
   },
-  required: ["uid", "trackId", "creatorId"],
+  required: ["trackId", "creatorId"],
 });
 
 function reorder<T>(list: T[], startIndex: number, endIndex: number): T[] {
@@ -36,14 +50,23 @@ function reorder<T>(list: T[], startIndex: number, endIndex: number): T[] {
 export class QueueService {
   constructor(private context: ServiceContext) {}
 
-  static stringifyQueueItem(item: QueueItem): string {
+  static randomUid() {
+    return nanoid(6);
+  }
+
+  static stringifyQueueItemData(item: Omit<QueueItem, "uid">): string {
     return queueItemStringify(item);
   }
 
-  static parseQueueItem(str: string): QueueItem {
+  static parseQueueItemData(str: string): Omit<QueueItem, "uid"> {
     return JSON.parse(str);
   }
 
+  /**
+   * Notify queue has been updated
+   * @param id
+   * @param queueItems
+   */
   private async notifyUpdate(id: string, queueItems?: QueueItem[]) {
     pubsub.publish(PUBSUB_CHANNELS.queueUpdated, {
       queueUpdated: {
@@ -60,28 +83,60 @@ export class QueueService {
    * @param stop
    */
   async findById(id: string, start = 0, stop = -1): Promise<QueueItem[]> {
-    return redis
-      .lrange(REDIS_KEY.queue(id), start, stop)
-      .then((res) => res.map(QueueService.parseQueueItem));
+    const result = await redis
+      .pipeline()
+      .lrange(REDIS_KEY.queueList(id), start, stop)
+      .hgetall(REDIS_KEY.queueData(id))
+      .exec();
+
+    const err = result[0][0] || result[1][0];
+    if (err) throw err;
+
+    const list = result[0][1] as string[];
+    const datas = result[1][1] as Record<string, string>;
+
+    return list.map((uid) => {
+      const dataStr = datas[uid];
+      if (!dataStr)
+        throw new Error(`Queue data missing for id = ${id} and uid = ${uid}`);
+      const data = QueueService.parseQueueItemData(dataStr);
+      return {
+        uid,
+        ...data,
+      };
+    });
+  }
+
+  async getUidAtIndex(id: string, index: number) {
+    try {
+      const uid = await redis.lindex(REDIS_KEY.queueList(id), index);
+      return uid;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  async getIndexByUid(id: string, uid: string) {
+    return redis.lpos(REDIS_KEY.queueList(id), uid);
+  }
+
+  async getQueueLength(id: string) {
+    return redis.llen(REDIS_KEY.queueList(id));
   }
 
   /**
-   * Get length of queue
+   * Get queue item data of specific uid
    * @param id
+   * @param uid
+   * @returns
    */
-  async lengthById(id: string): Promise<number> {
-    return redis.llen(REDIS_KEY.queue(id));
-  }
-
-  /**
-   * Shift an queue item (take out the first one)
-   * @param id
-   */
-  async shiftItem(id: string): Promise<QueueItem | null> {
-    const str = await redis.lpop(REDIS_KEY.queue(id));
+  async findQueueItemData(
+    id: string,
+    uid: string
+  ): Promise<Omit<QueueItem, "uid"> | null> {
+    const str = await redis.hget(REDIS_KEY.queueData(id), uid);
     if (!str) return null;
-    this.notifyUpdate(id);
-    return QueueService.parseQueueItem(str);
+    return QueueService.parseQueueItemData(str);
   }
 
   /**
@@ -90,20 +145,31 @@ export class QueueService {
    * @param items
    */
   async pushItems(id: string, ...queueItems: QueueItem[]): Promise<number> {
-    const count = await redis.rpush(
-      REDIS_KEY.queue(id),
-      ...queueItems.map((item) => QueueService.stringifyQueueItem(item))
-    );
-    if (count) this.notifyUpdate(id);
-    return count;
-  }
+    const dataStrMap = new Map<string, string>();
+    const list = [];
 
-  async pushItemsPlayed(id: string, ...queueItems: QueueItem[]) {
-    const count = await redis.rpush(
-      REDIS_KEY.queue(`${id}:played`),
-      ...queueItems.map((item) => QueueService.stringifyQueueItem(item))
-    );
-    return count;
+    for (const queueItem of queueItems) {
+      list.push(queueItem.uid);
+      dataStrMap.set(
+        queueItem.uid,
+        QueueService.stringifyQueueItemData({
+          creatorId: queueItem.creatorId,
+          trackId: queueItem.trackId,
+        })
+      );
+    }
+
+    const result = await redis
+      .multi()
+      .rpush(REDIS_KEY.queueList(id), ...list)
+      .hmset(REDIS_KEY.queueData(id), dataStrMap)
+      .exec();
+
+    const err = result[0][0] || result[1][0];
+    if (err) throw err;
+
+    this.notifyUpdate(id);
+    return result[0][1];
   }
 
   /**
@@ -113,16 +179,24 @@ export class QueueService {
    * @param dest
    */
   async reorderItems(id: string, origin: number, dest: number) {
-    // FIXME: Redis linked list is not the best
-    // data structure for reordering
-    const allItems = await redis.lrange(REDIS_KEY.queue(id), 0, -1);
-    await this.deleteById(id);
+    // Redis is a linked list so we cannot reorder items
+    // For now, we delete the list and readd the items
+    const redisKey = REDIS_KEY.queueList(id);
+    const allItems = await redis.lrange(redisKey, 0, -1);
 
     const reorderedItems = reorder(allItems, origin, dest);
 
-    const count = await redis.rpush(REDIS_KEY.queue(id), ...reorderedItems);
-    this.notifyUpdate(id, reorderedItems.map(QueueService.parseQueueItem));
-    return count;
+    const result = await redis
+      .multi()
+      .del(redisKey)
+      .rpush(redisKey, ...reorderedItems)
+      .exec();
+
+    const err = result[0][0] || result[1][0];
+    if (err) throw err;
+
+    this.notifyUpdate(id);
+    return result[1][1];
   }
 
   /**
@@ -130,50 +204,51 @@ export class QueueService {
    * @param ids
    */
   async removeItems(id: string, uids: string[]): Promise<number> {
-    // FIXME: Redis linked list is not the best
-    // data structure for this
-    const deleteCount = 0;
-    const allItems = await this.findById(id);
-    await this.deleteById(id);
+    const redisKey = REDIS_KEY.queueList(id);
 
-    const remainingItems = allItems
-      .filter((item) => !uids.includes(item.uid))
-      .map(QueueService.stringifyQueueItem);
+    const pipeline = redis.pipeline();
 
-    if (remainingItems.length > 0) {
-      await redis.rpush(REDIS_KEY.queue(id), ...remainingItems);
+    for (const uid of uids) {
+      pipeline.lrem(redisKey, 1, uid);
     }
 
-    if (remainingItems.length !== allItems.length) {
-      this.notifyUpdate(id, remainingItems.map(QueueService.parseQueueItem));
-    }
+    const result = await pipeline.exec();
 
-    return deleteCount;
+    this.notifyUpdate(id);
+    return result.reduce((prev, curr) => prev + curr[1], 0);
   }
 
   /**
    * Move some items to the top
+   * @param id
+   * @param uids
+   *
+   * There is one caveat to this implementation
+   * and that is if any of the uid is invalid
+   * the bahavior will be undefined
    */
   async toTopItems(id: string, uids: string[]): Promise<number> {
-    const allItems = await this.findById(id);
-    const movingItems: QueueItem[] = [];
-    const resultingItems = allItems.filter((item) => {
-      if (uids.includes(item.uid)) {
-        movingItems.push(item);
-        return false;
-      }
-      return true;
-    });
-    if (movingItems.length > 0) {
-      resultingItems.unshift(...movingItems);
-      await this.deleteById(id);
-      await redis.rpush(
-        REDIS_KEY.queue(id),
-        ...resultingItems.map(QueueService.stringifyQueueItem)
-      );
-      this.notifyUpdate(id, resultingItems);
+    const redisKey = REDIS_KEY.queueList(id);
+
+    // Delete those uids from list
+    // and re-add them to the top
+    const pipeline = redis.pipeline();
+
+    for (const uid of uids) {
+      pipeline.lrem(redisKey, 1, uid);
     }
-    return movingItems.length;
+
+    pipeline.lpush(redisKey, ...uids);
+
+    const result = await pipeline.exec();
+
+    for (const resultItem of result) {
+      if (resultItem[0]) throw resultItem[0];
+    }
+
+    this.notifyUpdate(id);
+    // FIXME: report actual result
+    return uids.length;
   }
 
   /**
@@ -181,7 +256,7 @@ export class QueueService {
    * @param id
    */
   async deleteById(id: string) {
-    return redis.del(REDIS_KEY.queue(id));
+    redis.del(REDIS_KEY.queueData(id), REDIS_KEY.queueList(id));
   }
 
   async assertSessionQueueActionable<TMe extends AuthState | null>(
@@ -219,15 +294,11 @@ export class QueueService {
       await this.pushItems(
         id,
         ...actions.add.tracks.map((trackId) => ({
-          uid: nanoid(6),
+          uid: QueueService.randomUid(),
           trackId,
           creatorId: me.userId,
         }))
       );
-
-      // It is possible that adding a new item will restart nowPlaying
-      NowPlayingWorker.requestResolve(pubsub, id);
-
       return true;
     } else if (actions.remove) {
       return Boolean(await this.removeItems(id, actions.remove));

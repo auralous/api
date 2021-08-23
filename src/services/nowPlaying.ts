@@ -1,4 +1,3 @@
-import fastJson from "fast-json-stringify";
 import { AuthState } from "../auth/types.js";
 import { pubsub } from "../data/pubsub.js";
 import { redis } from "../data/redis.js";
@@ -11,84 +10,91 @@ import type {
 } from "../graphql/graphql.gen.js";
 import { PUBSUB_CHANNELS, REDIS_KEY } from "../utils/constant.js";
 import { NowPlayingWorker } from "./nowPlayingWorker.js";
+import { QueueService } from "./queue.js";
 import type { ServiceContext } from "./types.js";
-
-const itemStringify = fastJson({
-  title: "Now Playing Queue Item",
-  type: "object",
-  properties: {
-    uid: { type: "string" },
-    trackId: { type: "string" },
-    creatorId: { type: "string" },
-    playedAt: { type: "string" },
-    endedAt: { type: "string" },
-  },
-  required: ["uid", "trackId", "creatorId", "playedAt", "endedAt"],
-});
 
 export class NowPlayingService {
   constructor(private context: ServiceContext) {}
-
-  static stringifyItem(currentTrack: NowPlayingQueueItem) {
-    return itemStringify(currentTrack);
-  }
 
   /**
    * Find the nowPlaying by session id
    * @param id the session id
    * @param showPlayed should show played nowPlaying (those with endedAt > now)
    */
-  async findById(
+  async findCurrentItemById(
     id: string,
     showPlayed?: boolean
   ): Promise<NowPlayingQueueItem | null> {
-    const currTrack: NowPlayingQueueItem | null = await redis
-      .get(REDIS_KEY.nowPlaying(id))
-      .then((npStr) =>
-        npStr
-          ? (JSON.parse(npStr, (key, value) =>
-              key === "playedAt" || key === "endedAt" ? new Date(value) : value
-            ) as NowPlayingQueueItem)
-          : null
+    // See src/data/types.ts#NowPlayingStateRedisValue
+    const nowPlayingState = await NowPlayingWorker.getFormattedNowPlayingState(
+      id
+    );
+
+    if (!nowPlayingState.queuePlayingUid) return null;
+
+    if (!nowPlayingState.playedAt || !nowPlayingState.endedAt)
+      throw new Error(
+        `Found queuePlayingUid but not playedAt and endedAt for ${id}`
       );
-    if (!currTrack) return null;
-    if (showPlayed !== true && currTrack.endedAt < new Date()) return null;
-    return currTrack;
+
+    if (showPlayed !== true && nowPlayingState.endedAt.getTime() < Date.now())
+      return null;
+
+    const queueItemData = await new QueueService(
+      this.context
+    ).findQueueItemData(id, nowPlayingState.queuePlayingUid);
+
+    if (!queueItemData)
+      throw new Error(
+        `Cannot find nowPlaying queueItemData for id = ${id} and queuePlayingUid = ${nowPlayingState.queuePlayingUid}`
+      );
+
+    return {
+      uid: nowPlayingState.queuePlayingUid,
+      ...queueItemData,
+      playedAt: nowPlayingState.playedAt,
+      endedAt: nowPlayingState.endedAt,
+    };
   }
 
   /**
-   * Notify a change in nowPlaying
-   * @param id the session id
-   * @param currentTrack
-   */
-  async notifyNowPlayingChange(
-    id: string,
-    currentTrack: NowPlayingQueueItem | null
-  ) {
-    pubsub.publish(PUBSUB_CHANNELS.nowPlayingUpdated, {
-      nowPlayingUpdated: {
-        id,
-        currentTrack,
-      },
-    });
-  }
-
-  /**
-   * Skip current track
-   * @param me The session creator or queue item owner
+   * Skip forward current track
+   * @param me
    * @param session
+   * @returns
    */
-  async skipCurrentTrack(
-    me: AuthState | null,
-    session: SessionDbObject | null
-  ): Promise<boolean> {
+  async skipForward(me: AuthState | null, session: SessionDbObject | null) {
     if (!me) throw new AuthenticationError("");
     if (!session) throw new ForbiddenError("Session does not exist");
-    const currentTrack = await this.findById(String(session._id));
-    if (!currentTrack) return false;
-    if (session.creatorId !== me.userId && currentTrack.creatorId !== me.userId)
+    if (!session.collaboratorIds.includes(me.userId))
       throw new AuthenticationError("You are not allowed to make changes");
-    return Boolean(NowPlayingWorker.requestSkip(pubsub, String(session._id)));
+    return Boolean(NowPlayingWorker.skipForward(String(session._id)));
+  }
+
+  /**
+   * Skip backward current track
+   * @param me
+   * @param session
+   * @returns
+   */
+  async skipBackward(me: AuthState | null, session: SessionDbObject | null) {
+    if (!me) throw new AuthenticationError("");
+    if (!session) throw new ForbiddenError("Session does not exist");
+    if (!session.collaboratorIds.includes(me.userId))
+      throw new AuthenticationError("You are not allowed to make changes");
+    return Boolean(NowPlayingWorker.skipBackward(String(session._id)));
+  }
+
+  async playUid(
+    me: AuthState | null,
+    session: SessionDbObject | null,
+    uid: string
+  ) {
+    if (!me) throw new AuthenticationError("");
+    if (!session) throw new ForbiddenError("Session does not exist");
+    if (!session.collaboratorIds.includes(me.userId))
+      throw new AuthenticationError("You are not allowed to make changes");
+    return Boolean(NowPlayingWorker.playUid(String(session._id), uid));
   }
 
   // NowPlaying Reaction
@@ -115,7 +121,7 @@ export class NowPlayingService {
 
     if (!session) throw new ForbiddenError("Session is not found");
 
-    const currItem = await this.findById(String(session._id));
+    const currItem = await this.findCurrentItemById(String(session._id));
     if (!currItem) return null;
 
     // If the reaction already eists, the below returns 0 / does nothing
@@ -132,7 +138,7 @@ export class NowPlayingService {
   }
 
   async getAllReactions(id: string): Promise<NowPlayingReactionItem[]> {
-    const currentTrack = await this.findById(id);
+    const currentTrack = await this.findCurrentItemById(id);
     if (!currentTrack) return [];
     const o = await redis.hgetall(
       REDIS_KEY.nowPlayingReaction(id, currentTrack.uid)

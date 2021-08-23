@@ -42,7 +42,7 @@ const wssPingPong = setInterval(() => {
 wss.on("close", () => clearInterval(wssPingPong));
 
 export async function startServer() {
-  await NowPlayingWorker.start();
+  await NowPlayingWorker.startWorker();
   server.listen(port, () => {
     console.log(`Server Ready at ${process.env.API_URI}`);
   });

@@ -81,6 +81,15 @@ export type NotificationDbObjectUnion =
   | NotificationDbObjectFollow
   | NotificationDbObjectNewSession;
 
-export interface FeedConfig {
+export interface FeedConfigDbObject {
   youtubeFeaturedPlaylists: string[];
 }
+
+export interface NowPlayingState {
+  playingIndex: number;
+  queuePlayingUid: string;
+  playedAt: Date;
+  endedAt: Date;
+}
+
+export type NowPlayingStateRedisValue = Record<keyof NowPlayingState, string>;

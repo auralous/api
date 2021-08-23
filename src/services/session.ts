@@ -4,7 +4,7 @@ import { nanoid } from "nanoid";
 import { AuthState } from "../auth/types.js";
 import { db } from "../data/mongo.js";
 import { pubsub } from "../data/pubsub.js";
-import { deleteByPattern, redis } from "../data/redis.js";
+import { redis } from "../data/redis.js";
 import { SessionDbObject } from "../data/types.js";
 import {
   AuthenticationError,
@@ -91,28 +91,26 @@ export class SessionService {
    * @param sessionId
    */
   async unliveSession(sessionId: string): Promise<SessionDbObject> {
-    // WARN: this does not check auth
-    // Delete queue. See QueueService#deleteById
-    await redis.del(REDIS_KEY.queue(sessionId));
-    // Skip/Stop nowPlaying
-    NowPlayingWorker.requestSkip(pubsub, sessionId);
-    // Extract played tracks into session.trackIds
-    const queueItems = await new QueueService(this.context).findById(
-      `${sessionId}:played`
-    );
+    const queueService = new QueueService(this.context);
+    const queue = await queueService.findById(sessionId, 0, 0);
     // Unlive it and set tracks
     const { value } = await this.collection.findOneAndUpdate(
       { _id: new mongodb.ObjectId(sessionId) },
       {
         $set: {
           isLive: false,
-          trackIds: queueItems.map((queueItem) => queueItem.trackId),
+          trackIds: queue.map((queueItem) => queueItem.trackId),
         },
       },
       { returnDocument: "after" }
     );
     if (!value) throw new ForbiddenError("Cannot delete this session");
-    this.invalidateInviteToken(value);
+    // Delete related resources
+    await Promise.all([
+      queueService.deleteById(sessionId),
+      this.invalidateInviteToken(value),
+      NowPlayingWorker.cancelSkipJob(sessionId),
+    ]);
     this.notifyUpdate(value);
     this.loaderUpdateCache(value);
     return value;
@@ -207,11 +205,15 @@ export class SessionService {
 
     text = text.trim().substring(0, CONFIG.sessionTextMaxLength);
 
-    // Unlive all other sessions
-    await this.collection.updateMany(
-      { isLive: true, creatorId: me.userId },
-      { $set: { isLive: false } }
-    );
+    // Check if other live session available
+    const liveCount = await this.collection.countDocuments({
+      isLive: true,
+      creatorId: me.userId,
+    });
+    if (liveCount)
+      throw new ForbiddenError(
+        "You must stop other sessions before creating a new one"
+      );
 
     const session: Omit<SessionDbObject, "_id"> = {
       text,
@@ -239,6 +241,9 @@ export class SessionService {
       String(insertedSession._id),
       { add: { tracks } }
     );
+
+    // start now playing
+    NowPlayingWorker.playIndex(insertedId.toHexString(), 0);
 
     this.loaderUpdateCache(insertedSession);
 
@@ -304,13 +309,20 @@ export class SessionService {
    */
   async deleteById(me: AuthState | null, id: string) {
     if (!me) throw new AuthenticationError("");
-    const { deletedCount } = await this.collection.deleteOne({
+
+    const { value } = await this.collection.findOneAndDelete({
       _id: new mongodb.ObjectId(id),
       creatorId: me.userId,
     });
-    if (!deletedCount) throw new ForbiddenError("Cannot delete session");
-    // delete associated
-    await Promise.all([deleteByPattern(redis, `${REDIS_KEY.queue(id)}:*`)]);
+    if (!value) throw new ForbiddenError("Cannot delete session");
+
+    // Delete related resources
+    await Promise.all([
+      new QueueService(this.context).deleteById(value._id.toHexString()),
+      this.invalidateInviteToken(value),
+      NowPlayingWorker.cancelSkipJob(value._id.toHexString()),
+    ]);
+
     return true;
   }
 

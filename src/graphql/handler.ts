@@ -9,35 +9,15 @@ import fastJson from "fast-json-stringify";
 import { formatError } from "graphql";
 import { pubsub } from "../data/pubsub.js";
 import { logError } from "../error/utils.js";
-import { FollowService } from "../services/follow.js";
-import { MessageService } from "../services/message.js";
-import { NotificationService } from "../services/notification.js";
-import { NowPlayingService } from "../services/nowPlaying.js";
-import { QueueService } from "../services/queue.js";
-import { SessionService } from "../services/session.js";
-import { TrackService } from "../services/track.js";
-import { UserService } from "../services/user.js";
+import { createContext } from "../services/_context.js";
 import schema from "./schema.js";
 import type { MyGQLContext } from "./types.js";
-
-const serviceContext = { loaders: {} };
 
 interface BenzeneExtra {
   setCacheControl?: MyGQLContext["setCacheControl"];
   isWebSocket?: boolean;
   auth: MyGQLContext["auth"] | Promise<MyGQLContext["auth"]>; // promise only in WS. need better workaround
 }
-
-const services = {
-  Message: new MessageService(serviceContext),
-  NowPlaying: new NowPlayingService(serviceContext),
-  Queue: new QueueService(serviceContext),
-  Session: new SessionService(serviceContext),
-  Track: new TrackService(serviceContext),
-  User: new UserService(serviceContext),
-  Follow: new FollowService(serviceContext),
-  Notification: new NotificationService(serviceContext),
-};
 
 const GQL = new Benzene<MyGQLContext, BenzeneExtra>({
   schema,
@@ -46,10 +26,9 @@ const GQL = new Benzene<MyGQLContext, BenzeneExtra>({
     return formatError(error);
   },
   contextFn: async ({ extra: { auth, setCacheControl } }) => ({
-    auth: auth ? ("then" in auth ? await auth : auth) : null,
-    pubsub,
-    services,
     setCacheControl,
+    pubsub,
+    ...createContext(await auth),
   }),
   compileQuery: makeCompileQuery(),
 });

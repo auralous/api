@@ -4,7 +4,6 @@ import { pubsub } from "../data/pubsub.js";
 import { redis } from "../data/redis.js";
 import type { Message } from "../graphql/graphql.gen.js";
 import { PUBSUB_CHANNELS, REDIS_KEY } from "../utils/constant.js";
-import type { ServiceContext } from "./types.js";
 
 const messageStringify = fastJson({
   title: "Message",
@@ -20,8 +19,6 @@ const messageStringify = fastJson({
 });
 
 export class MessageService {
-  constructor(private context: ServiceContext) {}
-
   static parseMessage(str: string): Message {
     return JSON.parse(str, (key, value) =>
       key === "createdAt" ? new Date(value) : value
@@ -41,7 +38,7 @@ export class MessageService {
    * @param id the id of message room
    * @param message message object to be notify
    */
-  private notifyMessage(id: string, message: Omit<Message, "creator">) {
+  private static notifyMessage(id: string, message: Omit<Message, "creator">) {
     pubsub.publish(PUBSUB_CHANNELS.messageAdded, {
       id,
       messageAdded: message,
@@ -54,7 +51,11 @@ export class MessageService {
    * @param start
    * @param stop
    */
-  async findById(id: string, start = 0, stop = -1): Promise<Message[] | null> {
+  static async findById(
+    id: string,
+    start = 0,
+    stop = -1
+  ): Promise<Message[] | null> {
     return redis
       .lrange(REDIS_KEY.message(id), start, stop)
       .then((strs) => strs.map(MessageService.parseMessage));
@@ -65,7 +66,7 @@ export class MessageService {
    * @param id
    * @param message
    */
-  async add(
+  static async add(
     id: string,
     message: Pick<Message, "text" | "type" | "creatorId">
   ): Promise<number> {
@@ -81,7 +82,7 @@ export class MessageService {
       MessageService.stringifyMessage(newMessage)
     );
 
-    if (count) this.notifyMessage(id, newMessage);
+    if (count) MessageService.notifyMessage(id, newMessage);
     return count;
   }
 }

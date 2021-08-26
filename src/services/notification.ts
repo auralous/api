@@ -1,6 +1,5 @@
 import type { WithId } from "mongodb";
 import mongodb from "mongodb";
-import { AuthState } from "../auth/types.js";
 import { db } from "../data/mongo.js";
 import { pubsub } from "../data/pubsub.js";
 import type {
@@ -11,13 +10,11 @@ import type {
 import { AuthenticationError } from "../error/index.js";
 import { PUBSUB_CHANNELS } from "../utils/constant.js";
 import { FollowService } from "./follow.js";
-import type { ServiceContext } from "./types.js";
+import { ServiceContext } from "./types.js";
 
 export class NotificationService {
-  private collection =
+  private static collection =
     db.collection<NotificationDbObjectUnion>("notifications");
-
-  constructor(private context: ServiceContext) {}
 
   /**
    * Get current user's notifications
@@ -25,10 +22,15 @@ export class NotificationService {
    * @param limit
    * @param next
    */
-  findMine(me: AuthState, limit: number, next?: string | null) {
-    return this.collection
+  static findMine(
+    context: ServiceContext,
+    limit: number,
+    next?: string | null
+  ) {
+    if (!context.auth) throw new AuthenticationError("");
+    return NotificationService.collection
       .find({
-        userId: me.userId,
+        userId: context.auth.userId,
         ...(next && { _id: { $lt: new mongodb.ObjectId(next) } }),
       })
       .sort({ $natural: -1 })
@@ -41,12 +43,12 @@ export class NotificationService {
    * @param me
    * @param ids
    */
-  markRead(me: AuthState | null, ids: string[]) {
-    if (!me) throw new AuthenticationError("");
+  static markRead(context: ServiceContext, ids: string[]) {
+    if (!context.auth) throw new AuthenticationError("");
     return this.collection
       .updateMany(
         {
-          userId: me.userId,
+          userId: context.auth.userId,
           _id: { $in: ids.map((id) => new mongodb.ObjectId(id)) },
         },
         { $set: { hasRead: true } }
@@ -54,10 +56,16 @@ export class NotificationService {
       .then((result) => result.modifiedCount);
   }
 
-  async add(
+  /**
+   * Add a new notification
+   * @param context
+   * @param notification
+   * @returns
+   */
+  static async add(
     notification: NotificationDbObjectUnion
   ): Promise<WithId<NotificationDbObjectUnion>> {
-    const newNotification = await this.collection
+    const newNotification = await NotificationService.collection
       .insertOne(notification)
       .then((result) => ({ _id: result.insertedId, ...notification }));
     pubsub.publish(PUBSUB_CHANNELS.notificationAdded, {
@@ -66,8 +74,11 @@ export class NotificationService {
     return newNotification;
   }
 
-  async notifyUserOfNewFollower(newFollow: FollowDbObject) {
-    await this.add({
+  static async notifyUserOfNewFollower(
+    context: ServiceContext,
+    newFollow: FollowDbObject
+  ) {
+    await NotificationService.add({
       type: "follow",
       userId: newFollow.following,
       hasRead: false,
@@ -76,15 +87,14 @@ export class NotificationService {
     });
   }
 
-  async notifyFollowersOfNewSession(session: SessionDbObject) {
-    const followService = new FollowService(this.context);
-    const follows = await followService.findFollows(session.creatorId);
+  static async notifyFollowersOfNewSession(session: SessionDbObject) {
+    const follows = await FollowService.findFollows(session.creatorId);
 
     const promises: Promise<WithId<NotificationDbObjectUnion> | null>[] = [];
 
     follows.forEach((follow) => {
       promises.push(
-        this.add({
+        NotificationService.add({
           type: "new-session",
           userId: follow.follower,
           hasRead: false,

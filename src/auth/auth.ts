@@ -38,10 +38,7 @@ export async function authCallback(
   profile: Pick<UserDbObject, "profilePicture" | "email">,
   tokens: { accessToken: string; refreshToken: string }
 ) {
-  const user = await new UserService({ loaders: {} }).authOrCreate(
-    authState,
-    profile
-  );
+  const user = await UserService.authOrCreate(authState, profile);
 
   // create token and save to session
   const token = nanoid(32);

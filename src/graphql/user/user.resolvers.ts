@@ -1,61 +1,63 @@
 import type { UserDbObject } from "../../data/types.js";
+import { FollowService } from "../../services/follow.js";
+import { UserService } from "../../services/user.js";
 import { CONFIG } from "../../utils/constant.js";
 import { Resolvers } from "../graphql.gen.js";
 
 const resolvers: Resolvers = {
   Query: {
-    async me(parent, args, { auth, services, setCacheControl }) {
-      setCacheControl?.(0, "PRIVATE");
-      if (!auth) return null;
+    async me(parent, args, context) {
+      context.setCacheControl?.(0, "PRIVATE");
+      if (!context.auth) return null;
 
       const [user, accessToken] = await Promise.all([
-        services.User.findById(auth.userId),
-        auth.accessTokenPromise,
+        UserService.findById(context, context.auth.userId),
+        context.auth.accessTokenPromise,
       ]);
 
       return {
         user: user!,
-        oauthId: auth.oauthId,
-        platform: auth.provider,
+        oauthId: context.auth.oauthId,
+        platform: context.auth.provider,
         accessToken: accessToken,
       };
     },
-    async user(parent, { username, id }, { services, setCacheControl }) {
+    async user(parent, { username, id }, context) {
       let user: UserDbObject | null = null;
-      if (username) user = await services.User.findByUsername(username);
-      if (id) user = await services.User.findById(id);
-      if (user) setCacheControl?.(CONFIG.userMaxAge);
+      if (username) user = await UserService.findByUsername(context, username);
+      if (id) user = await UserService.findById(context, id);
+      if (user) context.setCacheControl?.(CONFIG.userMaxAge);
       return user;
     },
-    async userFollowers(parent, { id }, { services }) {
-      return (await services.Follow.findFollows(id)).map(
+    async userFollowers(parent, { id }) {
+      return (await FollowService.findFollows(id)).map(
         (followEntry) => followEntry.follower
       );
     },
-    async userFollowings(parent, { id }, { services }) {
-      return (await services.Follow.findFollowings(id)).map(
+    async userFollowings(parent, { id }) {
+      return (await FollowService.findFollowings(id)).map(
         (followEntry) => followEntry.following
       );
     },
-    userStat(parent, { id }, { services }) {
-      return services.Follow.getFollowStat(id).then((stat) => ({
+    userStat(parent, { id }) {
+      return FollowService.getFollowStat(id).then((stat) => ({
         id,
         ...stat,
       }));
     },
   },
   Mutation: {
-    async me(parent, { username, bio }, { auth, services }) {
-      return services.User.updateMe(auth, { username, bio });
+    async me(parent, { username, bio }, context) {
+      return UserService.updateMe(context, { username, bio });
     },
-    async meDelete(parent, args, { services, auth }) {
-      return services.User.deleteMe(auth);
+    async meDelete(parent, args, context) {
+      return UserService.deleteMe(context);
     },
-    async userFollow(parent, { id }, { services, auth }) {
-      return services.Follow.follow(auth, await services.User.findById(id));
+    async userFollow(parent, { id }, context) {
+      return FollowService.follow(context, id);
     },
-    async userUnfollow(parent, { id }, { services, auth }) {
-      return services.Follow.unfollow(auth, id);
+    async userUnfollow(parent, { id }, context) {
+      return FollowService.unfollow(context, id);
     },
   },
   User: {

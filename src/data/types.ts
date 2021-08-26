@@ -27,7 +27,7 @@ export interface SessionDbObject {
     type: "Point";
     coordinates: [longitude: number, latitude: number];
   } | null;
-  // Store tracks after unlive
+  // Store tracks after end
   trackIds: string[];
 }
 

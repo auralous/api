@@ -1,21 +1,19 @@
-import { AuthState } from "../auth/types.js";
 import { db } from "../data/mongo.js";
-import type { FollowDbObject, UserDbObject } from "../data/types.js";
+import type { FollowDbObject } from "../data/types.js";
 import { AuthenticationError, UserInputError } from "../error/index.js";
 import { NotificationService } from "./notification.js";
 import type { ServiceContext } from "./types.js";
+import { UserService } from "./user.js";
 
 export class FollowService {
-  private collection = db.collection<FollowDbObject>("follows");
-
-  constructor(private context: ServiceContext) {}
+  private static collection = db.collection<FollowDbObject>("follows");
 
   /**
    * Get a list of users who follow userId
    * @param userId
    */
-  findFollows(userId: string) {
-    return this.collection
+  static findFollows(userId: string): Promise<FollowDbObject[]> {
+    return FollowService.collection
       .find({ following: userId, unfollowedAt: null })
       .sort({ $natural: -1 })
       .toArray();
@@ -25,7 +23,7 @@ export class FollowService {
    * Get a list of users userId is following
    * @param userId
    */
-  findFollowings(userId: string) {
+  static findFollowings(userId: string): Promise<FollowDbObject[]> {
     return this.collection
       .find({ follower: userId, unfollowedAt: null })
       .sort({ $natural: -1 })
@@ -36,10 +34,18 @@ export class FollowService {
    * Get following stats includer followerCount and followingCount
    * @param userId
    */
-  async getFollowStat(userId: string) {
+  static async getFollowStat(
+    userId: string
+  ): Promise<{ followerCount: number; followingCount: number }> {
     const [followerCount, followingCount] = await Promise.all([
-      this.collection.countDocuments({ following: userId, unfollowedAt: null }),
-      this.collection.countDocuments({ follower: userId, unfollowedAt: null }),
+      FollowService.collection.countDocuments({
+        following: userId,
+        unfollowedAt: null,
+      }),
+      FollowService.collection.countDocuments({
+        follower: userId,
+        unfollowedAt: null,
+      }),
     ]);
     return { followerCount, followingCount };
   }
@@ -49,8 +55,12 @@ export class FollowService {
    * @param me
    * @param followingUser
    */
-  async follow(me: AuthState | null, followingUser: UserDbObject | null) {
-    if (!me) throw new AuthenticationError("");
+  static async follow(
+    context: ServiceContext,
+    followingUserId: string
+  ): Promise<boolean> {
+    if (!context.auth) throw new AuthenticationError("");
+    const followingUser = await UserService.findById(context, followingUserId);
     if (!followingUser)
       throw new UserInputError("User does not exist to follow", ["id"]);
 
@@ -59,12 +69,12 @@ export class FollowService {
     const newFollow = await this.collection
       .findOneAndUpdate(
         {
-          follower: me.userId,
+          follower: context.auth.userId,
           following: followingUser._id,
         },
         {
           $set: {
-            follower: me.userId,
+            follower: context.auth.userId,
             following: followingUser._id,
             followedAt,
             unfollowedAt: null,
@@ -75,7 +85,7 @@ export class FollowService {
       .then((result) => result.value);
 
     if (newFollow) {
-      new NotificationService(this.context).notifyUserOfNewFollower(newFollow);
+      NotificationService.notifyUserOfNewFollower(context, newFollow);
     }
 
     return true;
@@ -86,11 +96,14 @@ export class FollowService {
    * @param me
    * @param unfollowingUserId possibly an invalid one or deleted one
    */
-  async unfollow(me: AuthState | null, unfollowingUserId: string) {
-    if (!me) throw new AuthenticationError("");
-    const result = await this.collection.updateOne(
+  static async unfollow(
+    context: ServiceContext,
+    unfollowingUserId: string
+  ): Promise<boolean> {
+    if (!context.auth) throw new AuthenticationError("");
+    const result = await FollowService.collection.updateOne(
       {
-        follower: me.userId,
+        follower: context.auth.userId,
         following: unfollowingUserId,
       },
       { $set: { unfollowedAt: new Date() } }

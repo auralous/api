@@ -8,11 +8,10 @@ import type { NowPlayingQueueItem } from "../graphql/graphql.gen.js";
 import { PUBSUB_CHANNELS, REDIS_KEY } from "../utils/constant.js";
 import { QueueService } from "./queue.js";
 import { TrackService } from "./track.js";
+import { ServiceContext } from "./types.js";
+import { createContext } from "./_context.js";
 
 export class NowPlayingWorker {
-  private queueService: QueueService;
-  private trackService: TrackService;
-
   static PubSubChannel = "NowPlayingWorker";
 
   // Consumer API
@@ -60,6 +59,8 @@ export class NowPlayingWorker {
   }
 
   // Worker API
+  context: ServiceContext = createContext(null);
+
   static async startWorker() {
     const worker = new NowPlayingWorker();
     await worker.startScheduler();
@@ -90,13 +91,13 @@ export class NowPlayingWorker {
     let index: number;
     if (typeof indexOrUid === "string") {
       uid = indexOrUid;
-      const findIndex = await this.queueService.getIndexByUid(id, uid);
+      const findIndex = await QueueService.getIndexByUid(id, uid);
       if (!findIndex)
         throw new Error(`Cannot find index of uid ${uid} for id = ${id}`);
       index = findIndex;
     } else {
       index = indexOrUid;
-      const findUid = await this.queueService.getUidAtIndex(id, index);
+      const findUid = await QueueService.getUidAtIndex(id, index);
       if (!findUid)
         throw new Error(
           `Cannot find queue uid at index ${index} for id = ${id}`
@@ -104,11 +105,11 @@ export class NowPlayingWorker {
       uid = findUid;
     }
 
-    const queueItem = await this.queueService.findQueueItemData(id, uid);
+    const queueItem = await QueueService.findQueueItemData(id, uid);
     if (!queueItem)
       throw new Error(`Cannot get queue item data for id = ${id} and ${uid}`);
 
-    const track = await this.trackService.findTrack(queueItem.trackId);
+    const track = await TrackService.findTrack(this.context, queueItem.trackId);
     if (!track) throw new Error(`Cannot find track ${queueItem.trackId}`);
 
     const playedAt = new Date();
@@ -144,7 +145,7 @@ export class NowPlayingWorker {
       boolean | number
     >([
       NowPlayingWorker.getFormattedNowPlayingState(id),
-      this.queueService.getQueueLength(id),
+      QueueService.getQueueLength(id),
       !!isManual && NowPlayingWorker.cancelSkipJob(id),
     ]);
 
@@ -172,9 +173,6 @@ export class NowPlayingWorker {
   }
 
   constructor() {
-    const context = { loaders: {} };
-    this.queueService = new QueueService(context);
-    this.trackService = new TrackService(context);
     this.startScheduler = this.startScheduler.bind(this);
     this.processSkipJob = this.processSkipJob.bind(this);
     this.registerListeners();

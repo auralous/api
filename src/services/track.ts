@@ -1,5 +1,4 @@
 import DataLoader from "dataloader";
-import { AuthState } from "../auth/types.js";
 import { OdesliAPI } from "../data/odesli.js";
 import { redis } from "../data/redis.js";
 import { SpotifyAPI } from "../data/spotify.js";
@@ -50,84 +49,85 @@ import type { ServiceContext } from "./types.js";
 //   required: ["id", "platform", "externalId", "name", "url"],
 // });
 
-export class TrackService {
-  private trackLoader: DataLoader<string, TrackDbObject | null>;
-  private artistLoader: DataLoader<string, ArtistDbObject | null>;
+function createLoaderFn<T extends TrackDbObject | ArtistDbObject>(
+  getFnName: "getTracks" | "getArtists"
+) {
+  /**
+   * For the loader, we group all YouTube / Spotify / Apple Music
+   * into seperate sets. Then call getTracks() for each set using
+   * their respective APIs
+   */
+  return async (entryIds: readonly string[]) => {
+    const resultMap: Record<string, T | null> = {};
+    const idsBatches = {
+      [PlatformName.Youtube]: new Set<string>(),
+      [PlatformName.Spotify]: new Set<string>(),
+    };
+    entryIds.forEach((entryId) => {
+      const [platform, externalId] = entryId.split(":") as [
+        PlatformName,
+        string
+      ];
+      idsBatches[platform]?.add(externalId);
+    });
 
-  createEntryLoader<T extends TrackDbObject | ArtistDbObject>(
-    getFnName: "getTracks" | "getArtists"
-  ) {
-    /**
-     * For the loader, we group all YouTube / Spotify / Apple Music
-     * into seperate sets. Then call getTracks() for each set using
-     * their respective APIs
-     */
-    return async (entryIds: readonly string[]) => {
-      const resultMap: Record<string, T | null> = {};
-      const idsBatches = {
-        [PlatformName.Youtube]: new Set<string>(),
-        [PlatformName.Spotify]: new Set<string>(),
-      };
-      entryIds.forEach((entryId) => {
-        const [platform, externalId] = entryId.split(":") as [
-          PlatformName,
-          string
-        ];
-        idsBatches[platform]?.add(externalId);
-      });
+    const promises: Promise<(T | null)[]>[] = [];
 
-      const promises: Promise<(T | null)[]>[] = [];
-
-      for (const platformName of Object.keys(idsBatches) as PlatformName[]) {
-        if (idsBatches[platformName].size > 0) {
-          promises.push(
-            this[platformName][getFnName](
-              Array.from(idsBatches[platformName])
-            ) as Promise<(T | null)[]>
-          );
-        }
-      }
-
-      await Promise.all(promises)
-        .then((promiseResults) => promiseResults.flat(1))
-        .then((results) =>
-          results.forEach((result) => result && (resultMap[result.id] = result))
+    for (const platformName of Object.keys(idsBatches) as PlatformName[]) {
+      if (idsBatches[platformName].size > 0) {
+        promises.push(
+          TrackService[platformName][getFnName](
+            Array.from(idsBatches[platformName])
+          ) as Promise<(T | null)[]>
         );
+      }
+    }
 
-      return entryIds.map((entryId) => resultMap[entryId] || null);
+    await Promise.all(promises)
+      .then((promiseResults) => promiseResults.flat(1))
+      .then((results) =>
+        results.forEach((result) => result && (resultMap[result.id] = result))
+      );
+
+    return entryIds.map((entryId) => resultMap[entryId] || null);
+  };
+}
+
+export class TrackService {
+  static createLoader() {
+    return {
+      track: new DataLoader<string, TrackDbObject | null>(
+        createLoaderFn<TrackDbObject>("getTracks")
+      ),
+      artist: new DataLoader<string, ArtistDbObject | null>(
+        createLoaderFn<ArtistDbObject>("getArtists")
+      ),
     };
   }
 
-  constructor(private context: ServiceContext) {
-    this.trackLoader = new DataLoader(
-      this.createEntryLoader<TrackDbObject>("getTracks").bind(this),
-      { cache: false }
-    );
-    this.artistLoader = new DataLoader(
-      this.createEntryLoader<ArtistDbObject>("getArtists").bind(this),
-      { cache: false }
-    );
-  }
-
-  get [PlatformName.Youtube]() {
+  static get [PlatformName.Youtube]() {
     return YoutubeAPI;
   }
 
-  get [PlatformName.Spotify]() {
+  static get [PlatformName.Spotify]() {
     return SpotifyAPI;
   }
 
-  async findTrack(id: string): Promise<TrackDbObject | null> {
-    return this.trackLoader.load(id);
+  static async findTrack(
+    context: ServiceContext,
+    id: string
+  ): Promise<TrackDbObject | null> {
+    return context.loaders.track.track.load(id);
   }
 
-  async findTracks(ids: string[]) {
-    return (await this.trackLoader.loadMany(ids)).map((item) =>
+  static async findTracks(context: ServiceContext, ids: string[]) {
+    return (await context.loaders.track.track.loadMany(ids)).map((item) =>
       item instanceof Error ? null : item
     );
   }
 
-  async crossFindTracks(
+  static async crossFindTracks(
+    context: ServiceContext,
     id: string
   ): Promise<Record<PlatformName, string | undefined>> {
     const [platformName, externalId] = id.split(":");
@@ -161,88 +161,89 @@ export class TrackService {
     return cache;
   }
 
-  async search(
+  static async search(
+    context: ServiceContext,
     platform: PlatformName,
-    query: string,
-    authState?: AuthState | null
+    query: string
   ): Promise<TrackDbObject[]> {
-    return this[platform].searchTracks(
+    return TrackService[platform].searchTracks(
       query,
-      (authState?.provider === platform &&
-        (await authState?.accessTokenPromise)) ||
+      (context.auth?.provider === platform &&
+        (await context.auth?.accessTokenPromise)) ||
         undefined
     );
   }
 
   // Artists
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  findArtist(id: string) {
-    return this.artistLoader.load(id);
+  static findArtist(context: ServiceContext, id: string) {
+    return context.loaders.track.artist.load(id);
   }
 
   // Playlist
-  async findPlaylist(id: string, authState?: AuthState | null) {
+  static async findPlaylist(context: ServiceContext, id: string) {
     const [platform, externalId] = id.split(":");
-    return this[platform as PlatformName].getPlaylist(
+    return TrackService[platform as PlatformName].getPlaylist(
       externalId,
-      (authState?.provider === platform &&
-        (await authState?.accessTokenPromise)) ||
+      (context.auth?.provider === platform &&
+        (await context.auth?.accessTokenPromise)) ||
         undefined
     );
   }
 
-  async findPlaylistTracks(id: string, authState?: AuthState | null) {
+  static async findPlaylistTracks(context: ServiceContext, id: string) {
     const [platform, externalId] = id.split(":");
-    return this[platform as PlatformName].getPlaylistTracks(
+    return TrackService[platform as PlatformName].getPlaylistTracks(
       externalId,
-      (authState?.provider === platform &&
-        (await authState?.accessTokenPromise)) ||
+      (context.auth?.provider === platform &&
+        (await context.auth?.accessTokenPromise)) ||
         undefined
     );
   }
 
-  async findMyPlaylist(me?: AuthState | null) {
-    if (!me) throw new AuthenticationError("");
-    return this[me.provider].getMyPlaylists(
-      (await me?.accessTokenPromise) || ""
+  static async findMyPlaylist(context: ServiceContext) {
+    if (!context.auth) throw new AuthenticationError("");
+    return TrackService[context.auth.provider].getMyPlaylists(
+      (await context.auth?.accessTokenPromise) || ""
     );
   }
 
-  async insertPlaylistTracks(
-    me: AuthState | null,
+  static async insertPlaylistTracks(
+    context: ServiceContext,
     id: string,
     tracksIds: string[]
   ) {
-    if (!me) throw new AuthenticationError("");
+    if (!context.auth) throw new AuthenticationError("");
     const [platform, externalId] = id.split(":");
-    return this[platform as PlatformName].insertPlaylistTracks(
-      (await me?.accessTokenPromise) || "",
+    return TrackService[platform as PlatformName].insertPlaylistTracks(
+      (await context.auth.accessTokenPromise) || "",
       externalId,
       tracksIds.map((trackId) => trackId.split(":")[1])
     );
   }
 
-  async createPlaylist(
-    me: AuthState | null,
+  static async createPlaylist(
+    context: ServiceContext,
     name: string,
     tracksIds: string[]
   ) {
-    if (!me) throw new AuthenticationError("");
+    if (!context.auth) throw new AuthenticationError("");
 
-    const playlist = await this[me.provider].createPlaylist(
-      (await me?.accessTokenPromise) || "",
+    const playlist = await this[context.auth.provider].createPlaylist(
+      (await context.auth?.accessTokenPromise) || "",
       name
     );
 
-    await this.insertPlaylistTracks(me, playlist.id, tracksIds);
+    await TrackService.insertPlaylistTracks(context, playlist.id, tracksIds);
 
     return playlist;
   }
 
-  async findFeaturedPlaylists(me?: AuthState | null, limit = 10) {
-    return this[me?.provider || PlatformName.Youtube].getFeaturedPlaylists(
+  static async findFeaturedPlaylists(context: ServiceContext, limit = 10) {
+    return TrackService[
+      context.auth?.provider || PlatformName.Youtube
+    ].getFeaturedPlaylists(
       limit,
-      (await me?.accessTokenPromise) || undefined
+      (await context.auth?.accessTokenPromise) || undefined
     );
   }
 }

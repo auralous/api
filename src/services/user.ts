@@ -12,16 +12,15 @@ import {
 import { CONFIG } from "../utils/constant.js";
 import type { NullablePartial } from "../utils/types.js";
 import { SessionService } from "./session.js";
-import type { ServiceContext } from "./types.js";
+import { ServiceContext } from "./types.js";
 
 export class UserService {
-  private collection = db.collection<UserDbObject>("users");
-  private loader: DataLoader<string, UserDbObject | null>;
+  private static collection = db.collection<UserDbObject>("users");
 
-  constructor(private context: ServiceContext) {
-    this.loader = new DataLoader(
+  static createLoader() {
+    return new DataLoader(
       async (keys) => {
-        const users = await this.collection
+        const users = await UserService.collection
           .find({ _id: { $in: keys as string[] } })
           .toArray();
         // retain order
@@ -36,15 +35,28 @@ export class UserService {
   }
 
   /**
+   * Invalidate dataloader after updates
+   * @param context
+   * @param session
+   * @private
+   */
+  private static invalidateLoaderCache(
+    context: ServiceContext,
+    user: UserDbObject
+  ) {
+    context.loaders.user.clear(user._id).prime(user._id, user);
+  }
+
+  /**
    * Find a user by id
    * @param id
    */
-  findById(id: string) {
-    return this.loader.load(id);
+  static findById(context: ServiceContext, id: string) {
+    return context.loaders.user.load(id);
   }
 
-  async findManyByIds(ids: string[]) {
-    return (await this.loader.loadMany(ids)).map((item) =>
+  static async findManyByIds(context: ServiceContext, ids: string[]) {
+    return (await context.loaders.user.loadMany(ids)).map((item) =>
       item instanceof Error ? null : item
     );
   }
@@ -53,13 +65,14 @@ export class UserService {
    * Find a user by username
    * @param username
    */
-  async findByUsername(username: string) {
-    const user = await this.collection.findOne({ username });
+  static async findByUsername(context: ServiceContext, username: string) {
+    const user = await UserService.collection.findOne({ username });
     if (!user) return null;
+    UserService.invalidateLoaderCache(context, user);
     return user;
   }
 
-  async create({
+  static async create({
     profilePicture,
     email,
     oauthId,
@@ -80,8 +93,7 @@ export class UserService {
       bio,
       createdAt: new Date(),
     };
-    await this.collection.insertOne(user);
-    this.loader.prime(user._id, user);
+    await UserService.collection.insertOne(user);
     // send onboarding email
     if (email) {
       // to be implemented
@@ -89,16 +101,16 @@ export class UserService {
     return user;
   }
 
-  async authOrCreate(
+  static async authOrCreate(
     authState: Pick<AuthState, "oauthId" | "provider">,
     data: Pick<UserDbObject, "profilePicture" | "email">
   ) {
-    let me = await this.collection.findOne({
+    let me = await UserService.collection.findOne({
       oauthProvider: authState.provider,
       oauthId: authState.oauthId,
     });
     if (!me) {
-      me = await this.create({
+      me = await UserService.create({
         ...data,
         oauthProvider: authState.provider,
         oauthId: authState.oauthId,
@@ -109,15 +121,15 @@ export class UserService {
     return me;
   }
 
-  async updateMe(
-    me: AuthState | null,
+  static async updateMe(
+    context: ServiceContext,
     {
       username: rawUsername,
       bio,
       profilePicture,
     }: NullablePartial<UserDbObject>
   ) {
-    if (!me) throw new AuthenticationError("");
+    if (!context.auth) throw new AuthenticationError("");
     const username = rawUsername
       ? slug(rawUsername, {
           lower: true,
@@ -126,12 +138,12 @@ export class UserService {
         }).substring(0, CONFIG.usernameMaxLength)
       : null;
     if (username) {
-      const checkUser = await this.findByUsername(username);
-      if (checkUser && checkUser._id !== me.userId)
+      const checkUser = await UserService.findByUsername(context, username);
+      if (checkUser && checkUser._id !== context.auth.userId)
         throw new UserInputError("This username has been taken", ["username"]);
     }
-    const { value: user } = await this.collection.findOneAndUpdate(
-      { _id: me.userId },
+    const { value: user } = await UserService.collection.findOneAndUpdate(
+      { _id: context.auth.userId },
       {
         $set: {
           ...(username && { username }),
@@ -141,22 +153,25 @@ export class UserService {
       },
       { returnDocument: "after" }
     );
-    return user || null;
+    if (!user) throw new ForbiddenError("Cannot update user");
+    return user;
   }
 
-  async deleteMe(me: AuthState | null) {
-    if (!me) throw new AuthenticationError("");
-    const { deletedCount } = await this.collection.deleteOne({
-      _id: me.userId,
+  static async deleteMe(context: ServiceContext) {
+    if (!context.auth) throw new AuthenticationError("");
+    const { deletedCount } = await UserService.collection.deleteOne({
+      _id: context.auth.userId,
     });
     if (!deletedCount)
       throw new ForbiddenError("Cannot deactivate your account");
 
     // delete every session
-    const sessionService = new SessionService(this.context);
-    const allSessions = await sessionService.findByCreatorId(me.userId);
+    const allSessions = await SessionService.findByCreatorId(
+      context,
+      context.auth.userId
+    );
     for (const session of allSessions) {
-      await sessionService.deleteById(me, session._id.toHexString());
+      await SessionService.deleteById(context, session._id.toHexString());
     }
 
     return true;

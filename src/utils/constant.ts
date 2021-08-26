@@ -37,7 +37,7 @@ export const CONFIG = {
   searchMaxAge: 2 * 60 * 60,
   searchPlaylistMaxAge: 10 * 60,
   activityTimeout: 120 * 1000, // if user does not ping in 2 min, they are considered left
-  sessionLiveTimeout: 15 * 60 * 1000, // if creator is not active in session in 15 min, unlive it
+  sessionLiveTimeout: 15 * 60 * 1000, // if creator is not active in session in 15 min, end it
   usernameMaxLength: 15,
   sessionTextMaxLength: 60,
 } as const;

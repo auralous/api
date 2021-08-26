@@ -1,4 +1,6 @@
 import { AuthenticationError, ForbiddenError } from "../../error/index.js";
+import { MessageService } from "../../services/message.js";
+import { UserService } from "../../services/user.js";
 import { PUBSUB_CHANNELS } from "../../utils/constant.js";
 import { MessageType, Resolvers } from "../graphql.gen.js";
 
@@ -17,33 +19,29 @@ const resolvers: Resolvers = {
   },
   Query: {
     // @ts-ignore
-    async messages(parent, { id, offset, limit }, { services, auth }) {
-      if (auth) return null;
+    async messages(parent, { id, offset, limit }, context) {
+      if (context.auth) return null;
       limit = limit || 20; // limit = 0 is invalid
       offset = offset || 0;
       if (limit > 20) throw new ForbiddenError("Too large limit");
       const stop = -offset - 1;
       const start = stop - limit + 1;
-      // FIXME: Check auth
-      return services.Message.findById(id, start, stop);
+      return MessageService.findById(id, start, stop);
     },
   },
   Mutation: {
-    async messageAdd(parents, { id, text }, { auth, services }) {
-      if (!auth) throw new AuthenticationError("");
-
-      // Check auth
-
-      return !!(await services.Message.add(id, {
+    async messageAdd(parents, { id, text }, context) {
+      if (!context.auth) throw new AuthenticationError("");
+      return !!(await MessageService.add(id, {
         text,
         type: MessageType.Message,
-        creatorId: auth.userId,
+        creatorId: context.auth.userId,
       }));
     },
   },
   Message: {
-    async creator({ creatorId }, args, { services }) {
-      return (await services.User.findById(creatorId))!;
+    async creator({ creatorId }, args, context) {
+      return (await UserService.findById(context, creatorId))!;
     },
   },
 };

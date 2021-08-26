@@ -1,7 +1,6 @@
 import DataLoader from "dataloader";
 import mongodb from "mongodb";
 import { nanoid } from "nanoid";
-import { AuthState } from "../auth/types.js";
 import { db } from "../data/mongo.js";
 import { pubsub } from "../data/pubsub.js";
 import { redis } from "../data/redis.js";
@@ -19,21 +18,21 @@ import { NotificationService } from "./notification.js";
 import { NowPlayingWorker } from "./nowPlayingWorker.js";
 import { QueueService } from "./queue.js";
 import { TrackService } from "./track.js";
-import type { ServiceContext } from "./types.js";
+import { ServiceContext } from "./types.js";
 
 export class SessionService {
-  private collection = db.collection<SessionDbObject>("sessions");
-  private loader: DataLoader<string, SessionDbObject | null>;
+  private static collection = db.collection<SessionDbObject>("sessions");
 
-  constructor(private context: ServiceContext) {
-    this.loader = new DataLoader(
+  static createLoader() {
+    return new DataLoader<string, SessionDbObject | null>(
       async (keys) => {
-        const sessions = await this.collection
-          .find({
-            _id: { $in: keys.map(mongodb.ObjectId.createFromHexString) },
-          })
-          .toArray()
-          .then((sessions) => sessions.map((s) => this.checkSessionStatus(s)));
+        const sessions = (
+          await SessionService.collection
+            .find({
+              _id: { $in: keys.map(mongodb.ObjectId.createFromHexString) },
+            })
+            .toArray()
+        ).map(SessionService.validateLive);
         // retain order
         return keys.map(
           (key) =>
@@ -42,20 +41,32 @@ export class SessionService {
             ) || null
         );
       },
-      { cache: false }
+      { cache: true }
     );
   }
 
-  private loaderUpdateCache(session: SessionDbObject) {
-    this.loader.clear(String(session._id)).prime(String(session._id), session);
+  /**
+   * Invalidate dataloader after updates
+   * @param context
+   * @param session
+   * @private
+   */
+  private static invalidateLoaderCache(
+    context: ServiceContext,
+    session: SessionDbObject
+  ) {
+    context.loaders.session
+      .clear(String(session._id))
+      .prime(String(session._id), session);
   }
 
   /**
    * Notify the session has changed
    * Possibly because a new collaboratorId, or isLive
    * @param session
+   * @private
    */
-  private notifyUpdate(session: SessionDbObject) {
+  private static notifyUpdate(session: SessionDbObject) {
     pubsub.publish(PUBSUB_CHANNELS.sessionUpdated, {
       id: session._id.toHexString(),
       sessionUpdated: session,
@@ -63,64 +74,39 @@ export class SessionService {
   }
 
   /**
-   * Check a session to see if it needs to be unlived
-   * Sometimes, the creator does not unlive a session manually
-   * We define a inactivity duration to unlive the session (CONFIG.sessionLiveTimeout)
+   * Check a session to see if it needs to be ended
+   * Sometimes, the creator does not end a session manually
+   * We define a inactivity duration to end the session (CONFIG.sessionLiveTimeout)
    * This is often run everytime a session is accessed (either by itself or as part of a collection)
    * Return the session itself for convenience passing into callbacks
    * @param session
+   * @private
    */
-  private checkSessionStatus(session: SessionDbObject): SessionDbObject {
+  private static validateLive(session: SessionDbObject): SessionDbObject {
     if (
       session.isLive &&
       Date.now() - session.lastCreatorActivityAt.getTime() >
         CONFIG.sessionLiveTimeout
     ) {
-      // creator is not active in awhile unlive session
+      // creator is not active in awhile, end session
       session.isLive = false;
       // async update it
-      this.unliveSession(session._id.toHexString());
+      SessionService._end(session._id.toHexString());
     }
     return session;
   }
 
   /**
-   * Unlive a session (aka archieved)
-   * An unlived sessions can be replayed at any time
-   * but no new songs can be added to it
+   * Get the invite token that can be used to add collaborators
+   * @param context
    * @param sessionId
+   * @returns {string}
    */
-  async unliveSession(sessionId: string): Promise<SessionDbObject> {
-    const queueService = new QueueService(this.context);
-    const queue = await queueService.findById(sessionId, 0, 0);
-    // Unlive it and set tracks
-    const { value } = await this.collection.findOneAndUpdate(
-      { _id: new mongodb.ObjectId(sessionId) },
-      {
-        $set: {
-          isLive: false,
-          trackIds: queue.map((queueItem) => queueItem.trackId),
-        },
-      },
-      { returnDocument: "after" }
-    );
-    if (!value) throw new ForbiddenError("Cannot delete this session");
-    // Delete related resources
-    await Promise.all([
-      queueService.deleteById(sessionId),
-      this.invalidateInviteToken(value),
-      NowPlayingWorker.cancelSkipJob(sessionId),
-    ]);
-    this.notifyUpdate(value);
-    this.loaderUpdateCache(value);
-    return value;
-  }
-
-  async getInviteToken(me: AuthState | null, sessionId: string) {
-    if (!me) throw new AuthenticationError("");
-    const session = await this.findById(sessionId);
+  static async getInviteToken(context: ServiceContext, sessionId: string) {
+    if (!context.auth) throw new AuthenticationError("");
+    const session = await SessionService.findById(context, sessionId);
     if (!session) throw new UserInputError("Session not found", ["id"]);
-    if (!session.collaboratorIds.includes(me.userId))
+    if (!session.collaboratorIds.includes(context.auth.userId))
       throw new ForbiddenError("Not allowed to get invite link");
     const token = await redis.get(
       REDIS_KEY.sessionInviteToken(String(session._id))
@@ -134,8 +120,9 @@ export class SessionService {
    * Create an invite token that can be used
    * to add collaborators
    * @param session
+   * @private
    */
-  private async createInviteToken(session: SessionDbObject) {
+  private static async createInviteToken(session: SessionDbObject) {
     const token = nanoid(21);
     await redis.set(REDIS_KEY.sessionInviteToken(String(session._id)), token);
     return token;
@@ -143,11 +130,11 @@ export class SessionService {
 
   /**
    * Invalidate the invite token in case
-   * session is unlived
+   * session is ended
    * @param session
    * @returns
    */
-  private async invalidateInviteToken(session: SessionDbObject) {
+  private static async invalidateInviteToken(session: SessionDbObject) {
     return redis.del(REDIS_KEY.sessionInviteToken(String(session._id)));
   }
 
@@ -155,25 +142,25 @@ export class SessionService {
    * Add oneself as a collaborator
    * using an invite token
    */
-  async addCollabFromToken(
-    me: AuthState | null,
+  static async addCollabFromToken(
+    context: ServiceContext,
     sessionId: string,
     token: string
   ) {
-    if (!me) throw new AuthenticationError("");
-    const session = await this.findById(sessionId);
+    if (!context.auth) throw new AuthenticationError("");
+    const session = await SessionService.findById(context, sessionId);
     if (!session) throw new UserInputError("Session not found", ["id"]);
     const verifyToken = await redis.get(
       REDIS_KEY.sessionInviteToken(String(session._id))
     );
     if (!verifyToken) return false;
     if (verifyToken !== token) return false;
-    const { value } = await this.collection.findOneAndUpdate(
+    const { value } = await SessionService.collection.findOneAndUpdate(
       { _id: session._id, isLive: true },
-      { $addToSet: { collaboratorIds: me.userId } },
+      { $addToSet: { collaboratorIds: context.auth.userId } },
       { returnDocument: "after" }
     );
-    if (value) this.loaderUpdateCache(value);
+    if (value) SessionService.invalidateLoaderCache(context, value);
     return Boolean(value);
   }
 
@@ -182,8 +169,8 @@ export class SessionService {
    * @param me
    * @param param1 data of the new session
    */
-  async create(
-    me: AuthState | null,
+  static async create(
+    context: ServiceContext,
     {
       text,
       location,
@@ -192,13 +179,13 @@ export class SessionService {
     },
     tracks: string[]
   ): Promise<SessionDbObject> {
-    if (!me) throw new AuthenticationError("");
+    if (!context.auth) throw new AuthenticationError("");
 
     if (tracks.length < 1)
       throw new UserInputError("Require at least a track", ["tracks"]);
 
     // use first track as image
-    const track = await new TrackService(this.context).findTrack(tracks[0]);
+    const track = await TrackService.findTrack(context, tracks[0]);
     const image = track?.image;
 
     const createdAt = new Date();
@@ -206,9 +193,9 @@ export class SessionService {
     text = text.trim().substring(0, CONFIG.sessionTextMaxLength);
 
     // Check if other live session available
-    const liveCount = await this.collection.countDocuments({
+    const liveCount = await SessionService.collection.countDocuments({
       isLive: true,
-      creatorId: me.userId,
+      creatorId: context.auth.userId,
     });
     if (liveCount)
       throw new ForbiddenError(
@@ -217,11 +204,11 @@ export class SessionService {
 
     const session: Omit<SessionDbObject, "_id"> = {
       text,
-      creatorId: me.userId,
+      creatorId: context.auth.userId,
       createdAt,
       isLive: true,
       image,
-      collaboratorIds: [me.userId],
+      collaboratorIds: [context.auth.userId],
       lastCreatorActivityAt: createdAt,
       ...(location && {
         location: {
@@ -232,12 +219,12 @@ export class SessionService {
       trackIds: [],
     };
 
-    const { insertedId } = await this.collection.insertOne(session);
+    const { insertedId } = await SessionService.collection.insertOne(session);
 
     const insertedSession: SessionDbObject = { ...session, _id: insertedId };
 
-    await new QueueService(this.context).executeQueueAction(
-      me,
+    await QueueService.executeQueueAction(
+      context,
       String(insertedSession._id),
       { add: { tracks } }
     );
@@ -245,16 +232,62 @@ export class SessionService {
     // start now playing
     NowPlayingWorker.playIndex(insertedId.toHexString(), 0);
 
-    this.loaderUpdateCache(insertedSession);
+    SessionService.invalidateLoaderCache(context, insertedSession);
 
     // create a secure invite link
-    await this.createInviteToken(insertedSession);
+    await SessionService.createInviteToken(insertedSession);
 
-    const notificationService = new NotificationService(this.context);
-
-    notificationService.notifyFollowersOfNewSession(insertedSession);
+    NotificationService.notifyFollowersOfNewSession(insertedSession);
 
     return insertedSession;
+  }
+
+  /**
+   * End session and remove related resources
+   * @private
+   */
+  private static async _end(_id: string) {
+    const queue = await QueueService.findById(_id, 0, 0);
+    const { value } = await SessionService.collection.findOneAndUpdate(
+      {
+        _id: new mongodb.ObjectId(_id),
+      },
+      {
+        $set: {
+          isLive: false,
+          trackIds: queue.map((queueItem) => queueItem.trackId),
+        },
+      },
+      { returnDocument: "after" }
+    );
+    if (!value) throw new Error("something went wrong when ending session");
+    await Promise.all([
+      QueueService.deleteById(value._id.toHexString()),
+      SessionService.invalidateInviteToken(value),
+      NowPlayingWorker.cancelSkipJob(value._id.toHexString()),
+    ]);
+    SessionService.notifyUpdate(value);
+    return value;
+  }
+
+  /**
+   * End a session (aka archieved)
+   * An ended sessions can be replayed at any time
+   * but no new songs can be added to it
+   * @param sessionId
+   */
+  static async end(
+    context: ServiceContext,
+    sessionId: string
+  ): Promise<SessionDbObject> {
+    if (!context.auth) throw new AuthenticationError("");
+    const session = await SessionService.findById(context, sessionId);
+    if (!session) throw new Error("Session not found");
+    if (session.creatorId !== context.auth?.userId)
+      throw new ForbiddenError("Cannot update story");
+    const endedSession = await SessionService._end(sessionId);
+    SessionService.invalidateLoaderCache(context, endedSession);
+    return endedSession;
   }
 
   /**
@@ -263,8 +296,8 @@ export class SessionService {
    * @param id
    * @param param2
    */
-  async updateById(
-    me: AuthState | null,
+  static async update(
+    context: ServiceContext,
     id: string,
     {
       text,
@@ -274,11 +307,11 @@ export class SessionService {
       location: LocationInput | null | undefined;
     }
   ): Promise<SessionDbObject> {
-    if (!me) throw new AuthenticationError("");
-    const { value: session } = await this.collection.findOneAndUpdate(
+    if (!context.auth) throw new AuthenticationError("");
+    const { value: session } = await SessionService.collection.findOneAndUpdate(
       {
         _id: new mongodb.ObjectId(id),
-        creatorId: me.userId,
+        creatorId: context.auth.userId,
       },
       {
         $set: {
@@ -297,8 +330,8 @@ export class SessionService {
       { returnDocument: "after" }
     );
     if (!session) throw new ForbiddenError("Cannot update session");
-    this.loaderUpdateCache(session);
-    this.notifyUpdate(session);
+    SessionService.invalidateLoaderCache(context, session);
+    SessionService.notifyUpdate(session);
     return session;
   }
 
@@ -307,19 +340,19 @@ export class SessionService {
    * @param me the creator of that session
    * @param id
    */
-  async deleteById(me: AuthState | null, id: string) {
-    if (!me) throw new AuthenticationError("");
+  static async deleteById(context: ServiceContext, id: string) {
+    if (!context.auth) throw new AuthenticationError("");
 
-    const { value } = await this.collection.findOneAndDelete({
+    const { value } = await SessionService.collection.findOneAndDelete({
       _id: new mongodb.ObjectId(id),
-      creatorId: me.userId,
+      creatorId: context.auth.userId,
     });
     if (!value) throw new ForbiddenError("Cannot delete session");
 
     // Delete related resources
     await Promise.all([
-      new QueueService(this.context).deleteById(value._id.toHexString()),
-      this.invalidateInviteToken(value),
+      QueueService.deleteById(value._id.toHexString()),
+      SessionService.invalidateInviteToken(value),
       NowPlayingWorker.cancelSkipJob(value._id.toHexString()),
     ]);
 
@@ -330,8 +363,8 @@ export class SessionService {
    * Find a session by id
    * @param id
    */
-  findById(id: string) {
-    return this.loader.load(id);
+  static findById(context: ServiceContext, id: string) {
+    return context.loaders.session.load(id);
   }
 
   /**
@@ -340,38 +373,43 @@ export class SessionService {
    * @param limit
    * @param next
    */
-  async findByCreatorId(
+  static async findByCreatorId(
+    context: ServiceContext,
     creatorId: string,
     limit?: number,
     next?: string | null
   ) {
-    return this.collection
+    return SessionService.collection
       .find({
         creatorId,
         ...(next && { _id: { $lt: new mongodb.ObjectId(next) } }),
       })
       .sort({ $natural: -1 })
       .limit(limit || 99999)
-      .toArray()
-      .then((sessions) => sessions.map((s) => this.checkSessionStatus(s)));
+      .toArray();
   }
 
   /**
    * Find first live session by creatorId
    * @param creatorId
    */
-  async findLiveByCreatorId(creatorId: string) {
-    return this.collection
+  static async findLiveByCreatorId(context: ServiceContext, creatorId: string) {
+    return SessionService.collection
       .findOne({ creatorId, isLive: true })
       .then((session) => {
         if (!session) return null;
-        session = this.checkSessionStatus(session);
+        session = SessionService.validateLive(session);
         return session.isLive ? session : null;
       });
   }
 
-  async findByLocation(lng: number, lat: number, radius: number) {
-    return this.collection
+  static async findByLocation(
+    context: ServiceContext,
+    lng: number,
+    lat: number,
+    radius: number
+  ) {
+    return SessionService.collection
       .find({
         isLive: true,
         location: {
@@ -390,18 +428,18 @@ export class SessionService {
    * @param limit
    * @param next
    */
-  async findForFeedPublic(
+  static async findForFeedPublic(
+    context: ServiceContext,
     limit: number,
     next?: string | null
   ): Promise<SessionDbObject[]> {
-    return this.collection
+    return SessionService.collection
       .find({
         ...(next && { _id: { $lt: new mongodb.ObjectId(next) } }),
       })
       .sort({ $natural: -1 })
       .limit(limit)
-      .toArray()
-      .then((sessions) => sessions.map((s) => this.checkSessionStatus(s)));
+      .toArray();
   }
 
   /**
@@ -409,18 +447,26 @@ export class SessionService {
    * @param user
    * @param sessionId
    */
-  async pingPresence(me: AuthState, sessionId: string): Promise<void> {
-    const session = await this.findById(sessionId);
+  static async pingPresence(
+    context: ServiceContext,
+    sessionId: string
+  ): Promise<void> {
+    if (!context.auth) throw new AuthenticationError("");
+
+    const session = await SessionService.findById(context, sessionId);
 
     if (!session) throw new ForbiddenError("Cannot ping to this session");
 
-    // session presence does not apply to unlive session
+    // session presence does not apply to ended session
     if (!session.isLive) return;
 
     // update lastCreatorActivityAt since the pinging user is create
-    if (me.userId === session.creatorId) {
-      await this.collection.updateOne(
-        { _id: new mongodb.ObjectId(sessionId), creatorId: me.userId },
+    if (context.auth.userId === session.creatorId) {
+      await SessionService.collection.updateOne(
+        {
+          _id: new mongodb.ObjectId(sessionId),
+          creatorId: context.auth.userId,
+        },
         { $set: { lastCreatorActivityAt: new Date() } }
       );
     }
@@ -430,7 +476,7 @@ export class SessionService {
     const lastTimestamp: number = parseInt(
       await redis.zscore(
         REDIS_KEY.sessionListenerPresences(sessionId),
-        me.userId
+        context.auth.userId
       ),
       10
     );
@@ -442,23 +488,23 @@ export class SessionService {
     await redis.zadd(
       REDIS_KEY.sessionListenerPresences(sessionId),
       now,
-      me.userId
+      context.auth.userId
     );
 
     if (justJoined) {
-      const messageService = new MessageService(this.context);
-
       // notify that user just joined via message
-      messageService.add(sessionId, {
+      MessageService.add(sessionId, {
         text: sessionId,
         type: MessageType.Join,
-        creatorId: me.userId,
+        creatorId: context.auth.userId,
       });
 
       // Notify session user update via subscription
       pubsub.publish(PUBSUB_CHANNELS.sessionListenersUpdated, {
         id: sessionId,
-        sessionListenersUpdated: await this.getCurrentListeners(sessionId),
+        sessionListenersUpdated: await SessionService.getCurrentListeners(
+          sessionId
+        ),
       });
     }
   }
@@ -467,7 +513,7 @@ export class SessionService {
    * Get all user currently in a room
    * @param _id
    */
-  async getCurrentListeners(_id: string): Promise<string[]> {
+  static async getCurrentListeners(_id: string): Promise<string[]> {
     // user is considered present if they still ping within activityTimeout
     const minRange = Date.now() - CONFIG.activityTimeout;
     return redis.zrevrangebyscore(
@@ -477,12 +523,13 @@ export class SessionService {
     );
   }
 
-  async getTrackIds(
+  static async getTrackIds(
+    context: ServiceContext,
     _id: string,
     from?: number,
     to?: number
   ): Promise<string[]> {
-    const session = await this.findById(_id);
+    const session = await SessionService.findById(context, _id);
     if (!session) return [];
     // JS slice's "end" is not included so we +1
     return session?.trackIds.slice(from, typeof to === "number" ? to + 1 : to);

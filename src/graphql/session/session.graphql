@@ -16,7 +16,7 @@ type Mutation {
   ): Session!
   sessionUpdate(id: ID!, text: String, location: LocationInput): Session!
   sessionDelete(id: ID!): ID!
-  sessionUnlive(id: ID!): Session!
+  sessionEnd(id: ID!): Session!
   sessionPing(id: ID!): Boolean!
   sessionCollabAddFromToken(id: ID!, token: String!): Boolean!
 }

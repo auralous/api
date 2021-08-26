@@ -1,35 +1,37 @@
+import { NowPlayingService } from "../../services/nowPlaying.js";
+import { SessionService } from "../../services/session.js";
 import { PUBSUB_CHANNELS } from "../../utils/constant.js";
 import type { Resolvers } from "../graphql.gen.js";
 
 const resolvers: Resolvers = {
   Query: {
-    async nowPlaying(parent, { id }, { services }) {
-      const currentTrack = await services.NowPlaying.findCurrentItemById(id);
+    async nowPlaying(parent, { id }) {
+      const currentTrack = await NowPlayingService.findCurrentItemById(id);
       return { id, currentTrack };
     },
-    async nowPlayingReactions(parent, { id }, { services }) {
-      return services.NowPlaying.getAllReactions(id);
+    async nowPlayingReactions(parent, { id }) {
+      return NowPlayingService.getAllReactions(id);
     },
   },
   Mutation: {
-    async nowPlayingReact(parent, { id, reaction }, { services, auth }) {
-      await services.NowPlaying.reactNowPlaying(
-        auth,
-        await services.Session.findById(id),
+    async nowPlayingReact(parent, { id, reaction }, context) {
+      await NowPlayingService.reactNowPlaying(
+        context,
+        await SessionService.findById(context, id),
         reaction
       );
       return true;
     },
-    async nowPlayingSkip(parent, { id, isBackward }, { services, auth }) {
-      return services.NowPlaying[isBackward ? "skipBackward" : "skipForward"](
-        auth,
-        await services.Session.findById(id)
+    async nowPlayingSkip(parent, { id, isBackward }, context) {
+      return NowPlayingService[isBackward ? "skipBackward" : "skipForward"](
+        context,
+        await SessionService.findById(context, id)
       );
     },
-    async nowPlayingPlayUid(parent, { id, uid }, { services, auth }) {
-      return services.NowPlaying.playUid(
-        auth,
-        await services.Session.findById(id),
+    async nowPlayingPlayUid(parent, { id, uid }, context) {
+      return NowPlayingService.playUid(
+        context,
+        await SessionService.findById(context, id),
         uid
       );
     },

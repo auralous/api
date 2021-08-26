@@ -1,4 +1,3 @@
-import { AuthState } from "../auth/types.js";
 import { pubsub } from "../data/pubsub.js";
 import { redis } from "../data/redis.js";
 import type { SessionDbObject } from "../data/types.js";
@@ -11,17 +10,13 @@ import type {
 import { PUBSUB_CHANNELS, REDIS_KEY } from "../utils/constant.js";
 import { NowPlayingWorker } from "./nowPlayingWorker.js";
 import { QueueService } from "./queue.js";
-import type { ServiceContext } from "./types.js";
+import { ServiceContext } from "./types.js";
 
 export class NowPlayingService {
-  constructor(private context: ServiceContext) {}
-
   /**
    * Find the nowPlaying by session id
-   * @param id the session id
-   * @param showPlayed should show played nowPlaying (those with endedAt > now)
    */
-  async findCurrentItemById(
+  static async findCurrentItemById(
     id: string,
     showPlayed?: boolean
   ): Promise<NowPlayingQueueItem | null> {
@@ -40,9 +35,10 @@ export class NowPlayingService {
     if (showPlayed !== true && nowPlayingState.endedAt.getTime() < Date.now())
       return null;
 
-    const queueItemData = await new QueueService(
-      this.context
-    ).findQueueItemData(id, nowPlayingState.queuePlayingUid);
+    const queueItemData = await QueueService.findQueueItemData(
+      id,
+      nowPlayingState.queuePlayingUid
+    );
 
     if (!queueItemData)
       throw new Error(
@@ -59,86 +55,85 @@ export class NowPlayingService {
 
   /**
    * Skip forward current track
-   * @param me
-   * @param session
-   * @returns
    */
-  async skipForward(me: AuthState | null, session: SessionDbObject | null) {
-    if (!me) throw new AuthenticationError("");
+  static async skipForward(
+    context: ServiceContext,
+    session: SessionDbObject | null
+  ) {
+    if (!context.auth) throw new AuthenticationError("");
     if (!session) throw new ForbiddenError("Session does not exist");
-    if (!session.collaboratorIds.includes(me.userId))
+    if (!session.collaboratorIds.includes(context.auth.userId))
       throw new AuthenticationError("You are not allowed to make changes");
     return Boolean(NowPlayingWorker.skipForward(String(session._id)));
   }
 
   /**
    * Skip backward current track
-   * @param me
-   * @param session
-   * @returns
    */
-  async skipBackward(me: AuthState | null, session: SessionDbObject | null) {
-    if (!me) throw new AuthenticationError("");
+  static async skipBackward(
+    context: ServiceContext,
+    session: SessionDbObject | null
+  ) {
+    if (!context.auth) throw new AuthenticationError("");
     if (!session) throw new ForbiddenError("Session does not exist");
-    if (!session.collaboratorIds.includes(me.userId))
+    if (!session.collaboratorIds.includes(context.auth.userId))
       throw new AuthenticationError("You are not allowed to make changes");
     return Boolean(NowPlayingWorker.skipBackward(String(session._id)));
   }
 
-  async playUid(
-    me: AuthState | null,
+  static async playUid(
+    context: ServiceContext,
     session: SessionDbObject | null,
     uid: string
   ) {
-    if (!me) throw new AuthenticationError("");
+    if (!context.auth) throw new AuthenticationError("");
     if (!session) throw new ForbiddenError("Session does not exist");
-    if (!session.collaboratorIds.includes(me.userId))
+    if (!session.collaboratorIds.includes(context.auth.userId))
       throw new AuthenticationError("You are not allowed to make changes");
     return Boolean(NowPlayingWorker.playUid(String(session._id), uid));
   }
 
   // NowPlaying Reaction
   // A redis set whose items are `{userId}|{reactionType}`
-  private async notifyReactionUpdate(id: string) {
+  private static async notifyReactionUpdate(id: string) {
     pubsub.publish(PUBSUB_CHANNELS.nowPlayingReactionsUpdated, {
-      nowPlayingReactionsUpdated: await this.getAllReactions(id),
+      nowPlayingReactionsUpdated: await NowPlayingService.getAllReactions(id),
       id,
     });
   }
 
   /**
    * React to a nowPlaying
-   * @param me
-   * @param session
-   * @param reaction
    */
-  async reactNowPlaying(
-    me: AuthState | null,
+  static async reactNowPlaying(
+    context: ServiceContext,
     session: SessionDbObject | null,
     reaction: NowPlayingReactionType
   ) {
-    if (!me) throw new AuthenticationError("");
+    if (!context.auth) throw new AuthenticationError("");
 
     if (!session) throw new ForbiddenError("Session is not found");
 
-    const currItem = await this.findCurrentItemById(String(session._id));
+    const currItem = await NowPlayingService.findCurrentItemById(
+      String(session._id)
+    );
     if (!currItem) return null;
 
     // If the reaction already eists, the below returns 0 / does nothing
     const result = await redis.hset(
       REDIS_KEY.nowPlayingReaction(String(session._id), currItem.uid),
-      me.userId,
+      context.auth.userId,
       reaction
     );
 
     if (result) {
       // Only publish if a reaction is added
-      this.notifyReactionUpdate(String(session._id));
+      NowPlayingService.notifyReactionUpdate(String(session._id));
     }
   }
 
-  async getAllReactions(id: string): Promise<NowPlayingReactionItem[]> {
-    const currentTrack = await this.findCurrentItemById(id);
+  static async getAllReactions(id: string): Promise<NowPlayingReactionItem[]> {
+    const currentTrack = await NowPlayingService.findCurrentItemById(id);
     if (!currentTrack) return [];
     const o = await redis.hgetall(
       REDIS_KEY.nowPlayingReaction(id, currentTrack.uid)

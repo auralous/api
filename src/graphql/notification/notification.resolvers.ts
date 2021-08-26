@@ -1,5 +1,8 @@
 import mongodb from "mongodb";
 import { AuthenticationError } from "../../error/index.js";
+import { NotificationService } from "../../services/notification.js";
+import { SessionService } from "../../services/session.js";
+import { UserService } from "../../services/user.js";
 import { PUBSUB_CHANNELS } from "../../utils/constant.js";
 import type { Resolvers } from "../graphql.gen.js";
 
@@ -20,8 +23,8 @@ const resolvers: Resolvers = {
           }
         )._id
       ),
-    follower({ followedBy }, args, { services }) {
-      return services.User.findById(followedBy);
+    follower({ followedBy }, args, context) {
+      return UserService.findById(context, followedBy);
     },
   },
   NotificationNewSession: {
@@ -33,19 +36,19 @@ const resolvers: Resolvers = {
           }
         )._id
       ),
-    session({ sessionId }, args, { services }) {
-      return services.Session.findById(sessionId);
+    session({ sessionId }, args, context) {
+      return SessionService.findById(context, sessionId);
     },
   },
   Query: {
-    notifications(parent, { next, limit }, { services, auth }) {
-      if (!auth) return [];
-      return services.Notification.findMine(auth, limit, next);
+    notifications(parent, { next, limit }, context) {
+      if (!context.auth) return [];
+      return NotificationService.findMine(context, limit, next);
     },
   },
   Mutation: {
-    notificationsMarkRead(parent, { ids }, { services, auth }) {
-      return services.Notification.markRead(auth, ids);
+    notificationsMarkRead(parent, { ids }, context) {
+      return NotificationService.markRead(context, ids);
     },
   },
   Subscription: {

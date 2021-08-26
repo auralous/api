@@ -16,7 +16,6 @@
 
 import fastJson from "fast-json-stringify";
 import { nanoid } from "nanoid/non-secure";
-import { AuthState } from "../auth/types.js";
 import { pubsub } from "../data/pubsub.js";
 import { redis } from "../data/redis.js";
 import { AuthenticationError, ForbiddenError } from "../error/index.js";
@@ -67,11 +66,11 @@ export class QueueService {
    * @param id
    * @param queueItems
    */
-  private async notifyUpdate(id: string, queueItems?: QueueItem[]) {
+  private static async notifyUpdate(id: string, queueItems?: QueueItem[]) {
     pubsub.publish(PUBSUB_CHANNELS.queueUpdated, {
       queueUpdated: {
         id,
-        items: queueItems || (await this.findById(id, 0, -1)),
+        items: queueItems || (await QueueService.findById(id, 0, -1)),
       },
     });
   }
@@ -82,7 +81,11 @@ export class QueueService {
    * @param start
    * @param stop
    */
-  async findById(id: string, start = 0, stop = -1): Promise<QueueItem[]> {
+  static async findById(
+    id: string,
+    start = 0,
+    stop = -1
+  ): Promise<QueueItem[]> {
     const result = await redis
       .pipeline()
       .lrange(REDIS_KEY.queueList(id), start, stop)
@@ -107,7 +110,7 @@ export class QueueService {
     });
   }
 
-  async getUidAtIndex(id: string, index: number) {
+  static async getUidAtIndex(id: string, index: number) {
     try {
       const uid = await redis.lindex(REDIS_KEY.queueList(id), index);
       return uid;
@@ -116,11 +119,11 @@ export class QueueService {
     }
   }
 
-  async getIndexByUid(id: string, uid: string) {
+  static async getIndexByUid(id: string, uid: string) {
     return redis.lpos(REDIS_KEY.queueList(id), uid);
   }
 
-  async getQueueLength(id: string) {
+  static async getQueueLength(id: string) {
     return redis.llen(REDIS_KEY.queueList(id));
   }
 
@@ -130,7 +133,7 @@ export class QueueService {
    * @param uid
    * @returns
    */
-  async findQueueItemData(
+  static async findQueueItemData(
     id: string,
     uid: string
   ): Promise<Omit<QueueItem, "uid"> | null> {
@@ -144,7 +147,10 @@ export class QueueService {
    * @param id
    * @param items
    */
-  async pushItems(id: string, ...queueItems: QueueItem[]): Promise<number> {
+  static async pushItems(
+    id: string,
+    ...queueItems: QueueItem[]
+  ): Promise<number> {
     const dataStrMap = new Map<string, string>();
     const list = [];
 
@@ -168,7 +174,7 @@ export class QueueService {
     const err = result[0][0] || result[1][0];
     if (err) throw err;
 
-    this.notifyUpdate(id);
+    QueueService.notifyUpdate(id);
     return result[0][1];
   }
 
@@ -178,7 +184,7 @@ export class QueueService {
    * @param origin
    * @param dest
    */
-  async reorderItems(id: string, origin: number, dest: number) {
+  static async reorderItems(id: string, origin: number, dest: number) {
     // Redis is a linked list so we cannot reorder items
     // For now, we delete the list and readd the items
     const redisKey = REDIS_KEY.queueList(id);
@@ -195,7 +201,7 @@ export class QueueService {
     const err = result[0][0] || result[1][0];
     if (err) throw err;
 
-    this.notifyUpdate(id);
+    QueueService.notifyUpdate(id);
     return result[1][1];
   }
 
@@ -203,7 +209,7 @@ export class QueueService {
    * Remove queue items
    * @param ids
    */
-  async removeItems(id: string, uids: string[]): Promise<number> {
+  static async removeItems(id: string, uids: string[]): Promise<number> {
     const redisKey = REDIS_KEY.queueList(id);
 
     const pipeline = redis.pipeline();
@@ -214,7 +220,7 @@ export class QueueService {
 
     const result = await pipeline.exec();
 
-    this.notifyUpdate(id);
+    QueueService.notifyUpdate(id);
     return result.reduce((prev, curr) => prev + curr[1], 0);
   }
 
@@ -227,7 +233,7 @@ export class QueueService {
    * and that is if any of the uid is invalid
    * the bahavior will be undefined
    */
-  async toTopItems(id: string, uids: string[]): Promise<number> {
+  static async toTopItems(id: string, uids: string[]): Promise<number> {
     const redisKey = REDIS_KEY.queueList(id);
 
     // Delete those uids from list
@@ -246,7 +252,7 @@ export class QueueService {
       if (resultItem[0]) throw resultItem[0];
     }
 
-    this.notifyUpdate(id);
+    QueueService.notifyUpdate(id);
     // FIXME: report actual result
     return uids.length;
   }
@@ -255,20 +261,8 @@ export class QueueService {
    * Delete a queue
    * @param id
    */
-  async deleteById(id: string) {
+  static async deleteById(id: string) {
     redis.del(REDIS_KEY.queueData(id), REDIS_KEY.queueList(id));
-  }
-
-  async assertSessionQueueActionable<TMe extends AuthState | null>(
-    me: TMe,
-    sessionId: string
-  ) {
-    if (!me) throw new AuthenticationError("");
-    const session = await new SessionService(this.context).findById(sessionId);
-    if (!session) throw new ForbiddenError("Session does not exist");
-    if (!session.isLive) throw new ForbiddenError("Session is no longer live");
-    if (!me || !session.collaboratorIds.includes(me.userId))
-      throw new ForbiddenError("You are not allowed to add to this queue");
   }
 
   /**
@@ -278,8 +272,8 @@ export class QueueService {
    * @param session
    * @param actions
    */
-  async executeQueueAction(
-    me: AuthState,
+  static async executeQueueAction(
+    context: ServiceContext,
     id: string,
     actions: {
       add?: Omit<MutationQueueAddArgs, "id">;
@@ -288,29 +282,36 @@ export class QueueService {
       toTop?: Omit<MutationQueueToTopArgs, "id">;
     }
   ) {
-    if (!me) throw new AuthenticationError("");
+    const auth = context.auth;
+    // Assert auth
+    if (!auth) throw new AuthenticationError("");
+    const session = await SessionService.findById(context, id);
+    if (!session) throw new ForbiddenError("Session does not exist");
+    if (!session.isLive) throw new ForbiddenError("Session is no longer live");
+    if (!session.collaboratorIds.includes(auth.userId))
+      throw new ForbiddenError("You are not allowed to add to this queue");
 
     if (actions.add) {
-      await this.pushItems(
+      await QueueService.pushItems(
         id,
         ...actions.add.tracks.map((trackId) => ({
           uid: QueueService.randomUid(),
           trackId,
-          creatorId: me.userId,
+          creatorId: auth.userId,
         }))
       );
       return true;
     } else if (actions.remove) {
-      return Boolean(await this.removeItems(id, actions.remove));
+      return Boolean(await QueueService.removeItems(id, actions.remove));
     } else if (actions.reorder) {
-      await this.reorderItems(
+      await QueueService.reorderItems(
         id,
         actions.reorder.position,
         actions.reorder.insertPosition
       );
       return true;
     } else if (actions.toTop) {
-      await this.toTopItems(id, actions.toTop.uids);
+      await QueueService.toTopItems(id, actions.toTop.uids);
     }
     return false;
   }

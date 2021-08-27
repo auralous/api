@@ -1,12 +1,14 @@
 import { NowPlayingService } from "../../services/nowPlaying.js";
+import { QueueService } from "../../services/queue.js";
 import { PUBSUB_CHANNELS } from "../../utils/constant.js";
 import type { Resolvers } from "../graphql.gen.js";
 
 const resolvers: Resolvers = {
   Query: {
     async nowPlaying(parent, { id }) {
-      const currentTrack = await NowPlayingService.findCurrentItemById(id);
-      return { id, currentTrack };
+      const current = await NowPlayingService.findCurrentItemById(id);
+      const next = await QueueService.findById(id, current.index + 1);
+      return { id, current, next };
     },
     async nowPlayingReactions(parent, { id }) {
       return NowPlayingService.getAllReactions(id);

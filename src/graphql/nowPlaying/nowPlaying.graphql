@@ -25,13 +25,15 @@ type NowPlayingQueueItem {
   uid: ID!
   trackId: String!
   creatorId: String!
+  index: Int!
   playedAt: DateTime!
   endedAt: DateTime!
 }
 
 type NowPlaying {
   id: ID!
-  currentTrack: NowPlayingQueueItem
+  current: NowPlayingQueueItem!
+  next: [QueueItem!]!
 }
 
 type NowPlayingReactionItem {

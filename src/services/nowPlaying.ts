@@ -20,17 +20,11 @@ export class NowPlayingService {
   /**
    * Find the nowPlaying by session id
    */
-  static async findCurrentItemById(
-    id: string,
-    showPlayed?: boolean
-  ): Promise<NowPlayingQueueItem | null> {
+  static async findCurrentItemById(id: string): Promise<NowPlayingQueueItem> {
     // See src/data/types.ts#NowPlayingStateRedisValue
     const nowPlayingState = await NowPlayingWorker.getFormattedNowPlayingState(
       id
     );
-
-    if (showPlayed !== true && nowPlayingState.endedAt.getTime() < Date.now())
-      return null;
 
     const queueItemData = await QueueService.findQueueItemData(
       id,
@@ -47,6 +41,7 @@ export class NowPlayingService {
       ...queueItemData,
       playedAt: nowPlayingState.playedAt,
       endedAt: nowPlayingState.endedAt,
+      index: nowPlayingState.playingIndex,
     };
   }
 
@@ -74,6 +69,9 @@ export class NowPlayingService {
     return Boolean(NowPlayingWorker.skipBackward(String(session._id)));
   }
 
+  /**
+   * Play queue item with specific uid
+   */
   static async playUid(context: ServiceContext, id: string, uid: string) {
     if (!context.auth) throw new UnauthorizedError();
     const session = await SessionService.findById(context, id);
@@ -81,6 +79,19 @@ export class NowPlayingService {
     if (!session.collaboratorIds.includes(context.auth.userId))
       throw new CustomError("error.not_collaborator");
     return Boolean(NowPlayingWorker.playUid(String(session._id), uid));
+  }
+
+  static async notifyUpdate(id: string, currentHint?: NowPlayingQueueItem) {
+    const current =
+      currentHint || (await NowPlayingService.findCurrentItemById(id));
+    const next = await QueueService.findById(id, current.index + 1);
+    pubsub.publish(PUBSUB_CHANNELS.nowPlayingUpdated, {
+      nowPlayingUpdated: {
+        id,
+        current,
+        next,
+      },
+    });
   }
 
   // NowPlaying Reaction

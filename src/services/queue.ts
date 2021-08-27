@@ -16,7 +16,6 @@
 
 import fastJson from "fast-json-stringify";
 import { nanoid } from "nanoid/non-secure";
-import { pubsub } from "../data/pubsub.js";
 import { redis } from "../data/redis.js";
 import {
   CustomError,
@@ -29,7 +28,9 @@ import type {
   MutationQueueToTopArgs,
   QueueItem,
 } from "../graphql/graphql.gen.js";
-import { PUBSUB_CHANNELS, REDIS_KEY } from "../utils/constant.js";
+import { REDIS_KEY } from "../utils/constant.js";
+import { NowPlayingService } from "./nowPlaying.js";
+import { NowPlayingWorker } from "./nowPlayingWorker.js";
 import { SessionService } from "./session.js";
 import type { ServiceContext } from "./types.js";
 
@@ -63,20 +64,6 @@ export class QueueService {
 
   static parseQueueItemData(str: string): Omit<QueueItem, "uid"> {
     return JSON.parse(str);
-  }
-
-  /**
-   * Notify queue has been updated
-   * @param id
-   * @param queueItems
-   */
-  private static async notifyUpdate(id: string, queueItems?: QueueItem[]) {
-    pubsub.publish(PUBSUB_CHANNELS.queueUpdated, {
-      queueUpdated: {
-        id,
-        items: queueItems || (await QueueService.findById(id, 0, -1)),
-      },
-    });
   }
 
   /**
@@ -178,7 +165,8 @@ export class QueueService {
     const err = result[0][0] || result[1][0];
     if (err) throw err;
 
-    QueueService.notifyUpdate(id);
+    NowPlayingService.notifyUpdate(id);
+
     return result[0][1];
   }
 
@@ -205,7 +193,7 @@ export class QueueService {
     const err = result[0][0] || result[1][0];
     if (err) throw err;
 
-    QueueService.notifyUpdate(id);
+    NowPlayingService.notifyUpdate(id);
     return result[1][1];
   }
 
@@ -224,7 +212,7 @@ export class QueueService {
 
     const result = await pipeline.exec();
 
-    QueueService.notifyUpdate(id);
+    NowPlayingService.notifyUpdate(id);
     return result.reduce((prev, curr) => prev + curr[1], 0);
   }
 
@@ -237,9 +225,12 @@ export class QueueService {
    * and that is if any of the uid is invalid
    * the bahavior will be undefined
    */
-  static async toTopItems(id: string, uids: string[]): Promise<number> {
+  static async toTopItems(
+    id: string,
+    uids: string[],
+    afterUid: string
+  ): Promise<number> {
     const redisKey = REDIS_KEY.queueList(id);
-
     // Delete those uids from list
     // and re-add them to the top
     const pipeline = redis.pipeline();
@@ -248,7 +239,9 @@ export class QueueService {
       pipeline.lrem(redisKey, 1, uid);
     }
 
-    pipeline.lpush(redisKey, ...uids);
+    for (const uid of uids.reverse()) {
+      pipeline.linsert(redisKey, "AFTER", afterUid, uid);
+    }
 
     const result = await pipeline.exec();
 
@@ -256,7 +249,7 @@ export class QueueService {
       if (resultItem[0]) throw resultItem[0];
     }
 
-    QueueService.notifyUpdate(id);
+    NowPlayingService.notifyUpdate(id);
     // FIXME: report actual result
     return uids.length;
   }
@@ -311,14 +304,20 @@ export class QueueService {
     } else if (actions.remove) {
       return Boolean(await QueueService.removeItems(id, actions.remove));
     } else if (actions.reorder) {
+      // position depends on current playing index
+      const { playingIndex } =
+        await NowPlayingWorker.getFormattedNowPlayingState(id);
       await QueueService.reorderItems(
         id,
-        actions.reorder.position,
-        actions.reorder.insertPosition
+        playingIndex + 1 + actions.reorder.position,
+        playingIndex + 1 + actions.reorder.insertPosition
       );
       return true;
     } else if (actions.toTop) {
-      await QueueService.toTopItems(id, actions.toTop.uids);
+      // position depends on current playing index
+      const { queuePlayingUid } =
+        await NowPlayingWorker.getFormattedNowPlayingState(id);
+      await QueueService.toTopItems(id, actions.toTop.uids, queuePlayingUid);
     }
     return false;
   }

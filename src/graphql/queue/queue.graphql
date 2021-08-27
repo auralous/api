@@ -4,22 +4,9 @@ type QueueItem {
   creatorId: String!
 }
 
-type Queue {
-  id: ID!
-  items: [QueueItem!]!
-}
-
-type Query {
-  queue(id: ID!, from: Int, to: Int): Queue
-}
-
 type Mutation {
   queueAdd(id: ID!, tracks: [ID!]!): Boolean!
   queueRemove(id: ID!, uids: [ID!]!): Boolean!
   queueReorder(id: ID!, position: Int!, insertPosition: Int!): Boolean!
   queueToTop(id: ID!, uids: [ID!]!): Boolean!
-}
-
-type Subscription {
-  queueUpdated(id: ID!): Queue!
 }

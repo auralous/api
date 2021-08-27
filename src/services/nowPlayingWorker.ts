@@ -7,7 +7,8 @@ import type {
 } from "../data/types.js";
 import type { NowPlayingQueueItem } from "../graphql/graphql.gen.js";
 import { pinoOpts } from "../logger/options.js";
-import { PUBSUB_CHANNELS, REDIS_KEY } from "../utils/constant.js";
+import { REDIS_KEY } from "../utils/constant.js";
+import { NowPlayingService } from "./nowPlaying.js";
 import { QueueService } from "./queue.js";
 import { TrackService } from "./track.js";
 import type { ServiceContext } from "./types.js";
@@ -136,14 +137,10 @@ export class NowPlayingWorker {
       creatorId: queueItem.creatorId,
       playedAt,
       endedAt,
+      index,
     };
     // Notify nowPlaying changes
-    pubsub.publish(PUBSUB_CHANNELS.nowPlayingUpdated, {
-      nowPlayingUpdated: {
-        id,
-        currentTrack,
-      },
-    });
+    NowPlayingService.notifyUpdate(id, currentTrack);
   }
 
   private async executeSkipForward(id: string) {

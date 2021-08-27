@@ -1,7 +1,6 @@
 enum MessageType {
   message
   join
-  play
 }
 
 type Query {

@@ -48,7 +48,6 @@ export const PUBSUB_CHANNELS = {
   sessionUpdated: "SESSION_UPDATED",
   sessionListenersUpdated: "SESSION_LISTENERS_UPDATED",
   messageAdded: "MESSAGE_ADDED",
-  queueUpdated: "QUEUE_UPDATED",
   notificationAdded: "NOTIFICATION_ADDED",
 };
 

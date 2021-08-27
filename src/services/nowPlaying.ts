@@ -1,7 +1,10 @@
 import { pubsub } from "../data/pubsub.js";
 import { redis } from "../data/redis.js";
-import type { SessionDbObject } from "../data/types.js";
-import { AuthenticationError, ForbiddenError } from "../error/index.js";
+import {
+  CustomError,
+  NotFoundError,
+  UnauthorizedError,
+} from "../error/errors.js";
 import type {
   NowPlayingQueueItem,
   NowPlayingReactionItem,
@@ -10,6 +13,7 @@ import type {
 import { PUBSUB_CHANNELS, REDIS_KEY } from "../utils/constant.js";
 import { NowPlayingWorker } from "./nowPlayingWorker.js";
 import { QueueService } from "./queue.js";
+import { SessionService } from "./session.js";
 import { ServiceContext } from "./types.js";
 
 export class NowPlayingService {
@@ -25,13 +29,6 @@ export class NowPlayingService {
       id
     );
 
-    if (!nowPlayingState.queuePlayingUid) return null;
-
-    if (!nowPlayingState.playedAt || !nowPlayingState.endedAt)
-      throw new Error(
-        `Found queuePlayingUid but not playedAt and endedAt for ${id}`
-      );
-
     if (showPlayed !== true && nowPlayingState.endedAt.getTime() < Date.now())
       return null;
 
@@ -42,7 +39,7 @@ export class NowPlayingService {
 
     if (!queueItemData)
       throw new Error(
-        `Cannot find nowPlaying queueItemData for id = ${id} and queuePlayingUid = ${nowPlayingState.queuePlayingUid}`
+        `QueueItem is null for id = ${id}, uid = ${nowPlayingState.queuePlayingUid}`
       );
 
     return {
@@ -56,40 +53,33 @@ export class NowPlayingService {
   /**
    * Skip forward current track
    */
-  static async skipForward(
-    context: ServiceContext,
-    session: SessionDbObject | null
-  ) {
-    if (!context.auth) throw new AuthenticationError("");
-    if (!session) throw new ForbiddenError("Session does not exist");
+  static async skipForward(context: ServiceContext, id: string) {
+    if (!context.auth) throw new UnauthorizedError();
+    const session = await SessionService.findById(context, id);
+    if (!session) throw new NotFoundError("session", id);
     if (!session.collaboratorIds.includes(context.auth.userId))
-      throw new AuthenticationError("You are not allowed to make changes");
+      throw new CustomError("error.not_collaborator");
     return Boolean(NowPlayingWorker.skipForward(String(session._id)));
   }
 
   /**
    * Skip backward current track
    */
-  static async skipBackward(
-    context: ServiceContext,
-    session: SessionDbObject | null
-  ) {
-    if (!context.auth) throw new AuthenticationError("");
-    if (!session) throw new ForbiddenError("Session does not exist");
+  static async skipBackward(context: ServiceContext, id: string) {
+    if (!context.auth) throw new UnauthorizedError();
+    const session = await SessionService.findById(context, id);
+    if (!session) throw new NotFoundError("session", id);
     if (!session.collaboratorIds.includes(context.auth.userId))
-      throw new AuthenticationError("You are not allowed to make changes");
+      throw new CustomError("error.not_collaborator");
     return Boolean(NowPlayingWorker.skipBackward(String(session._id)));
   }
 
-  static async playUid(
-    context: ServiceContext,
-    session: SessionDbObject | null,
-    uid: string
-  ) {
-    if (!context.auth) throw new AuthenticationError("");
-    if (!session) throw new ForbiddenError("Session does not exist");
+  static async playUid(context: ServiceContext, id: string, uid: string) {
+    if (!context.auth) throw new UnauthorizedError();
+    const session = await SessionService.findById(context, id);
+    if (!session) throw new NotFoundError("session", id);
     if (!session.collaboratorIds.includes(context.auth.userId))
-      throw new AuthenticationError("You are not allowed to make changes");
+      throw new CustomError("error.not_collaborator");
     return Boolean(NowPlayingWorker.playUid(String(session._id), uid));
   }
 
@@ -107,12 +97,13 @@ export class NowPlayingService {
    */
   static async reactNowPlaying(
     context: ServiceContext,
-    session: SessionDbObject | null,
+    id: string,
     reaction: NowPlayingReactionType
   ) {
-    if (!context.auth) throw new AuthenticationError("");
+    if (!context.auth) throw new UnauthorizedError();
 
-    if (!session) throw new ForbiddenError("Session is not found");
+    const session = await SessionService.findById(context, id);
+    if (!session) throw new NotFoundError("session", id);
 
     const currItem = await NowPlayingService.findCurrentItemById(
       String(session._id)

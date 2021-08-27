@@ -4,7 +4,7 @@ import { redis } from "../data/redis.js";
 import { SpotifyAPI } from "../data/spotify.js";
 import type { ArtistDbObject, TrackDbObject } from "../data/types.js";
 import { YoutubeAPI } from "../data/youtube.js";
-import { AuthenticationError } from "../error/index.js";
+import { UnauthorizedError } from "../error/errors.js";
 import { PlatformName } from "../graphql/graphql.gen.js";
 import { CONFIG, REDIS_KEY } from "../utils/constant.js";
 import type { ServiceContext } from "./types.js";
@@ -201,7 +201,7 @@ export class TrackService {
   }
 
   static async findMyPlaylist(context: ServiceContext) {
-    if (!context.auth) throw new AuthenticationError("");
+    if (!context.auth) throw new UnauthorizedError();
     return TrackService[context.auth.provider].getMyPlaylists(
       (await context.auth?.accessTokenPromise) || ""
     );
@@ -212,7 +212,7 @@ export class TrackService {
     id: string,
     tracksIds: string[]
   ) {
-    if (!context.auth) throw new AuthenticationError("");
+    if (!context.auth) throw new UnauthorizedError();
     const [platform, externalId] = id.split(":");
     return TrackService[platform as PlatformName].insertPlaylistTracks(
       (await context.auth.accessTokenPromise) || "",
@@ -226,7 +226,7 @@ export class TrackService {
     name: string,
     tracksIds: string[]
   ) {
-    if (!context.auth) throw new AuthenticationError("");
+    if (!context.auth) throw new UnauthorizedError();
 
     const playlist = await this[context.auth.provider].createPlaylist(
       (await context.auth?.accessTokenPromise) || "",

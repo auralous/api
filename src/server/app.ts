@@ -1,4 +1,4 @@
-import { parseGraphQLBody } from "@benzene/http";
+import { isAsyncIterator, parseGraphQLBody } from "@benzene/http";
 import cors from "cors";
 import nc from "next-connect";
 import { getAuthFromRequest } from "../auth/auth.js";
@@ -9,6 +9,7 @@ import {
   stringify as graphqlStringify,
 } from "../graphql/handler.js";
 import {
+  errorWithTranslation,
   makeSetCacheControl,
   ncOptions,
   queryParser,
@@ -68,11 +69,18 @@ app.all("/graphql", (req, res) => {
       setCacheControl:
         req.method === "GET" ? makeSetCacheControl(res) : undefined,
     }
-  ).then((result) =>
+  ).then((result) => {
+    if (!isAsyncIterator(result.payload)) {
+      if (result.payload.errors) {
+        result.payload.errors = result.payload.errors.map(
+          errorWithTranslation(req.headers["accept-language"])
+        );
+      }
+    }
     res
       .writeHead(result.status, result.headers)
-      .end(graphqlStringify(result.payload))
-  );
+      .end(graphqlStringify(result.payload));
+  });
 });
 
 app.use("/auth", auth);

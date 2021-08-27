@@ -1,7 +1,9 @@
+import type { GraphQLFormattedError } from "graphql";
 import type { IncomingMessage, ServerResponse } from "http";
-import { Options } from "next-connect";
+import type { Options } from "next-connect";
 import { parse as parseQS } from "querystring";
 import { logError } from "../error/utils.js";
+import { t } from "../i18n/i18n.js";
 import type { SetCacheControl } from "./types.js";
 
 /**
@@ -52,3 +54,16 @@ export const ncOptions: Options<IncomingMessage, ServerResponse> = {
     );
   },
 };
+
+export function errorWithTranslation(lng: string | undefined) {
+  return (error: GraphQLFormattedError): GraphQLFormattedError => {
+    if (!error.extensions?.i18n) return error;
+    return {
+      ...error,
+      message: t(error.extensions.i18n.key, {
+        ...error.extensions.i18n.options,
+        lng,
+      }),
+    };
+  };
+}

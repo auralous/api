@@ -4,11 +4,7 @@ import slug from "slug";
 import { AuthState } from "../auth/types.js";
 import { db } from "../data/mongo.js";
 import type { UserDbObject } from "../data/types.js";
-import {
-  AuthenticationError,
-  ForbiddenError,
-  UserInputError,
-} from "../error/index.js";
+import { CustomError, UnauthorizedError } from "../error/errors.js";
 import { CONFIG } from "../utils/constant.js";
 import type { NullablePartial } from "../utils/types.js";
 import { SessionService } from "./session.js";
@@ -129,7 +125,7 @@ export class UserService {
       profilePicture,
     }: NullablePartial<UserDbObject>
   ) {
-    if (!context.auth) throw new AuthenticationError("");
+    if (!context.auth) throw new UnauthorizedError();
     const username = rawUsername
       ? slug(rawUsername, {
           lower: true,
@@ -140,7 +136,7 @@ export class UserService {
     if (username) {
       const checkUser = await UserService.findByUsername(context, username);
       if (checkUser && checkUser._id !== context.auth.userId)
-        throw new UserInputError("This username has been taken", ["username"]);
+        throw new CustomError("error.username_taken", { username });
     }
     const { value: user } = await UserService.collection.findOneAndUpdate(
       { _id: context.auth.userId },
@@ -153,26 +149,34 @@ export class UserService {
       },
       { returnDocument: "after" }
     );
-    if (!user) throw new ForbiddenError("Cannot update user");
+    if (!user)
+      throw new Error(`Cannot update user with id = ${context.auth.userId}`);
     return user;
   }
 
   static async deleteMe(context: ServiceContext) {
-    if (!context.auth) throw new AuthenticationError("");
+    if (!context.auth) throw new UnauthorizedError();
     const { deletedCount } = await UserService.collection.deleteOne({
       _id: context.auth.userId,
     });
     if (!deletedCount)
-      throw new ForbiddenError("Cannot deactivate your account");
+      throw new Error(`Cannot delete user with id = ${context.auth.userId}`);
 
     // delete every session
     const allSessions = await SessionService.findByCreatorId(
       context,
       context.auth.userId
     );
+
+    const deletePromises: Promise<unknown>[] = [];
+
     for (const session of allSessions) {
-      await SessionService.deleteById(context, session._id.toHexString());
+      deletePromises.push(
+        SessionService.deleteById(context, session._id.toHexString())
+      );
     }
+
+    await Promise.all(deletePromises);
 
     return true;
   }

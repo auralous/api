@@ -1,6 +1,6 @@
 import { db } from "../data/mongo.js";
 import type { FollowDbObject } from "../data/types.js";
-import { AuthenticationError, UserInputError } from "../error/index.js";
+import { NotFoundError, UnauthorizedError } from "../error/errors.js";
 import { NotificationService } from "./notification.js";
 import type { ServiceContext } from "./types.js";
 import { UserService } from "./user.js";
@@ -59,10 +59,9 @@ export class FollowService {
     context: ServiceContext,
     followingUserId: string
   ): Promise<boolean> {
-    if (!context.auth) throw new AuthenticationError("");
+    if (!context.auth) throw new UnauthorizedError();
     const followingUser = await UserService.findById(context, followingUserId);
-    if (!followingUser)
-      throw new UserInputError("User does not exist to follow", ["id"]);
+    if (!followingUser) throw new NotFoundError("user", followingUserId);
 
     const followedAt = new Date();
 
@@ -100,7 +99,7 @@ export class FollowService {
     context: ServiceContext,
     unfollowingUserId: string
   ): Promise<boolean> {
-    if (!context.auth) throw new AuthenticationError("");
+    if (!context.auth) throw new UnauthorizedError();
     const result = await FollowService.collection.updateOne(
       {
         follower: context.auth.userId,

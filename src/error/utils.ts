@@ -1,7 +1,7 @@
 import * as Sentry from "@sentry/node";
 import { GraphQLError } from "graphql";
-import { HTTPStatusError } from "undecim";
-import { AuraError } from "./index.js";
+import { UndecimError } from "undecim";
+import { AuraError } from "./errors.js";
 
 const GRAPHQL_EXPECTED_ERR_CODES = ["PERSISTED_QUERY_NOT_FOUND"];
 
@@ -17,14 +17,28 @@ export function isExpectedError(err: Error | GraphQLError | AuraError) {
   return false;
 }
 
-export async function logError(error: Error | GraphQLError | AuraError) {
-  if (error instanceof HTTPStatusError) {
-    (error as HTTPStatusError & { responseBody: string }).responseBody =
-      await error.response.text();
+export async function undecimAddResponseBody(error: UndecimError) {
+  const augmentedError = error as UndecimError & {
+    responseBody: string | Record<string, string>;
+  };
+  if (augmentedError.responseBody) return augmentedError;
+  augmentedError.responseBody = await error.response.text();
+  try {
+    augmentedError.responseBody = JSON.parse(augmentedError.responseBody);
+  } catch (e) {
+    /* noop */
+  }
+  return augmentedError;
+}
+
+export async function logError(
+  error: Error | GraphQLError | AuraError | UndecimError
+) {
+  if (error instanceof UndecimError) {
+    await undecimAddResponseBody(error);
   }
   if (!isExpectedError(error)) {
-    Sentry.captureException(error);
-  } else {
     console.error(error);
+    Sentry.captureException(error);
   }
 }

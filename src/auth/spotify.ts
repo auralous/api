@@ -1,7 +1,7 @@
 import nc from "next-connect";
 import un from "undecim";
 import { URLSearchParams } from "url";
-import { ForbiddenError } from "../error/index.js";
+import { rethrowSpotifyError } from "../error/spotify.js";
 import { PlatformName } from "../graphql/graphql.gen.js";
 import { authCallback, authInit } from "./auth.js";
 
@@ -37,7 +37,7 @@ export class SpotifyAuth {
         headers: { Authorization: `Bearer ${accessToken}` },
       })
       .then(
-        (res) => res.status === 200,
+        () => true,
         () => false
       );
   }
@@ -54,7 +54,8 @@ export class SpotifyAuth {
           Authorization: SpotifyAuth.ClientAuthorizationHeader,
         },
       })
-      .json<SpotifyTokenResponse>();
+      .json<SpotifyTokenResponse>()
+      .catch(rethrowSpotifyError);
   }
 
   static getUser(
@@ -64,12 +65,8 @@ export class SpotifyAuth {
       .get("/v1/me", {
         headers: { Authorization: `Bearer ${accessToken}` },
       })
-      .json<
-        SpotifyApi.CurrentUsersProfileResponse | { error: { message: string } }
-      >()
-      .then((data) =>
-        "error" in data ? Promise.reject(new Error(data.error.message)) : data
-      );
+      .json<SpotifyApi.CurrentUsersProfileResponse>()
+      .catch(rethrowSpotifyError);
   }
 
   static async getOrRefreshTokens(
@@ -94,9 +91,10 @@ export class SpotifyAuth {
           Authorization: SpotifyAuth.ClientAuthorizationHeader,
         },
       })
-      .json<SpotifyTokenResponse>();
+      .json<SpotifyTokenResponse>()
+      .catch(() => null);
 
-    if ("error" in data) {
+    if (!data) {
       // Refresh token might have been expired
       return null;
     }
@@ -133,10 +131,11 @@ const authUrl =
 export const handler = nc()
   .get("/", (req, res) => authInit(req, res, authUrl))
   .get("/callback", async (req, res) => {
-    if (!req.query.code) throw new ForbiddenError("Unauthorized");
+    if (!req.query.code) {
+      return res.end("'code' is not provided in query params");
+    }
     const jsonToken = await SpotifyAuth.getTokens(req.query.code);
     const json = await SpotifyAuth.getUser(jsonToken.access_token);
-
     return authCallback(
       req,
       res,

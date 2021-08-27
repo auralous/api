@@ -93,24 +93,22 @@ export class NowPlayingWorker {
       uid = indexOrUid;
       const findIndex = await QueueService.getIndexByUid(id, uid);
       if (!findIndex)
-        throw new Error(`Cannot find index of uid ${uid} for id = ${id}`);
+        throw new Error(`Queue index is null for id = ${id}, uid = ${uid}`);
       index = findIndex;
     } else {
       index = indexOrUid;
       const findUid = await QueueService.getUidAtIndex(id, index);
       if (!findUid)
-        throw new Error(
-          `Cannot find queue uid at index ${index} for id = ${id}`
-        );
+        throw new Error(`Queue uid is null for id = ${id}, index = ${index}`);
       uid = findUid;
     }
 
     const queueItem = await QueueService.findQueueItemData(id, uid);
     if (!queueItem)
-      throw new Error(`Cannot get queue item data for id = ${id} and ${uid}`);
+      throw new Error(`QueueItem is null for id = ${id}, uid = ${uid}`);
 
     const track = await TrackService.findTrack(this.context, queueItem.trackId);
-    if (!track) throw new Error(`Cannot find track ${queueItem.trackId}`);
+    if (!track) throw new Error(`Track is null for id = ${queueItem.trackId}`);
 
     const playedAt = new Date();
     const endedAt = new Date(playedAt.getTime() + track.duration);

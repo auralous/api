@@ -1,5 +1,5 @@
 import type { SessionDbObject } from "../../data/types.js";
-import { ForbiddenError, UserInputError } from "../../error/index.js";
+import { InvalidArgError, NotFoundError } from "../../error/errors.js";
 import { NowPlayingService } from "../../services/nowPlaying.js";
 import { SessionService } from "../../services/session.js";
 import { TrackService } from "../../services/track.js";
@@ -14,7 +14,8 @@ const resolvers: Resolvers = {
       return SessionService.findById(context, id);
     },
     async sessions(parent, { creatorId, limit, next }, context) {
-      if (limit > 20) throw new ForbiddenError("Too large limit");
+      if (limit > 20)
+        throw new InvalidArgError("limit", "Must be less than or equal 20");
       let sessions: SessionDbObject[] = [];
       if (creatorId) {
         sessions = await SessionService.findByCreatorId(
@@ -108,7 +109,7 @@ const resolvers: Resolvers = {
     sessionUpdated: {
       async subscribe(parent, { id }, context) {
         const session = await SessionService.findById(context, id);
-        if (!session) throw new UserInputError("Session not found", ["id"]);
+        if (!session) throw new NotFoundError("session", id);
         return context.pubsub.on(
           PUBSUB_CHANNELS.sessionUpdated,
           (payload) => payload.id === id

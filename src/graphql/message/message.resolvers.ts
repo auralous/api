@@ -1,4 +1,4 @@
-import { AuthenticationError, ForbiddenError } from "../../error/index.js";
+import { InvalidArgError, UnauthorizedError } from "../../error/errors.js";
 import { MessageService } from "../../services/message.js";
 import { UserService } from "../../services/user.js";
 import { PUBSUB_CHANNELS } from "../../utils/constant.js";
@@ -8,7 +8,7 @@ const resolvers: Resolvers = {
   Subscription: {
     messageAdded: {
       async subscribe(parent, { id }, { pubsub, auth }) {
-        if (auth) throw new ForbiddenError("");
+        if (auth) throw new UnauthorizedError();
         // FIXME: Check auth
         return pubsub.on(
           PUBSUB_CHANNELS.messageAdded,
@@ -23,7 +23,8 @@ const resolvers: Resolvers = {
       if (context.auth) return null;
       limit = limit || 20; // limit = 0 is invalid
       offset = offset || 0;
-      if (limit > 20) throw new ForbiddenError("Too large limit");
+      if (limit > 20)
+        throw new InvalidArgError("limit", "Must be less than or equal 20");
       const stop = -offset - 1;
       const start = stop - limit + 1;
       return MessageService.findById(id, start, stop);
@@ -31,7 +32,7 @@ const resolvers: Resolvers = {
   },
   Mutation: {
     async messageAdd(parents, { id, text }, context) {
-      if (!context.auth) throw new AuthenticationError("");
+      if (!context.auth) throw new UnauthorizedError();
       return !!(await MessageService.add(id, {
         text,
         type: MessageType.Message,

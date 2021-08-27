@@ -1,6 +1,5 @@
 import { Auth, google } from "googleapis";
 import nc from "next-connect";
-import { ForbiddenError } from "../error/index.js";
 import { PlatformName } from "../graphql/graphql.gen.js";
 import { authCallback, authInit } from "./auth.js";
 
@@ -67,7 +66,10 @@ export const handler = nc()
     authInit(req, res, url);
   })
   .get("/callback", async (req, res) => {
-    if (!req.query.code) throw new ForbiddenError("Unauthorized");
+    if (!req.query.code) {
+      return res.end("'code' is not provided in query params");
+    }
+
     const { tokens } = await oauth2Client.getToken(req.query.code);
 
     const gUser = JSON.parse(

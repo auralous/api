@@ -18,7 +18,11 @@ import fastJson from "fast-json-stringify";
 import { nanoid } from "nanoid/non-secure";
 import { pubsub } from "../data/pubsub.js";
 import { redis } from "../data/redis.js";
-import { AuthenticationError, ForbiddenError } from "../error/index.js";
+import {
+  CustomError,
+  NotFoundError,
+  UnauthorizedError,
+} from "../error/errors.js";
 import type {
   MutationQueueAddArgs,
   MutationQueueReorderArgs,
@@ -101,7 +105,7 @@ export class QueueService {
     return list.map((uid) => {
       const dataStr = datas[uid];
       if (!dataStr)
-        throw new Error(`Queue data missing for id = ${id} and uid = ${uid}`);
+        throw new Error(`QueueItem is null for id = ${id}, uid = ${uid}`);
       const data = QueueService.parseQueueItemData(dataStr);
       return {
         uid,
@@ -284,12 +288,15 @@ export class QueueService {
   ) {
     const auth = context.auth;
     // Assert auth
-    if (!auth) throw new AuthenticationError("");
+    if (!auth) throw new UnauthorizedError();
     const session = await SessionService.findById(context, id);
-    if (!session) throw new ForbiddenError("Session does not exist");
-    if (!session.isLive) throw new ForbiddenError("Session is no longer live");
+    if (!session) throw new NotFoundError("session", id);
+    if (!session.isLive)
+      throw new CustomError("error.session_ended", {
+        session,
+      });
     if (!session.collaboratorIds.includes(auth.userId))
-      throw new ForbiddenError("You are not allowed to add to this queue");
+      throw new CustomError("error.not_collaborator");
 
     if (actions.add) {
       await QueueService.pushItems(

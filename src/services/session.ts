@@ -6,10 +6,11 @@ import { pubsub } from "../data/pubsub.js";
 import { redis } from "../data/redis.js";
 import { SessionDbObject } from "../data/types.js";
 import {
-  AuthenticationError,
+  CustomError,
   ForbiddenError,
-  UserInputError,
-} from "../error/index.js";
+  NotFoundError,
+  UnauthorizedError,
+} from "../error/errors.js";
 import { LocationInput, MessageType } from "../graphql/graphql.gen.js";
 import { CONFIG, PUBSUB_CHANNELS, REDIS_KEY } from "../utils/constant.js";
 import type { NullablePartial } from "../utils/types.js";
@@ -103,16 +104,15 @@ export class SessionService {
    * @returns {string}
    */
   static async getInviteToken(context: ServiceContext, sessionId: string) {
-    if (!context.auth) throw new AuthenticationError("");
+    if (!context.auth) throw new UnauthorizedError();
     const session = await SessionService.findById(context, sessionId);
-    if (!session) throw new UserInputError("Session not found", ["id"]);
+    if (!session) throw new NotFoundError("session", sessionId);
     if (!session.collaboratorIds.includes(context.auth.userId))
-      throw new ForbiddenError("Not allowed to get invite link");
+      throw new ForbiddenError("session", sessionId);
     const token = await redis.get(
       REDIS_KEY.sessionInviteToken(String(session._id))
     );
-    if (!token)
-      throw new Error(`Cannot get invite token for session ${session._id}`);
+    if (!token) throw new Error(`Invite token is null for id = ${session._id}`);
     return token;
   }
 
@@ -147,9 +147,9 @@ export class SessionService {
     sessionId: string,
     token: string
   ) {
-    if (!context.auth) throw new AuthenticationError("");
+    if (!context.auth) throw new UnauthorizedError();
     const session = await SessionService.findById(context, sessionId);
-    if (!session) throw new UserInputError("Session not found", ["id"]);
+    if (!session) throw new NotFoundError("session", sessionId);
     const verifyToken = await redis.get(
       REDIS_KEY.sessionInviteToken(String(session._id))
     );
@@ -179,10 +179,9 @@ export class SessionService {
     },
     tracks: string[]
   ): Promise<SessionDbObject> {
-    if (!context.auth) throw new AuthenticationError("");
+    if (!context.auth) throw new UnauthorizedError();
 
-    if (tracks.length < 1)
-      throw new UserInputError("Require at least a track", ["tracks"]);
+    if (tracks.length < 1) throw new CustomError("error.tracks_required");
 
     // use first track as image
     const track = await TrackService.findTrack(context, tracks[0]);
@@ -197,10 +196,7 @@ export class SessionService {
       isLive: true,
       creatorId: context.auth.userId,
     });
-    if (liveCount)
-      throw new ForbiddenError(
-        "You must stop other sessions before creating a new one"
-      );
+    if (liveCount) throw new CustomError("error.must_end_other_sessions");
 
     const session: Omit<SessionDbObject, "_id"> = {
       text,
@@ -260,7 +256,7 @@ export class SessionService {
       },
       { returnDocument: "after" }
     );
-    if (!value) throw new Error("something went wrong when ending session");
+    if (!value) throw new Error(`Cannot end session with id = ${_id}`);
     await Promise.all([
       QueueService.deleteById(value._id.toHexString()),
       SessionService.invalidateInviteToken(value),
@@ -280,11 +276,11 @@ export class SessionService {
     context: ServiceContext,
     sessionId: string
   ): Promise<SessionDbObject> {
-    if (!context.auth) throw new AuthenticationError("");
+    if (!context.auth) throw new UnauthorizedError();
     const session = await SessionService.findById(context, sessionId);
-    if (!session) throw new Error("Session not found");
+    if (!session) throw new NotFoundError("session", sessionId);
     if (session.creatorId !== context.auth?.userId)
-      throw new ForbiddenError("Cannot update story");
+      throw new ForbiddenError("session", sessionId);
     const endedSession = await SessionService._end(sessionId);
     SessionService.invalidateLoaderCache(context, endedSession);
     return endedSession;
@@ -307,7 +303,7 @@ export class SessionService {
       location: LocationInput | null | undefined;
     }
   ): Promise<SessionDbObject> {
-    if (!context.auth) throw new AuthenticationError("");
+    if (!context.auth) throw new UnauthorizedError();
     const { value: session } = await SessionService.collection.findOneAndUpdate(
       {
         _id: new mongodb.ObjectId(id),
@@ -329,7 +325,8 @@ export class SessionService {
       },
       { returnDocument: "after" }
     );
-    if (!session) throw new ForbiddenError("Cannot update session");
+    // TODO: Clarify either session is not found or user is not allowed to update
+    if (!session) throw new NotFoundError("session", id);
     SessionService.invalidateLoaderCache(context, session);
     SessionService.notifyUpdate(session);
     return session;
@@ -341,19 +338,23 @@ export class SessionService {
    * @param id
    */
   static async deleteById(context: ServiceContext, id: string) {
-    if (!context.auth) throw new AuthenticationError("");
+    if (!context.auth) throw new UnauthorizedError();
 
-    const { value } = await SessionService.collection.findOneAndDelete({
-      _id: new mongodb.ObjectId(id),
-      creatorId: context.auth.userId,
-    });
-    if (!value) throw new ForbiddenError("Cannot delete session");
+    const { value: session } = await SessionService.collection.findOneAndDelete(
+      {
+        _id: new mongodb.ObjectId(id),
+        creatorId: context.auth.userId,
+      }
+    );
+
+    // TODO: Clarify either session is not found or user is not allowed to update
+    if (!session) throw new NotFoundError("session", id);
 
     // Delete related resources
     await Promise.all([
-      QueueService.deleteById(value._id.toHexString()),
-      SessionService.invalidateInviteToken(value),
-      NowPlayingWorker.cancelSkipJob(value._id.toHexString()),
+      QueueService.deleteById(session._id.toHexString()),
+      SessionService.invalidateInviteToken(session),
+      NowPlayingWorker.cancelSkipJob(session._id.toHexString()),
     ]);
 
     return true;
@@ -451,14 +452,14 @@ export class SessionService {
     context: ServiceContext,
     sessionId: string
   ): Promise<void> {
-    if (!context.auth) throw new AuthenticationError("");
+    if (!context.auth) throw new UnauthorizedError();
 
     const session = await SessionService.findById(context, sessionId);
 
-    if (!session) throw new ForbiddenError("Cannot ping to this session");
+    if (!session) throw new NotFoundError("session", sessionId);
 
     // session presence does not apply to ended session
-    if (!session.isLive) return;
+    if (!session.isLive) throw new CustomError("error.session_ended");
 
     // update lastCreatorActivityAt since the pinging user is create
     if (context.auth.userId === session.creatorId) {

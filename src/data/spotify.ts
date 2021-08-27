@@ -1,6 +1,7 @@
 import un from "undecim";
 import { URLSearchParams } from "url";
 import { SpotifyAuth, SpotifyTokenResponse } from "../auth/spotify.js";
+import { rethrowSpotifyError } from "../error/spotify.js";
 import { PlatformName, Playlist } from "../graphql/graphql.gen.js";
 import { isDefined } from "../utils/utils.js";
 import type { ArtistDbObject, TrackDbObject } from "./types.js";
@@ -104,7 +105,8 @@ export class SpotifyAPI {
               Authorization: `Authorization: Bearer ${accessToken}`,
             },
           })
-          .json<SpotifyApi.MultipleTracksResponse>();
+          .json<SpotifyApi.MultipleTracksResponse>()
+          .catch(rethrowSpotifyError);
         return data.tracks.map((val) => (val ? parseTrack(val) : null));
       }
     );
@@ -129,7 +131,8 @@ export class SpotifyAPI {
           },
         }
       )
-      .json<SpotifyApi.PlaylistObjectFull>();
+      .json<SpotifyApi.PlaylistObjectFull>()
+      .catch(rethrowSpotifyError);
 
     return parsePlaylist(data);
   }
@@ -150,7 +153,8 @@ export class SpotifyAPI {
             Authorization: `Authorization: Bearer ${accessToken}`,
           },
         })
-        .json<SpotifyApi.ListOfCurrentUsersPlaylistsResponse>();
+        .json<SpotifyApi.ListOfCurrentUsersPlaylistsResponse>()
+        .catch(rethrowSpotifyError);
       if (!data) break;
       playlists.push(...data.items.map(parsePlaylist));
     } while (data?.next);
@@ -180,11 +184,7 @@ export class SpotifyAPI {
           Authorization: `Authorization: Bearer ${accessToken}`,
         },
       })
-      .then(
-        () => true,
-        () =>
-          Promise.reject(new Error("Could not add Spotify tracks to playlist"))
-      );
+      .then(() => true, rethrowSpotifyError);
   }
 
   /**
@@ -199,8 +199,6 @@ export class SpotifyAPI {
   ): Promise<Playlist> {
     const spotifyUserResponse = await SpotifyAuth.getUser(accessToken);
 
-    if (!spotifyUserResponse?.id) throw new Error("Cannot get Spotify user");
-
     return SpotifyAPI.client
       .post(`/v1/users/${spotifyUserResponse.id}/playlists`, {
         data: { name },
@@ -209,9 +207,7 @@ export class SpotifyAPI {
         },
       })
       .json<SpotifyApi.CreatePlaylistResponse>()
-      .then(parsePlaylist, () =>
-        Promise.reject("Could not create Spotify playlist")
-      );
+      .then(parsePlaylist, rethrowSpotifyError);
   }
 
   /**
@@ -236,9 +232,10 @@ export class SpotifyAPI {
             Authorization: `Authorization: Bearer ${accessToken}`,
           },
         })
-        .json<SpotifyApi.PlaylistTrackResponse>();
+        .json<SpotifyApi.PlaylistTrackResponse>()
+        .catch(rethrowSpotifyError);
 
-      if (trackData?.items)
+      if (trackData?.items) {
         tracks.push(
           ...trackData.items
             .map((trackItem) => {
@@ -249,6 +246,7 @@ export class SpotifyAPI {
             })
             .filter(isDefined)
         );
+      }
     } while (trackData?.next);
 
     return tracks;
@@ -277,7 +275,8 @@ export class SpotifyAPI {
           },
         }
       )
-      .json<SpotifyApi.TrackSearchResponse>();
+      .json<SpotifyApi.TrackSearchResponse>()
+      .catch(rethrowSpotifyError);
 
     return data.tracks.items.map(parseTrack);
   }
@@ -302,7 +301,8 @@ export class SpotifyAPI {
               Authorization: `Bearer ${accessToken}`,
             },
           })
-          .json<SpotifyApi.MultipleArtistsResponse>();
+          .json<SpotifyApi.MultipleArtistsResponse>()
+          .catch(rethrowSpotifyError);
         return data.artists.map((val) => (val ? parseArtist(val) : null));
       }
     );
@@ -321,7 +321,8 @@ export class SpotifyAPI {
           Authorization: `Bearer ${userAccessToken || clientAccessToken}`,
         },
       })
-      .json<SpotifyApi.ListOfFeaturedPlaylistsResponse>();
+      .json<SpotifyApi.ListOfFeaturedPlaylistsResponse>()
+      .catch(rethrowSpotifyError);
 
     return data.playlists.items.map(parsePlaylist);
   }

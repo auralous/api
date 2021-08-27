@@ -1,5 +1,4 @@
 import { NowPlayingService } from "../../services/nowPlaying.js";
-import { SessionService } from "../../services/session.js";
 import { PUBSUB_CHANNELS } from "../../utils/constant.js";
 import type { Resolvers } from "../graphql.gen.js";
 
@@ -15,25 +14,17 @@ const resolvers: Resolvers = {
   },
   Mutation: {
     async nowPlayingReact(parent, { id, reaction }, context) {
-      await NowPlayingService.reactNowPlaying(
-        context,
-        await SessionService.findById(context, id),
-        reaction
-      );
+      await NowPlayingService.reactNowPlaying(context, id, reaction);
       return true;
     },
     async nowPlayingSkip(parent, { id, isBackward }, context) {
       return NowPlayingService[isBackward ? "skipBackward" : "skipForward"](
         context,
-        await SessionService.findById(context, id)
+        id
       );
     },
     async nowPlayingPlayUid(parent, { id, uid }, context) {
-      return NowPlayingService.playUid(
-        context,
-        await SessionService.findById(context, id),
-        uid
-      );
+      return NowPlayingService.playUid(context, id, uid);
     },
   },
   Subscription: {

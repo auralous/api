@@ -1,5 +1,5 @@
 import mongodb from "mongodb";
-import { AuthenticationError } from "../../error/index.js";
+import { UnauthorizedError } from "../../error/errors.js";
 import { NotificationService } from "../../services/notification.js";
 import { SessionService } from "../../services/session.js";
 import { UserService } from "../../services/user.js";
@@ -54,7 +54,7 @@ const resolvers: Resolvers = {
   Subscription: {
     notificationAdded: {
       async subscribe(parent, args, { auth, pubsub }) {
-        if (!auth) throw new AuthenticationError("");
+        if (!auth) throw new UnauthorizedError();
 
         return pubsub.on(
           PUBSUB_CHANNELS.notificationAdded,

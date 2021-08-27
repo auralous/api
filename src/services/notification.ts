@@ -7,7 +7,7 @@ import type {
   NotificationDbObjectUnion,
   SessionDbObject,
 } from "../data/types.js";
-import { AuthenticationError } from "../error/index.js";
+import { UnauthorizedError } from "../error/errors.js";
 import { PUBSUB_CHANNELS } from "../utils/constant.js";
 import { FollowService } from "./follow.js";
 import { ServiceContext } from "./types.js";
@@ -27,7 +27,7 @@ export class NotificationService {
     limit: number,
     next?: string | null
   ) {
-    if (!context.auth) throw new AuthenticationError("");
+    if (!context.auth) throw new UnauthorizedError();
     return NotificationService.collection
       .find({
         userId: context.auth.userId,
@@ -44,7 +44,7 @@ export class NotificationService {
    * @param ids
    */
   static markRead(context: ServiceContext, ids: string[]) {
-    if (!context.auth) throw new AuthenticationError("");
+    if (!context.auth) throw new UnauthorizedError();
     return this.collection
       .updateMany(
         {

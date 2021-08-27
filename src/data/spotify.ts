@@ -1,16 +1,19 @@
-import un from "undecim";
+import pino from "pino";
+import { exit } from "process";
+import un, { UndecimError } from "undecim";
 import { URLSearchParams } from "url";
 import { SpotifyAuth, SpotifyTokenResponse } from "../auth/spotify.js";
 import { rethrowSpotifyError } from "../error/spotify.js";
+import { undecimAddResponseBody } from "../error/utils.js";
 import { PlatformName, Playlist } from "../graphql/graphql.gen.js";
+import { pinoOpts } from "../logger/options.js";
 import { isDefined } from "../utils/utils.js";
 import type { ArtistDbObject, TrackDbObject } from "./types.js";
 import { getFromIdsPerEveryNum } from "./utils.js";
 
 /// <reference path="spotify-api" />
 
-// For implicit aut
-let clientAccessToken: string | null = null;
+const logger = pino({ ...pinoOpts, name: "data/spotify" });
 
 /**
  * Implicit Auth is the token generated
@@ -18,26 +21,50 @@ let clientAccessToken: string | null = null;
  * that is only used if user access token
  * is unavailable
  */
-const updateImplicitAccessToken = async () => {
-  const data = await un
-    .post(SpotifyAuth.tokenEndpoint, {
-      data: new URLSearchParams({ grant_type: "client_credentials" }),
-      headers: {
-        Authorization: SpotifyAuth.ClientAuthorizationHeader,
-      },
-    })
-    .json<SpotifyTokenResponse>();
-  if (data.access_token) {
-    clientAccessToken = data.access_token;
-    setTimeout(updateImplicitAccessToken, data.expires_in * 1000 - 60 * 1000);
-  } else {
-    // Retry
-    clientAccessToken = null;
-    updateImplicitAccessToken();
+class SpotifyClientCredentials {
+  static accessToken: string;
+  private static retryAttempt = 0;
+  static async refresh() {
+    try {
+      const data = await un
+        .post(SpotifyAuth.tokenEndpoint, {
+          data: new URLSearchParams({ grant_type: "client_credentials" }),
+          headers: {
+            Authorization: SpotifyAuth.ClientAuthorizationHeader,
+          },
+        })
+        .json<SpotifyTokenResponse>();
+      logger.debug(data, "Implicit access token refreshed");
+      SpotifyClientCredentials.accessToken = data.access_token;
+      setTimeout(
+        SpotifyClientCredentials.refresh,
+        data.expires_in * 1000 - 60 * 1000
+      );
+    } catch (error) {
+      const err =
+        error instanceof UndecimError
+          ? await undecimAddResponseBody(error)
+          : error;
+      SpotifyClientCredentials.retryAttempt += 1;
+      if (SpotifyClientCredentials.retryAttempt > 6) {
+        logger.error(
+          err,
+          `Could not refresh implicit access token. Too many attempts.`
+        );
+        return exit(1);
+      }
+      const retryIn = Math.pow(2, SpotifyClientCredentials.retryAttempt) * 100;
+      logger.error(
+        err,
+        `Could not refresh implicit access token. Retrying in ${retryIn}...`
+      );
+      // Retry
+      setTimeout(SpotifyClientCredentials.refresh, retryIn);
+    }
   }
-};
+}
 
-await updateImplicitAccessToken();
+await SpotifyClientCredentials.refresh();
 
 function parseTrack(result: SpotifyApi.TrackObjectFull): TrackDbObject {
   return {
@@ -94,7 +121,7 @@ export class SpotifyAPI {
     userAccessToken?: string
   ): Promise<(TrackDbObject | null)[]> {
     // We may offload some of the work using user's token
-    const accessToken = userAccessToken || clientAccessToken;
+    const accessToken = userAccessToken || SpotifyClientCredentials.accessToken;
     return getFromIdsPerEveryNum<TrackDbObject | null>(
       externalIds,
       50,
@@ -121,7 +148,7 @@ export class SpotifyAPI {
     externalId: string,
     userAccessToken?: string
   ): Promise<Playlist | null> {
-    const accessToken = userAccessToken || clientAccessToken;
+    const accessToken = userAccessToken || SpotifyClientCredentials.accessToken;
     const data = await SpotifyAPI.client
       .get(
         `/v1/playlists/${externalId}?fields=id,external_urls,images,name,tracks(total),owner`,
@@ -219,7 +246,7 @@ export class SpotifyAPI {
     externalId: string,
     userAccessToken?: string
   ): Promise<TrackDbObject[]> {
-    const accessToken = userAccessToken || clientAccessToken;
+    const accessToken = userAccessToken || SpotifyClientCredentials.accessToken;
 
     const tracks: TrackDbObject[] = [];
 
@@ -261,7 +288,7 @@ export class SpotifyAPI {
     searchQuery: string,
     userAccessToken?: string
   ): Promise<TrackDbObject[]> {
-    const accessToken = userAccessToken || clientAccessToken;
+    const accessToken = userAccessToken || SpotifyClientCredentials.accessToken;
 
     const SEARCH_MAX_RESULTS = 30;
 
@@ -290,7 +317,7 @@ export class SpotifyAPI {
     externalIds: string[],
     userAccessToken?: string
   ): Promise<(ArtistDbObject | null)[]> {
-    const accessToken = userAccessToken || clientAccessToken;
+    const accessToken = userAccessToken || SpotifyClientCredentials.accessToken;
     return getFromIdsPerEveryNum<ArtistDbObject | null>(
       externalIds,
       50,
@@ -318,7 +345,9 @@ export class SpotifyAPI {
     const data = await SpotifyAPI.client
       .get(`/v1/browse/featured-playlists?limit=${limit}`, {
         headers: {
-          Authorization: `Bearer ${userAccessToken || clientAccessToken}`,
+          Authorization: `Bearer ${
+            userAccessToken || SpotifyClientCredentials.accessToken
+          }`,
         },
       })
       .json<SpotifyApi.ListOfFeaturedPlaylistsResponse>()

@@ -1,3 +1,4 @@
+import pino from "pino";
 import { pubsub } from "../data/pubsub.js";
 import { redis } from "../data/redis.js";
 import type {
@@ -5,11 +6,17 @@ import type {
   NowPlayingStateRedisValue,
 } from "../data/types.js";
 import type { NowPlayingQueueItem } from "../graphql/graphql.gen.js";
+import { pinoOpts } from "../logger/options.js";
 import { PUBSUB_CHANNELS, REDIS_KEY } from "../utils/constant.js";
 import { QueueService } from "./queue.js";
 import { TrackService } from "./track.js";
-import { ServiceContext } from "./types.js";
+import type { ServiceContext } from "./types.js";
 import { createContext } from "./_context.js";
+
+const logger = pino({
+  ...pinoOpts,
+  name: "service/nowPlayingWorker",
+});
 
 export class NowPlayingWorker {
   static PubSubChannel = "NowPlayingWorker";
@@ -68,6 +75,8 @@ export class NowPlayingWorker {
   }
 
   private static async setNowPlayingState(id: string, state: NowPlayingState) {
+    logger.debug({ id, state }, "setNowPlayingState");
+
     const value: Partial<NowPlayingStateRedisValue> = {};
     value.playingIndex = state.playingIndex.toString();
     value.queuePlayingUid = state.queuePlayingUid;
@@ -87,6 +96,7 @@ export class NowPlayingWorker {
     id: string,
     indexOrUid: number | string
   ) {
+    logger.debug({ id, indexOrUid }, "setNewPlayingIndexOrUid");
     let uid: string;
     let index: number;
     if (typeof indexOrUid === "string") {
@@ -136,15 +146,11 @@ export class NowPlayingWorker {
     });
   }
 
-  private async executeSkipForward(id: string, isManual?: boolean) {
-    const [nowPlayingState, queueLength] = await Promise.all<
-      NowPlayingState,
-      number,
-      boolean | number
-    >([
+  private async executeSkipForward(id: string) {
+    logger.debug({ id }, "executeSkipForward");
+    const [nowPlayingState, queueLength] = await Promise.all([
       NowPlayingWorker.getFormattedNowPlayingState(id),
       QueueService.getQueueLength(id),
-      !!isManual && NowPlayingWorker.cancelSkipJob(id),
     ]);
 
     // Either go back to first track if at end or go to the next
@@ -156,14 +162,11 @@ export class NowPlayingWorker {
     await this.setNewPlayingIndexOrUid(id, nextPlayingIndex);
   }
 
-  private async executeSkipBackward(id: string, isManual?: boolean) {
-    const [nowPlayingState] = await Promise.all<
-      NowPlayingState,
-      boolean | number
-    >([
-      NowPlayingWorker.getFormattedNowPlayingState(id),
-      !!isManual && NowPlayingWorker.cancelSkipJob(id),
-    ]);
+  private async executeSkipBackward(id: string) {
+    logger.debug({ id }, "executeSkipBackward");
+    const nowPlayingState = await NowPlayingWorker.getFormattedNowPlayingState(
+      id
+    );
 
     const nextPlayingIndex = Math.max(nowPlayingState.playingIndex - 1, 0);
 
@@ -179,15 +182,20 @@ export class NowPlayingWorker {
   private registerListeners() {
     pubsub.sub.subscribe(NowPlayingWorker.PubSubChannel);
     pubsub.sub.on("message", (channel, message: string) => {
-      // message has a format of action|sessionId where action can either be 'skipForward' or 'skipBackward'
       const [action, value] = message.split("|");
-      if (action === "skipForward") this.executeSkipForward(value, true);
-      else if (action === "skipBackward") this.executeSkipBackward(value, true);
-      else if (action === "playIndex") {
+      // manually cancel job because it does not handle that
+      if (action === "skipForward") {
+        NowPlayingWorker.cancelSkipJob(value);
+        this.executeSkipForward(value);
+      } else if (action === "skipBackward") {
+        this.executeSkipBackward(value);
+      } else if (action === "playIndex") {
         const [id, index] = value.split(":");
+        NowPlayingWorker.cancelSkipJob(id);
         this.setNewPlayingIndexOrUid(id, Number(index));
       } else if (action === "playUid") {
         const [id, uid] = value.split(":");
+        NowPlayingWorker.cancelSkipJob(id);
         this.setNewPlayingIndexOrUid(id, uid);
       }
     });
@@ -201,14 +209,18 @@ export class NowPlayingWorker {
     const removeResult = await NowPlayingWorker.cancelSkipJob(id);
     if (removeResult === 0) {
       // Try to take on this job but it might have been taken elsewhere
+      logger.debug(
+        { id },
+        `Attempted to trigger skipForward job but cannot found`
+      );
       return;
     }
-    console.log(`process skip job for id ${id}`);
     await this.executeSkipForward(id);
+    logger.debug({ id }, `Triggered skipForward job`);
   }
 
   async startScheduler() {
-    console.log("NowPlaying scheduler has started");
+    logger.info("Start scheduler");
     const processSkipJob = this.processSkipJob.bind(this);
     async function check() {
       const result = await redis.zrangebyscore(
@@ -216,7 +228,7 @@ export class NowPlayingWorker {
         "-inf",
         Date.now()
       );
-      console.log("scheduler check result: ", result);
+      logger.debug({ result }, `Polling key ${REDIS_KEY.npSkipScheduler}`);
       if (result.length) {
         result.map(processSkipJob);
       }

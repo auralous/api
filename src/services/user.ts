@@ -1,14 +1,14 @@
 import DataLoader from "dataloader";
 import { nanoid } from "nanoid";
 import slug from "slug";
-import { AuthState } from "../auth/types.js";
+import type { AuthState } from "../auth/types.js";
 import { db } from "../data/mongo.js";
 import type { UserDbObject } from "../data/types.js";
 import { CustomError, UnauthorizedError } from "../error/errors.js";
 import { CONFIG } from "../utils/constant.js";
 import type { NullablePartial } from "../utils/types.js";
 import { SessionService } from "./session.js";
-import { ServiceContext } from "./types.js";
+import type { ServiceContext } from "./types.js";
 
 export class UserService {
   private static collection = db.collection<UserDbObject>("users");

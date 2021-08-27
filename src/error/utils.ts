@@ -1,6 +1,8 @@
 import * as Sentry from "@sentry/node";
 import { GraphQLError } from "graphql";
+import pino from "pino";
 import { UndecimError } from "undecim";
+import { pinoOpts } from "../logger/options.js";
 import { AuraError } from "./errors.js";
 
 const GRAPHQL_EXPECTED_ERR_CODES = ["PERSISTED_QUERY_NOT_FOUND"];
@@ -28,8 +30,12 @@ export async function undecimAddResponseBody(error: UndecimError) {
   } catch (e) {
     /* noop */
   }
+  // @ts-ignore: Delete the body since it is not valuable and cluster terminal logs
+  delete error.response.body;
   return augmentedError;
 }
+
+const errorLogger = pino(pinoOpts);
 
 export async function logError(
   error: Error | GraphQLError | AuraError | UndecimError
@@ -38,7 +44,11 @@ export async function logError(
     await undecimAddResponseBody(error);
   }
   if (!isExpectedError(error)) {
-    console.error(error);
+    errorLogger.error(error);
     Sentry.captureException(error);
+  } else {
+    errorLogger.debug({
+      err: error,
+    });
   }
 }

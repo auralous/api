@@ -14,7 +14,7 @@ import { PUBSUB_CHANNELS, REDIS_KEY } from "../utils/constant.js";
 import { NowPlayingWorker } from "./nowPlayingWorker.js";
 import { QueueService } from "./queue.js";
 import { SessionService } from "./session.js";
-import { ServiceContext } from "./types.js";
+import type { ServiceContext } from "./types.js";
 
 export class NowPlayingService {
   /**

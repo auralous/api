@@ -1,11 +1,18 @@
 import { createServer } from "http";
+import pino from "pino";
 import type WebSocket from "ws";
 // @ts-ignore
 import { WebSocketServer } from "ws";
 import { getAuthFromRequest } from "../auth/auth.js";
 import { graphqlWS } from "../graphql/handler.js";
+import { pinoOpts } from "../logger/options.js";
 import { NowPlayingWorker } from "../services/nowPlayingWorker.js";
 import app from "./app.js";
+
+const serverLogger = pino({
+  ...pinoOpts,
+  name: "server/server",
+});
 
 const port = parseInt(process.env.PORT as string, 10) || 4000;
 const server = createServer(app);
@@ -44,6 +51,6 @@ wss.on("close", () => clearInterval(wssPingPong));
 export async function startServer() {
   await NowPlayingWorker.startWorker();
   server.listen(port, () => {
-    console.log(`Server Ready at ${process.env.API_URI}`);
+    serverLogger.info(`Server Ready at ${process.env.API_URI}`);
   });
 }

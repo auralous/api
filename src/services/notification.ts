@@ -10,7 +10,7 @@ import type {
 import { UnauthorizedError } from "../error/errors.js";
 import { PUBSUB_CHANNELS } from "../utils/constant.js";
 import { FollowService } from "./follow.js";
-import { ServiceContext } from "./types.js";
+import type { ServiceContext } from "./types.js";
 
 export class NotificationService {
   private static collection =

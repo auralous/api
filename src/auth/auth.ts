@@ -1,14 +1,18 @@
 import type { IncomingMessage, ServerResponse } from "http";
 import { nanoid } from "nanoid";
+import pino from "pino";
 import { URL } from "url";
 import { redis } from "../data/redis.js";
 import type { UserDbObject } from "../data/types.js";
 import { PlatformName } from "../graphql/graphql.gen.js";
+import { pinoOpts } from "../logger/options.js";
 import { UserService } from "../services/user.js";
 import { REDIS_KEY } from "../utils/constant.js";
 import { GoogleAuth } from "./google.js";
 import { SpotifyAuth } from "./spotify.js";
 import type { AuthState, RedisAuthHash } from "./types.js";
+
+const logger = pino({ ...pinoOpts, name: "auth" });
 
 /**
  * Create an auth initialization handler
@@ -55,6 +59,8 @@ export async function authCallback(
     req.query.state === "app_login"
       ? `auralous://sign-in?access_token=${token}`
       : `${process.env.APP_URI}/auth/callback?success=1`;
+
+  logger.debug({ user, token }, "User is authenticated");
 
   res
     .writeHead(307, {

@@ -1,6 +1,7 @@
 import DataLoader from "dataloader";
 import mongodb from "mongodb";
 import { nanoid } from "nanoid";
+import pino from "pino";
 import { db } from "../data/mongo.js";
 import { pubsub } from "../data/pubsub.js";
 import { redis } from "../data/redis.js";
@@ -12,6 +13,7 @@ import {
   UnauthorizedError,
 } from "../error/errors.js";
 import { LocationInput, MessageType } from "../graphql/graphql.gen.js";
+import { pinoOpts } from "../logger/options.js";
 import { CONFIG, PUBSUB_CHANNELS, REDIS_KEY } from "../utils/constant.js";
 import type { NullablePartial } from "../utils/types.js";
 import { MessageService } from "./message.js";
@@ -19,7 +21,9 @@ import { NotificationService } from "./notification.js";
 import { NowPlayingWorker } from "./nowPlayingWorker.js";
 import { QueueService } from "./queue.js";
 import { TrackService } from "./track.js";
-import { ServiceContext } from "./types.js";
+import type { ServiceContext } from "./types.js";
+
+const logger = pino({ ...pinoOpts, name: "services/session" });
 
 export class SessionService {
   private static collection = db.collection<SessionDbObject>("sessions");
@@ -482,8 +486,19 @@ export class SessionService {
       10
     );
 
-    const justJoined =
-      !lastTimestamp || now - lastTimestamp > CONFIG.activityTimeout;
+    const timeSinceLastPing = lastTimestamp ? now - lastTimestamp : -1;
+    const hasJustJoined =
+      timeSinceLastPing === -1 || timeSinceLastPing > CONFIG.activityTimeout;
+
+    logger.debug(
+      {
+        sessionId,
+        userId: context.auth.userId,
+        timeSinceLastPing,
+        hasJustJoined,
+      },
+      "pingPresence"
+    );
 
     // Ping that user is still here
     await redis.zadd(
@@ -492,7 +507,7 @@ export class SessionService {
       context.auth.userId
     );
 
-    if (justJoined) {
+    if (hasJustJoined) {
       // notify that user just joined via message
       MessageService.add(sessionId, {
         text: sessionId,

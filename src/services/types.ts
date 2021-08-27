@@ -1,4 +1,4 @@
-import { AuthState } from "../auth/types";
+import type { AuthState } from "../auth/types";
 import { SessionService } from "./session";
 import { TrackService } from "./track";
 import { UserService } from "./user";

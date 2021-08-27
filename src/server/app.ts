@@ -8,6 +8,7 @@ import {
   graphqlHTTP,
   stringify as graphqlStringify,
 } from "../graphql/handler.js";
+import { IS_DEV } from "../utils/constant.js";
 import {
   errorWithTranslation,
   makeSetCacheControl,
@@ -15,8 +16,6 @@ import {
   queryParser,
   rawBody,
 } from "./utils.js";
-
-const isDev = process.env.NODE_ENV !== "production";
 
 const app = nc(ncOptions);
 
@@ -36,7 +35,7 @@ app.get("/health", (req, res) => {
   );
 });
 
-if (isDev) {
+if (IS_DEV) {
   // For dev env, we setup cors configuration.
   // However, in production, reverse proxy has already handled it
   app.use(

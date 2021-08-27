@@ -51,3 +51,5 @@ export const PUBSUB_CHANNELS = {
   queueUpdated: "QUEUE_UPDATED",
   notificationAdded: "NOTIFICATION_ADDED",
 };
+
+export const IS_DEV = process.env.NODE_ENV !== "production";

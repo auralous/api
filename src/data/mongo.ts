@@ -1,11 +1,18 @@
 import type { Db } from "mongodb";
 import mongodb from "mongodb";
+import pino from "pino";
+import { pinoOpts } from "../logger/options.js";
 import type {
   FollowDbObject,
   NotificationDbObjectUnion,
   SessionDbObject,
   UserDbObject,
 } from "./types.js";
+
+const logger = pino({
+  ...pinoOpts,
+  name: "data/mongo",
+});
 
 async function applyIndex(db: Db) {
   // user
@@ -28,11 +35,14 @@ async function applyIndex(db: Db) {
   await db
     .collection<NotificationDbObjectUnion>("notifications")
     .createIndexes([{ key: { userId: 1 } }]);
+  logger.info("Index applied");
 }
 
 const client = new mongodb.MongoClient(process.env.MONGODB_URI as string);
 
 await client.connect();
+
+logger.info("Database connected");
 
 export const db = client.db();
 

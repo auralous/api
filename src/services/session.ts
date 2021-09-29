@@ -247,7 +247,7 @@ export class SessionService {
    * @private
    */
   private static async _end(_id: string) {
-    const queue = await QueueService.findById(_id, 0, 0);
+    const queue = await QueueService.findById(_id, 0, -1);
     const { value } = await SessionService.collection.findOneAndUpdate(
       {
         _id: new mongodb.ObjectId(_id),

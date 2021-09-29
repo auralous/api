@@ -58,7 +58,7 @@ export async function authCallback(
   const redirectTarget =
     req.query.state === "app_login"
       ? `auralous://sign-in?access_token=${token}`
-      : `${process.env.APP_URI}/auth/callback?success=1`;
+      : `${process.env.APP_URI}/?access_token=${token}`;
 
   logger.debug({ user, token }, "User is authenticated");
 

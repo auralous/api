@@ -35,18 +35,27 @@ const resolvers: Resolvers = {
     async sessionListeners(parent, { id }) {
       return SessionService.getCurrentListeners(id);
     },
-    // @ts-ignore
-    async sessionCurrentLive(parent, { creatorId }, context) {
-      if (!creatorId) return null;
-      const session = await SessionService.findLiveByCreatorId(
-        context,
-        creatorId
+    // @ts-ignore: Invalid TS Error
+    async sessionCurrentLive(parent, { creatorId, mine }, context) {
+      if (mine) {
+        if (!context.auth) return null;
+        creatorId = context.auth.userId;
+      }
+      if (creatorId) {
+        const session = await SessionService.findLiveByCreatorId(
+          context,
+          creatorId
+        );
+        if (!session) return null;
+        return {
+          creatorId,
+          sessionId: session._id,
+        };
+      }
+      throw new InvalidArgError(
+        "creatorId",
+        "Provide either creatorId or mine = true"
       );
-      if (!session) return null;
-      return {
-        creatorId,
-        sessionId: session._id,
-      };
     },
     async sessionTracks(parent, { id, from, to }, context) {
       const sessionTrackIds = await SessionService.getTrackIds(

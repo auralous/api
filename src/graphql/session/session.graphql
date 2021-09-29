@@ -2,7 +2,7 @@ type Query {
   session(id: ID!): Session
   sessionInviteLink(id: ID!): String!
   sessionListeners(id: ID!): [String!]
-  sessionCurrentLive(creatorId: ID!): SessionCurrentLive
+  sessionCurrentLive(creatorId: ID, mine: Boolean): SessionCurrentLive
   sessions(creatorId: String, next: String, limit: Int!): [Session!]!
   sessionsOnMap(lng: Float!, lat: Float!, radius: Float!): [Session!]!
   sessionTracks(id: ID!, from: Int, to: Int): [Track!]!

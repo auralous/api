@@ -13,7 +13,7 @@ const resolvers: Resolvers = {
     session(parent, { id }, context) {
       return SessionService.findById(context, id);
     },
-    async sessions(parent, { creatorId, limit, next }, context) {
+    async sessions(parent, { creatorId, following, limit, next }, context) {
       if (limit > 20)
         throw new InvalidArgError("limit", "Must be less than or equal 20");
       let sessions: SessionDbObject[] = [];
@@ -24,8 +24,18 @@ const resolvers: Resolvers = {
           limit,
           next
         );
+      } else if (following) {
+        sessions = await SessionService.findFromFollowings(
+          context,
+          limit,
+          next
+        );
       } else {
-        sessions = await SessionService.findForFeedPublic(context, limit, next);
+        sessions = await SessionService.findRecommendations(
+          context,
+          limit,
+          next
+        );
       }
       return sessions;
     },

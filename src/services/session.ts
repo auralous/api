@@ -16,6 +16,7 @@ import { LocationInput, MessageType } from "../graphql/graphql.gen.js";
 import { pinoOpts } from "../logger/options.js";
 import { CONFIG, PUBSUB_CHANNELS, REDIS_KEY } from "../utils/constant.js";
 import type { NullablePartial } from "../utils/types.js";
+import { FollowService } from "./follow.js";
 import { MessageService } from "./message.js";
 import { NotificationService } from "./notification.js";
 import { NowPlayingWorker } from "./nowPlayingWorker.js";
@@ -433,13 +434,38 @@ export class SessionService {
    * @param limit
    * @param next
    */
-  static async findForFeedPublic(
+  static async findRecommendations(
     context: ServiceContext,
     limit: number,
     next?: string | null
   ): Promise<SessionDbObject[]> {
     return SessionService.collection
       .find({
+        ...(next && { _id: { $lt: new mongodb.ObjectId(next) } }),
+      })
+      .sort({ $natural: -1 })
+      .limit(limit)
+      .toArray();
+  }
+
+  /**
+   *
+   */
+  static async findFromFollowings(
+    context: ServiceContext,
+    limit: number,
+    next?: string | null
+  ) {
+    if (!context.auth) throw new UnauthorizedError();
+    const followingIds = await FollowService.findFollowings(
+      context.auth.userId
+    );
+
+    return SessionService.collection
+      .find({
+        creatorId: {
+          $in: followingIds.map((followingId) => followingId.following),
+        },
         ...(next && { _id: { $lt: new mongodb.ObjectId(next) } }),
       })
       .sort({ $natural: -1 })

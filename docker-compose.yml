@@ -11,7 +11,7 @@ services:
     volumes:
       - redis_data:/data
   api:
-    build: .
+    image: hvvo/auralous-api:latest
     command: npm run start
     depends_on:
       - mongodb
@@ -26,7 +26,7 @@ services:
     depends_on:
       - api
   worker:
-    build: .
+    image: hvvo/auralous-api:latest
     command: npm run start:worker
     depends_on:
       - api

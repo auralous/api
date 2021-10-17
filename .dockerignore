@@ -1,6 +1,7 @@
 **/.classpath
 **/.dockerignore
 **/.env
+**/.env.prod
 **/.git
 **/.gitignore
 **/.project
@@ -21,6 +22,7 @@
 **/secrets.dev.yaml
 **/values.dev.yaml
 README.md
+LICENSE
 **/.eslintrc.js
 **/.editorconfig
 **/.github

@@ -45,6 +45,21 @@ Install the following:
 
 Run `docker-compose up` to start redis and mongodb services. Then, run `npm run dev` to start the development server.
 
+## Deployment
+
+### Build Docker image
+
+```
+sudo docker build -t hvvo/auralous-api .
+sudo docker push hvvo/auralous-api
+```
+
+### Run with Docker Compose
+
+1. Pull the source code
+2. Create `.env.prod` as above
+3. Run `docker compose up -d`
+
 ## License
 
 This program is a free software: you can redistribute it and/or modify it under the terms of the GNU Affero General Public License as published by the Free Software Foundation. See [LICENSE](LICENSE) file in this repository for the full text.

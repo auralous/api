@@ -44,7 +44,7 @@ class SpotifyClientCredentials {
       const err =
         error instanceof UndecimError
           ? await undecimAddResponseBody(error)
-          : error;
+          : (error as Error);
       SpotifyClientCredentials.retryAttempt += 1;
       if (SpotifyClientCredentials.retryAttempt > 6) {
         logger.error(

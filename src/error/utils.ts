@@ -30,8 +30,10 @@ export async function undecimAddResponseBody(error: UndecimError) {
   } catch (e) {
     /* noop */
   }
-  // @ts-ignore: Delete the body since it is not valuable and cluster terminal logs
-  delete error.response.body;
+  Object.defineProperty(error.response, "body", {
+    value: undefined,
+    enumerable: false,
+  });
   return augmentedError;
 }
 

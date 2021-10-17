@@ -504,15 +504,16 @@ export class SessionService {
 
     const now = Date.now();
     // when was user last in session or possibly NaN if never in
-    const lastTimestamp: number = parseInt(
-      await redis.zscore(
-        REDIS_KEY.sessionListenerPresences(sessionId),
-        context.auth.userId
-      ),
-      10
+    const lastTimestampStr = await redis.zscore(
+      REDIS_KEY.sessionListenerPresences(sessionId),
+      context.auth.userId
     );
+    const lastTimestamp = lastTimestampStr
+      ? parseInt(lastTimestampStr, 10)
+      : undefined;
 
-    const timeSinceLastPing = lastTimestamp ? now - lastTimestamp : -1;
+    const timeSinceLastPing =
+      lastTimestamp !== undefined ? now - lastTimestamp : -1;
     const hasJustJoined =
       timeSinceLastPing === -1 || timeSinceLastPing > CONFIG.activityTimeout;
 

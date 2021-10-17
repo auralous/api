@@ -1,7 +1,6 @@
 import { createServer } from "http";
 import pino from "pino";
 import type WebSocket from "ws";
-// @ts-ignore
 import { WebSocketServer } from "ws";
 import { getAuthFromRequest } from "../auth/auth.js";
 import { graphqlWS } from "../graphql/handler.js";

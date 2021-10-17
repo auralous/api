@@ -8,7 +8,7 @@ import {
   graphqlHTTP,
   stringify as graphqlStringify,
 } from "../graphql/handler.js";
-import { IS_DEV } from "../utils/constant.js";
+import { ENV, IS_DEV } from "../utils/constant.js";
 import {
   errorWithTranslation,
   makeSetCacheControl,
@@ -40,7 +40,7 @@ if (IS_DEV) {
   // However, in production, reverse proxy has already handled it
   app.use(
     cors({
-      origin: process.env.APP_URI,
+      origin: ENV.APP_URI,
       methods: ["GET", "POST"],
       credentials: true,
     })

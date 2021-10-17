@@ -1,6 +1,7 @@
 import { Auth, google } from "googleapis";
 import nc from "next-connect";
 import { PlatformName } from "../graphql/graphql.gen.js";
+import { ENV } from "../utils/constant.js";
 import { authCallback, authInit } from "./auth.js";
 
 /** Auth Service */
@@ -10,9 +11,9 @@ export class GoogleAuth {
     refreshToken: string | undefined
   ): Promise<{ accessToken: string; refreshToken: string | undefined } | null> {
     const oauth2Client = new google.auth.OAuth2(
-      process.env.GOOGLE_CLIENT_KEY,
-      process.env.GOOGLE_CLIENT_SECRET,
-      `${process.env.API_URI}/auth/google/callback`
+      ENV.GOOGLE_CLIENT_KEY,
+      ENV.GOOGLE_CLIENT_SECRET,
+      `${ENV.API_URI}/auth/google/callback`
     );
 
     oauth2Client.setCredentials({
@@ -43,9 +44,9 @@ export class GoogleAuth {
 }
 
 const oauth2Client = new google.auth.OAuth2(
-  process.env.GOOGLE_CLIENT_KEY,
-  process.env.GOOGLE_CLIENT_SECRET,
-  `${process.env.API_URI}/auth/google/callback`
+  ENV.GOOGLE_CLIENT_KEY,
+  ENV.GOOGLE_CLIENT_SECRET,
+  `${ENV.API_URI}/auth/google/callback`
 );
 
 /** router handler */

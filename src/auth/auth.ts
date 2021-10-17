@@ -7,7 +7,7 @@ import type { UserDbObject } from "../data/types.js";
 import { PlatformName } from "../graphql/graphql.gen.js";
 import { pinoOpts } from "../logger/options.js";
 import { UserService } from "../services/user.js";
-import { REDIS_KEY } from "../utils/constant.js";
+import { ENV, REDIS_KEY } from "../utils/constant.js";
 import { GoogleAuth } from "./google.js";
 import { SpotifyAuth } from "./spotify.js";
 import type { AuthState, RedisAuthHash } from "./types.js";
@@ -58,7 +58,7 @@ export async function authCallback(
   const redirectTarget =
     req.query.state === "app_login"
       ? `auralous://sign-in?access_token=${token}`
-      : `${process.env.APP_URI}/?access_token=${token}`;
+      : `${ENV.APP_URI}/?access_token=${token}`;
 
   logger.debug({ user, token }, "User is authenticated");
 

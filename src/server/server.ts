@@ -6,6 +6,7 @@ import { getAuthFromRequest } from "../auth/auth.js";
 import { graphqlWS } from "../graphql/handler.js";
 import { pinoOpts } from "../logger/options.js";
 import { NowPlayingWorker } from "../services/nowPlayingWorker.js";
+import { ENV } from "../utils/constant.js";
 import app from "./app.js";
 
 const serverLogger = pino({
@@ -13,7 +14,7 @@ const serverLogger = pino({
   name: "server/server",
 });
 
-const port = parseInt(process.env.PORT as string, 10) || 4000;
+const port = parseInt(ENV.PORT, 10);
 const server = createServer(app);
 
 interface ExtWebSocket extends WebSocket {
@@ -22,7 +23,7 @@ interface ExtWebSocket extends WebSocket {
 
 const wss: WebSocket.Server = new WebSocketServer({
   server,
-  path: "/graphql",
+  path: "/graphql-ws",
 });
 
 wss.on("connection", async (socket, req) => {
@@ -50,6 +51,6 @@ wss.on("close", () => clearInterval(wssPingPong));
 export async function startServer() {
   await NowPlayingWorker.startWorker();
   server.listen(port, () => {
-    serverLogger.info(`Server Ready at ${process.env.API_URI}`);
+    serverLogger.info(`Server Ready at ${ENV.API_URI}`);
   });
 }

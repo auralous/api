@@ -1,5 +1,6 @@
 import un from "undecim";
 import { PlatformName } from "../graphql/graphql.gen.js";
+import { ENV } from "../utils/constant.js";
 
 type OdesliResponse =
   | {
@@ -21,7 +22,7 @@ export class OdesliAPI {
       .get(
         `/v1-alpha.1/links?platform=${platformName}&type=song` +
           `&id=${externalId}` +
-          `&key=${process.env.SONGLINK_KEY}`
+          `&key=${ENV.SONGLINK_KEY}`
       )
       .json<OdesliResponse>();
   }

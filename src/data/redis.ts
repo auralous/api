@@ -1,9 +1,10 @@
 import Redis from "ioredis";
 import url from "url";
+import { ENV } from "../utils/constant.js";
 
 const MAXIMUM_RECONNECTION_ATTEMPT = 6;
 
-const redisUrl = new url.URL(process.env.REDIS_URL as string);
+const redisUrl = new url.URL(ENV.REDIS_URL);
 
 export const createClient = () =>
   new Redis({

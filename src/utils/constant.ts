@@ -1,3 +1,5 @@
+import assert from "assert";
+
 export const MAX_TRACK_DURATION = 7 * 60 * 1000;
 
 export const REDIS_KEY = {
@@ -52,3 +54,28 @@ export const PUBSUB_CHANNELS = {
 };
 
 export const IS_DEV = process.env.NODE_ENV !== "production";
+
+assert(process.env.API_URI);
+assert(process.env.APP_URI);
+assert(process.env.GOOGLE_API_KEY);
+assert(process.env.GOOGLE_CLIENT_KEY);
+assert(process.env.GOOGLE_CLIENT_SECRET);
+assert(process.env.SPOTIFY_CLIENT_ID);
+assert(process.env.SPOTIFY_CLIENT_SECRET);
+assert(process.env.SONGLINK_KEY);
+assert(process.env.MONGODB_URI);
+assert(process.env.REDIS_URL);
+
+export const ENV = {
+  API_URI: process.env.API_URI,
+  APP_URI: process.env.APP_URI,
+  GOOGLE_API_KEY: process.env.GOOGLE_API_KEY,
+  GOOGLE_CLIENT_KEY: process.env.GOOGLE_CLIENT_KEY,
+  GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
+  SPOTIFY_CLIENT_ID: process.env.SPOTIFY_CLIENT_ID,
+  SPOTIFY_CLIENT_SECRET: process.env.SPOTIFY_CLIENT_SECRET,
+  SONGLINK_KEY: process.env.SONGLINK_KEY,
+  MONGODB_URI: process.env.MONGODB_URI,
+  REDIS_URL: process.env.REDIS_URL,
+  PORT: process.env.PORT || "4000",
+};

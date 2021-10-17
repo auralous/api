@@ -2,6 +2,7 @@ import { google, youtube_v3 } from "googleapis";
 import un from "undecim";
 import type { Playlist } from "../graphql/graphql.gen.js";
 import { PlatformName } from "../graphql/graphql.gen.js";
+import { ENV } from "../utils/constant.js";
 import { isDefined, shuffle } from "../utils/utils.js";
 import { DataConfigs } from "./config.js";
 import type { ArtistDbObject, TrackDbObject } from "./types.js";
@@ -129,7 +130,7 @@ function parseArtist(result: youtube_v3.Schema$Channel): ArtistDbObject {
 export class YoutubeAPI {
   static youtube = google.youtube({
     version: "v3",
-    auth: process.env.GOOGLE_API_KEY,
+    auth: ENV.GOOGLE_API_KEY,
   });
 
   /**

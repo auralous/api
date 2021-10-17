@@ -3,6 +3,7 @@ import un from "undecim";
 import { URLSearchParams } from "url";
 import { rethrowSpotifyError } from "../error/spotify.js";
 import { PlatformName } from "../graphql/graphql.gen.js";
+import { ENV } from "../utils/constant.js";
 import { authCallback, authInit } from "./auth.js";
 
 /**
@@ -24,10 +25,10 @@ export class SpotifyAuth {
   static ClientAuthorizationHeader =
     "Basic " +
     Buffer.from(
-      `${process.env.SPOTIFY_CLIENT_ID}:${process.env.SPOTIFY_CLIENT_SECRET}`
+      `${ENV.SPOTIFY_CLIENT_ID}:${ENV.SPOTIFY_CLIENT_SECRET}`
     ).toString("base64");
 
-  static apiAuthCallback = `${process.env.API_URI}/auth/spotify/callback`;
+  static apiAuthCallback = `${ENV.API_URI}/auth/spotify/callback`;
 
   static async checkToken(accessToken?: string): Promise<boolean> {
     if (!accessToken) return false;
@@ -124,7 +125,7 @@ const scopesStr = [
 const authUrl =
   `https://accounts.spotify.com/authorize?` +
   `response_type=code` +
-  `&client_id=${process.env.SPOTIFY_CLIENT_ID}` +
+  `&client_id=${ENV.SPOTIFY_CLIENT_ID}` +
   `&scope=${encodeURIComponent(scopesStr)}` +
   `&redirect_uri=${encodeURIComponent(SpotifyAuth.apiAuthCallback)}`;
 

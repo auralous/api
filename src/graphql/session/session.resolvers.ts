@@ -4,7 +4,7 @@ import { NowPlayingService } from "../../services/nowPlaying.js";
 import { SessionService } from "../../services/session.js";
 import { TrackService } from "../../services/track.js";
 import { UserService } from "../../services/user.js";
-import { PUBSUB_CHANNELS } from "../../utils/constant.js";
+import { ENV, PUBSUB_CHANNELS } from "../../utils/constant.js";
 import { isDefined } from "../../utils/utils.js";
 import type { Resolvers } from "../graphql.gen.js";
 
@@ -80,7 +80,7 @@ const resolvers: Resolvers = {
     },
     async sessionInviteLink(parent, { id }, context) {
       return `${
-        process.env.APP_URI
+        ENV.APP_URI
       }/session/${id}/invite/${await SessionService.getInviteToken(
         context,
         id

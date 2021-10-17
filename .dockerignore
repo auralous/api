@@ -23,5 +23,6 @@
 README.md
 **/.eslintrc.js
 **/.editorconfig
+**/.github
 charts/
 dist/

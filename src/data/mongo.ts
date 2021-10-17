@@ -2,6 +2,7 @@ import type { Db } from "mongodb";
 import mongodb from "mongodb";
 import pino from "pino";
 import { pinoOpts } from "../logger/options.js";
+import { ENV } from "../utils/constant.js";
 import type {
   FollowDbObject,
   NotificationDbObjectUnion,
@@ -38,7 +39,7 @@ async function applyIndex(db: Db) {
   logger.info("Index applied");
 }
 
-const client = new mongodb.MongoClient(process.env.MONGODB_URI as string);
+const client = new mongodb.MongoClient(ENV.MONGODB_URI);
 
 await client.connect();
 

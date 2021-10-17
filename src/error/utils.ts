@@ -1,4 +1,3 @@
-import * as Sentry from "@sentry/node";
 import { GraphQLError } from "graphql";
 import pino from "pino";
 import { UndecimError } from "undecim";
@@ -47,7 +46,6 @@ export async function logError(
   }
   if (!isExpectedError(error)) {
     errorLogger.error(error);
-    Sentry.captureException(error);
   } else {
     errorLogger.debug({
       err: error,

@@ -19,7 +19,6 @@ SPOTIFY_CLIENT_SECRET=
 SONGLINK_KEY=
 MONGODB_URI=mongodb://localhost:27017/auralous
 REDIS_URL=redis://localhost:6379
-SENTRY_DSN=
 LOG_LEVEL=debug
 ```
 
@@ -36,7 +35,6 @@ SPOTIFY_CLIENT_SECRET=
 SONGLINK_KEY=
 MONGODB_URI=mongodb://mongo:27017/auralous
 REDIS_URL=redis://redis:6379
-SENTRY_DSN=
 ```
 
 ## Local Development

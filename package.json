@@ -29,7 +29,6 @@
     "@graphql-tools/load-files": "^6.5.1",
     "@graphql-tools/merge": "^8.1.2",
     "@graphql-tools/schema": "^8.2.0",
-    "@sentry/node": "^6.13.3",
     "cors": "^2.8.5",
     "dataloader": "^2.0.0",
     "fast-json-stringify": "^2.7.10",

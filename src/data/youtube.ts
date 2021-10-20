@@ -1,10 +1,13 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { google, youtube_v3 } from "googleapis";
 import un from "undecim";
-import type { Playlist } from "../graphql/graphql.gen.js";
+import type {
+  Playlist,
+  RecommendationSection,
+} from "../graphql/graphql.gen.js";
 import { PlatformName } from "../graphql/graphql.gen.js";
 import { ENV } from "../utils/constant.js";
-import { isDefined, shuffle } from "../utils/utils.js";
-import { DataConfigs } from "./config.js";
+import { isDefined } from "../utils/utils.js";
 import type { ArtistDbObject, TrackDbObject } from "./types.js";
 import { getFromIdsPerEveryNum } from "./utils.js";
 
@@ -359,50 +362,26 @@ export class YoutubeAPI {
   }
 
   /**
-   * Get Featured Playlists by scrapping YouTube API
+   * Get recommendations
    */
-  static async getFeaturedPlaylists(
-    limit: number,
-    userAccessToken?: string
+  static async getRecommendationSections(
+    accessToken?: string | null
+  ): Promise<RecommendationSection[]> {
+    return [];
+  }
+
+  static async getRecommendationSection(
+    accessToken: string | null | undefined,
+    id: string
+  ): Promise<RecommendationSection | null> {
+    return null;
+  }
+
+  static async getRecommendationItems(
+    accessToken: string | null | undefined,
+    id: string,
+    limit: number
   ): Promise<Playlist[]> {
-    // We have not yet been able to scrap the data so we add them manually
-    // using the below script
-    //
-    // function getFeaturedPlaylists() {
-    //   const results = [];
-    //   // https://www.youtube.com/channel/UC-9-kyTW8ZkZNDHQJ6FgpwQ/playlists
-    //   const arr = document.getElementsByTagName("ytd-compact-station-renderer");
-    //   for (let i = 0; i < arr.length; i += 1) {
-    //     const arrr = arr[i].getElementsByClassName(
-    //       "yt-simple-endpoint style-scope ytd-compact-station-renderer"
-    //     );
-    //     for (let j = 0; j < arrr.length; j += 1) {
-    //       results.push(new URL(arrr[j].href).searchParams.get("list"));
-    //     }
-    //   }
-    //   return results;
-    // }
-
-    const feedConfigs = await new DataConfigs().getFeedConfigs();
-    if (!feedConfigs) return [];
-
-    // shuffle and select limit
-    const playlistIds = shuffle(feedConfigs.youtubeFeaturedPlaylists).slice(
-      0,
-      limit
-    );
-
-    const { data: json } = await YoutubeAPI.youtube.playlists.list({
-      part: ["snippet", "contentDetails"],
-      fields:
-        "items(id,snippet(thumbnails,title,channelTitle),contentDetails(itemCount))",
-      id: playlistIds,
-      access_token: userAccessToken,
-      maxResults: 50,
-    });
-
-    if (!json.items?.[0]) return [];
-
-    return json.items.map(parsePlaylist);
+    return [];
   }
 }

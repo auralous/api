@@ -12,9 +12,6 @@ const resolvers: Resolvers = {
     playlistTracks(parent, { id }, context) {
       return TrackService.findPlaylistTracks(context, id);
     },
-    playlistsFeatured(parent, { limit }, context) {
-      return TrackService.findFeaturedPlaylists(context, limit || 10);
-    },
     playlistsFriends() {
       return [];
     },

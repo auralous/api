@@ -1,0 +1,11 @@
+type Query {
+  recommendationSection(id: ID!): RecommendationSection
+  recommendationSections: [RecommendationSection!]!
+  recommendationContent(id: ID!, limit: Int!): [Playlist!]!
+}
+
+type RecommendationSection {
+  id: ID!
+  title: String!
+  description: String
+}

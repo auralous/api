@@ -1,6 +1,5 @@
 import type { SessionDbObject } from "../../data/types.js";
 import { InvalidArgError, NotFoundError } from "../../error/errors.js";
-import { NowPlayingService } from "../../services/nowPlaying.js";
 import { SessionService } from "../../services/session.js";
 import { TrackService } from "../../services/track.js";
 import { UserService } from "../../services/user.js";
@@ -138,18 +137,6 @@ const resolvers: Resolvers = {
   },
   Session: {
     id: ({ _id }) => String(_id),
-    async image({ isLive, image, _id }, args, context) {
-      if (image) return image;
-      if (isLive) {
-        const np = await NowPlayingService.findCurrentItemById(String(_id));
-        return (
-          (np?.trackId &&
-            (await TrackService.findTrack(context, np.trackId))?.image) ||
-          null
-        );
-      }
-      return null;
-    },
     async creator({ creatorId }, args, context) {
       return (await UserService.findById(context, creatorId))!;
     },

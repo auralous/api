@@ -3,9 +3,14 @@ import { exit } from "process";
 import un, { UndecimError } from "undecim";
 import { URLSearchParams } from "url";
 import { SpotifyAuth, SpotifyTokenResponse } from "../auth/spotify.js";
+import { InvalidArgError } from "../error/errors.js";
 import { rethrowSpotifyError } from "../error/spotify.js";
 import { undecimAddResponseBody } from "../error/utils.js";
-import { PlatformName, Playlist } from "../graphql/graphql.gen.js";
+import {
+  PlatformName,
+  Playlist,
+  RecommendationSection,
+} from "../graphql/graphql.gen.js";
 import { pinoOpts } from "../logger/options.js";
 import { isDefined } from "../utils/utils.js";
 import type { ArtistDbObject, TrackDbObject } from "./types.js";
@@ -336,23 +341,110 @@ export class SpotifyAPI {
   }
 
   /**
-   * Get Featured Playlists using Spotify API
+   * Get recommendations
    */
-  static async getFeaturedPlaylists(
-    limit: number,
-    userAccessToken?: string
-  ): Promise<Playlist[]> {
-    const data = await SpotifyAPI.client
-      .get(`/v1/browse/featured-playlists?limit=${limit}`, {
-        headers: {
-          Authorization: `Bearer ${
-            userAccessToken || SpotifyClientCredentials.accessToken
-          }`,
-        },
-      })
-      .json<SpotifyApi.ListOfFeaturedPlaylistsResponse>()
-      .catch(rethrowSpotifyError);
+  static async getRecommendationSections(
+    accessToken?: string | null
+  ): Promise<RecommendationSection[]> {
+    if (!accessToken) accessToken = SpotifyClientCredentials.accessToken;
 
-    return data.playlists.items.map(parsePlaylist);
+    const [dataFeatured, dataCategories] = await Promise.all([
+      SpotifyAPI.client
+        .get(`/v1/browse/featured-playlists?limit=10`, {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        })
+        .json<SpotifyApi.ListOfFeaturedPlaylistsResponse>()
+        .catch(rethrowSpotifyError),
+      SpotifyAPI.client
+        .get(`/v1/browse/categories`, {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        })
+        .json<SpotifyApi.MultipleCategoriesResponse>()
+        .catch(rethrowSpotifyError),
+    ]);
+
+    return [
+      {
+        id: `spotify_featured-playlists`,
+        title: dataFeatured.message || "Featured playlists",
+      },
+      ...dataCategories.categories.items.map((category) => ({
+        id: `spotify_category_${category.id}`,
+        title: category.name,
+      })),
+    ];
+  }
+
+  static async getRecommendationSection(
+    accessToken: string | null | undefined,
+    id: string
+  ): Promise<RecommendationSection | null> {
+    if (!accessToken) accessToken = SpotifyClientCredentials.accessToken;
+
+    if (id === "spotify_featured-playlists") {
+      const data = await SpotifyAPI.client
+        .get(`/v1/browse/featured-playlists?limit=1`, {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        })
+        .json<SpotifyApi.ListOfFeaturedPlaylistsResponse>()
+        .catch(rethrowSpotifyError);
+      return {
+        id,
+        title: data.message || "Featured playlists",
+      };
+    } else if (id.startsWith("spotify_category_")) {
+      const categoryId = id.substring(17);
+      const data = await SpotifyAPI.client
+        .get(`/v1/browse/categories/${categoryId}`, {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        })
+        .json<SpotifyApi.SingleCategoryResponse>()
+        .catch(rethrowSpotifyError);
+      return {
+        id,
+        title: data.name,
+      };
+    }
+    throw new InvalidArgError("id", "Invalid recommendation id");
+  }
+
+  static async getRecommendationItems(
+    accessToken: string | null | undefined,
+    id: string,
+    limit: number
+  ): Promise<Playlist[]> {
+    limit = Math.min(limit, 50);
+    if (!accessToken) accessToken = SpotifyClientCredentials.accessToken;
+    if (id === "spotify_featured-playlists") {
+      const data = await SpotifyAPI.client
+        .get(`/v1/browse/featured-playlists?limit=${limit}`, {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        })
+        .json<SpotifyApi.ListOfFeaturedPlaylistsResponse>()
+        .catch(rethrowSpotifyError);
+      return data.playlists.items.map(parsePlaylist);
+    } else if (id.startsWith("spotify_category_")) {
+      const categoryId = id.substring(17);
+      const data = await SpotifyAPI.client
+        .get(`/v1/browse/categories/${categoryId}/playlists?${limit}`, {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        })
+        .json<SpotifyApi.CategoryPlaylistsReponse>()
+        .catch(rethrowSpotifyError);
+      return data.playlists.items.map(parsePlaylist);
+    }
+    throw new InvalidArgError("id", "Invalid recommendation id");
   }
 }

@@ -237,13 +237,4 @@ export class TrackService {
 
     return playlist;
   }
-
-  static async findFeaturedPlaylists(context: ServiceContext, limit = 10) {
-    return TrackService[
-      context.auth?.provider || PlatformName.Youtube
-    ].getFeaturedPlaylists(
-      limit,
-      (await context.auth?.accessTokenPromise) || undefined
-    );
-  }
 }

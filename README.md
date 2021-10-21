@@ -59,6 +59,11 @@ sudo docker push hvvo/auralous-api
 1. Pull the source code
 2. Create `.env.prod` as above
 3. Run `docker compose up -d`
+4. To restart/pull new image, run:
+
+```bash
+docker-compose pull
+```
 
 ## License
 

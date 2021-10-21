@@ -49,7 +49,7 @@ Run `docker-compose up` to start redis and mongodb services. Then, run `npm run 
 
 ### Build Docker image
 
-```
+```bash
 sudo docker build -t hvvo/auralous-api .
 sudo docker push hvvo/auralous-api
 ```

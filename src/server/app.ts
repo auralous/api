@@ -5,6 +5,7 @@ import { getAuthFromRequest } from "../auth/auth.js";
 import auth from "../auth/handler.js";
 import { redis } from "../data/redis.js";
 import {
+  graphiql,
   graphqlHTTP,
   stringify as graphqlStringify,
 } from "../graphql/handler.js";
@@ -81,6 +82,7 @@ app.all("/graphql", (req, res) => {
       .end(graphqlStringify(result.payload));
   });
 });
+app.get("/graphiql", graphiql);
 
 app.use("/auth", auth);
 

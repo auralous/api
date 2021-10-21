@@ -9,7 +9,6 @@ import {
   graphqlHTTP,
   stringify as graphqlStringify,
 } from "../graphql/handler.js";
-import { ENV, IS_DEV } from "../utils/constant.js";
 import {
   errorWithTranslation,
   makeSetCacheControl,
@@ -36,17 +35,24 @@ app.get("/health", (req, res) => {
   );
 });
 
-if (IS_DEV) {
-  // For dev env, we setup cors configuration.
-  // However, in production, reverse proxy has already handled it
-  app.use(
-    cors({
-      origin: ENV.APP_URI,
-      methods: ["GET", "POST"],
-      credentials: true,
-    })
-  );
-}
+app.use(
+  cors({
+    origin: true,
+    methods: ["GET", "POST"],
+    maxAge: 1728000,
+    allowedHeaders: [
+      "DNT",
+      "User-Agent",
+      "X-Requested-With",
+      "If-Modified-Since",
+      "Cache-Control",
+      "Content-Type",
+      "Range",
+      "Authorization",
+    ],
+    exposedHeaders: ["Authorization"],
+  })
+);
 
 /**
  * Middleware

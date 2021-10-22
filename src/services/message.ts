@@ -1,44 +1,18 @@
-import fastJson from "fast-json-stringify";
-import { nanoid } from "nanoid/non-secure";
+import mongodb, { WithoutId } from "mongodb";
+import { db } from "../data/mongo.js";
 import { pubsub } from "../data/pubsub.js";
-import { redis } from "../data/redis.js";
-import type { Message } from "../graphql/graphql.gen.js";
-import { PUBSUB_CHANNELS, REDIS_KEY } from "../utils/constant.js";
-
-const messageStringify = fastJson({
-  title: "Message",
-  type: "object",
-  properties: {
-    id: { type: "string" },
-    creatorId: { type: "string" },
-    createdAt: { type: "string" },
-    text: { type: "string" },
-    type: { type: "string" },
-  },
-  required: ["id", "creatorId", "createdAt", "type"],
-});
+import { MessageDbObject } from "../data/types.js";
+import { PUBSUB_CHANNELS } from "../utils/constant.js";
 
 export class MessageService {
-  static parseMessage(str: string): Message {
-    return JSON.parse(str, (key, value) =>
-      key === "createdAt" ? new Date(value) : value
-    );
-  }
-
-  static stringifyMessage(message: Partial<Message>) {
-    return messageStringify(message);
-  }
-
-  static randomMessageItemId(): string {
-    return nanoid(16);
-  }
+  private static collection = db.collection<MessageDbObject>("messages");
 
   /**
    * Notify a message to pubsub channels
    * @param id the id of message room
    * @param message message object to be notify
    */
-  private static notifyMessage(id: string, message: Omit<Message, "creator">) {
+  private static notifyMessage(id: string, message: MessageDbObject) {
     pubsub.publish(PUBSUB_CHANNELS.messageAdded, {
       id,
       messageAdded: message,
@@ -52,13 +26,18 @@ export class MessageService {
    * @param stop
    */
   static async findById(
-    id: string,
-    start = 0,
-    stop = -1
-  ): Promise<Message[] | null> {
-    return redis
-      .lrange(REDIS_KEY.message(id), start, stop)
-      .then((strs) => strs.map(MessageService.parseMessage));
+    sessionId: string,
+    limit: number,
+    next?: string | null
+  ): Promise<MessageDbObject[] | null> {
+    return MessageService.collection
+      .find({
+        sessionId: new mongodb.ObjectId(sessionId),
+        ...(next && { _id: { $lt: new mongodb.ObjectId(next) } }),
+      })
+      .sort({ $natural: -1 })
+      .limit(limit)
+      .toArray();
   }
 
   /**
@@ -67,22 +46,24 @@ export class MessageService {
    * @param message
    */
   static async add(
-    id: string,
-    message: Pick<Message, "text" | "type" | "creatorId">
+    sessionId: string,
+    message: Pick<MessageDbObject, "text" | "type" | "creatorId">
   ): Promise<number> {
-    const newMessage = {
+    const newMessage: WithoutId<MessageDbObject> = {
       ...message,
-      id: MessageService.randomMessageItemId(),
       createdAt: new Date(),
       creatorId: message.creatorId,
+      sessionId: new mongodb.ObjectId(sessionId),
     };
 
-    const count = await redis.rpush(
-      REDIS_KEY.message(id),
-      MessageService.stringifyMessage(newMessage)
-    );
+    const { acknowledged, insertedId } =
+      await MessageService.collection.insertOne(newMessage);
 
-    if (count) MessageService.notifyMessage(id, newMessage);
-    return count;
+    MessageService.notifyMessage(sessionId, {
+      _id: insertedId,
+      ...newMessage,
+    });
+
+    return Number(acknowledged);
   }
 }

@@ -3,8 +3,9 @@ import mongodb from "mongodb";
 import pino from "pino";
 import { pinoOpts } from "../logger/options.js";
 import { ENV } from "../utils/constant.js";
-import type {
+import {
   FollowDbObject,
+  MessageDbObject,
   NotificationDbObjectUnion,
   SessionDbObject,
   UserDbObject,
@@ -36,6 +37,9 @@ async function applyIndex(db: Db) {
   await db
     .collection<NotificationDbObjectUnion>("notifications")
     .createIndexes([{ key: { userId: 1 } }]);
+  await db
+    .collection<MessageDbObject>("messages")
+    .createIndexes([{ key: { sessionId: 1 } }]);
   logger.info("Index applied");
 }
 

@@ -22,9 +22,6 @@ export const REDIS_KEY = {
   queueData(id: string) {
     return `queue:${id}:data`;
   },
-  message(id: string) {
-    return `message:${id}`;
-  },
   crossTracks: (platformAndId: string) => `crossTracks:${platformAndId}`,
   auth(token: string) {
     return `auth:${token}`;

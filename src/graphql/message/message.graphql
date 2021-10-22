@@ -4,7 +4,7 @@ enum MessageType {
 }
 
 type Query {
-  messages(id: ID!, offset: Int, limit: Int): [Message!]
+  messages(id: ID!, next: String, limit: Int): [Message!]
 }
 
 type Mutation {

@@ -60,6 +60,15 @@ export interface FollowDbObject {
   unfollowedAt: Date | null;
 }
 
+export interface MessageDbObject {
+  _id: mongodb.ObjectId;
+  sessionId: mongodb.ObjectId;
+  creatorId: string;
+  createdAt: Date;
+  text: string;
+  type: string;
+}
+
 interface NotificationDbObjectBase {
   userId: string;
   createdAt: Date;

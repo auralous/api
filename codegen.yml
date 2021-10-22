@@ -12,6 +12,7 @@ generates:
         Notification: ../data/types#NotificationDbObjectUnion
         NotificationFollow: ../data/types#NotificationDbObjectFollow
         NotificationNewSession: ../data/types#NotificationDbObjectNewSession
+        Message: ../data/types#MessageDbObject
     plugins:
       - typescript
       - typescript-resolvers

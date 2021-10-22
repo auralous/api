@@ -5,7 +5,6 @@ import { WebSocketServer } from "ws";
 import { getAuthFromRequest } from "../auth/auth.js";
 import { graphqlWS } from "../graphql/handler.js";
 import { pinoOpts } from "../logger/options.js";
-import { NowPlayingWorker } from "../services/nowPlayingWorker.js";
 import { ENV } from "../utils/constant.js";
 import app from "./app.js";
 
@@ -49,7 +48,6 @@ const wssPingPong = setInterval(() => {
 wss.on("close", () => clearInterval(wssPingPong));
 
 export async function startServer() {
-  await NowPlayingWorker.startWorker();
   server.listen(port, () => {
     serverLogger.info(`Server Ready at ${ENV.API_URI}`);
   });

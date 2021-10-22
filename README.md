@@ -62,7 +62,21 @@ sudo docker push hvvo/auralous-api
 4. To restart/pull new image, run:
 
 ```bash
-docker-compose pull
+docker compose pull
+```
+
+### Debugging
+
+To debug `redis`:
+
+```bash
+docker run -it --network api_default --rm redis redis-cli -h redis
+```
+
+To debug `mongo`:
+
+```bash
+docker run -it --network api_default --rm mongo mongo --host mongo auralous
 ```
 
 ## License

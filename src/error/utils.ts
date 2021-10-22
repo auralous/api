@@ -47,8 +47,6 @@ export async function logError(
   if (!isExpectedError(error)) {
     errorLogger.error(error);
   } else {
-    errorLogger.debug({
-      err: error,
-    });
+    errorLogger.debug(error);
   }
 }

@@ -19,7 +19,7 @@ import type { NullablePartial } from "../utils/types.js";
 import { FollowService } from "./follow.js";
 import { MessageService } from "./message.js";
 import { NotificationService } from "./notification.js";
-import { NowPlayingWorker } from "./nowPlayingWorker.js";
+import { NowPlayingController } from "./nowPlayingController.js";
 import { QueueService } from "./queue.js";
 import { TrackService } from "./track.js";
 import type { ServiceContext } from "./types.js";
@@ -224,14 +224,21 @@ export class SessionService {
 
     const insertedSession: SessionDbObject = { ...session, _id: insertedId };
 
-    await QueueService.executeQueueAction(
-      context,
-      String(insertedSession._id),
-      { add: { tracks } }
+    // FIXME: This requires manual updates when queue.ts changes
+    await QueueService.pushItems(
+      insertedId.toHexString(),
+      ...tracks.map((trackId) => ({
+        uid: QueueService.randomUid(),
+        trackId,
+        creatorId: context.auth?.userId as string,
+      }))
     );
 
     // start now playing
-    NowPlayingWorker.playIndex(insertedId.toHexString(), 0);
+    await NowPlayingController.setNewPlayingIndexOrUid(
+      insertedId.toHexString(),
+      0
+    );
 
     SessionService.invalidateLoaderCache(context, insertedSession);
 
@@ -265,7 +272,6 @@ export class SessionService {
     await Promise.all([
       QueueService.deleteById(value._id.toHexString()),
       SessionService.invalidateInviteToken(value),
-      NowPlayingWorker.cancelSkipJob(value._id.toHexString()),
     ]);
     SessionService.notifyUpdate(value);
     return value;
@@ -359,7 +365,6 @@ export class SessionService {
     await Promise.all([
       QueueService.deleteById(session._id.toHexString()),
       SessionService.invalidateInviteToken(session),
-      NowPlayingWorker.cancelSkipJob(session._id.toHexString()),
     ]);
 
     return true;

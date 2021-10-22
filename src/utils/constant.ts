@@ -13,7 +13,6 @@ export const REDIS_KEY = {
   nowPlayingState(id: string) {
     return `nowPlaying:${id}:state`;
   },
-  npSkipScheduler: "npSkipScheduler",
   nowPlayingReaction(id: string, uid: string) {
     return `nowPlaying:${id}:reactions:${uid}`;
   },
@@ -51,6 +50,7 @@ export const PUBSUB_CHANNELS = {
   sessionListenersUpdated: "SESSION_LISTENERS_UPDATED",
   messageAdded: "MESSAGE_ADDED",
   notificationAdded: "NOTIFICATION_ADDED",
+  worker: "NOW_PLAYING_WORKER",
 };
 
 export const IS_DEV = process.env.NODE_ENV !== "production";

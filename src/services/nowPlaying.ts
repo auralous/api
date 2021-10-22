@@ -11,7 +11,7 @@ import type {
   NowPlayingReactionType,
 } from "../graphql/graphql.gen.js";
 import { PUBSUB_CHANNELS, REDIS_KEY } from "../utils/constant.js";
-import { NowPlayingWorker } from "./nowPlayingWorker.js";
+import { NowPlayingController } from "./nowPlayingController.js";
 import { QueueService } from "./queue.js";
 import { SessionService } from "./session.js";
 import type { ServiceContext } from "./types.js";
@@ -22,9 +22,8 @@ export class NowPlayingService {
    */
   static async findCurrentItemById(id: string): Promise<NowPlayingQueueItem> {
     // See src/data/types.ts#NowPlayingStateRedisValue
-    const nowPlayingState = await NowPlayingWorker.getFormattedNowPlayingState(
-      id
-    );
+    const nowPlayingState =
+      await NowPlayingController.getFormattedNowPlayingState(id);
 
     const queueItemData = await QueueService.findQueueItemData(
       id,
@@ -54,7 +53,8 @@ export class NowPlayingService {
     if (!session) throw new NotFoundError("session", id);
     if (!session.collaboratorIds.includes(context.auth.userId))
       throw new CustomError("error.not_collaborator");
-    return Boolean(NowPlayingWorker.skipForward(String(session._id)));
+    await NowPlayingController.skipForward(String(session._id));
+    return true;
   }
 
   /**
@@ -66,7 +66,8 @@ export class NowPlayingService {
     if (!session) throw new NotFoundError("session", id);
     if (!session.collaboratorIds.includes(context.auth.userId))
       throw new CustomError("error.not_collaborator");
-    return Boolean(NowPlayingWorker.skipBackward(String(session._id)));
+    await NowPlayingController.skipBackward(String(session._id));
+    return true;
   }
 
   /**
@@ -78,20 +79,9 @@ export class NowPlayingService {
     if (!session) throw new NotFoundError("session", id);
     if (!session.collaboratorIds.includes(context.auth.userId))
       throw new CustomError("error.not_collaborator");
-    return Boolean(NowPlayingWorker.playUid(String(session._id), uid));
-  }
-
-  static async notifyUpdate(id: string, currentHint?: NowPlayingQueueItem) {
-    const current =
-      currentHint || (await NowPlayingService.findCurrentItemById(id));
-    const next = await QueueService.findById(id, current.index + 1);
-    pubsub.publish(PUBSUB_CHANNELS.nowPlayingUpdated, {
-      nowPlayingUpdated: {
-        id,
-        current,
-        next,
-      },
-    });
+    return Boolean(
+      NowPlayingController.setNewPlayingIndexOrUid(String(session._id), uid)
+    );
   }
 
   // NowPlaying Reaction

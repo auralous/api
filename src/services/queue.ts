@@ -29,8 +29,7 @@ import type {
   QueueItem,
 } from "../graphql/graphql.gen.js";
 import { REDIS_KEY } from "../utils/constant.js";
-import { NowPlayingService } from "./nowPlaying.js";
-import { NowPlayingWorker } from "./nowPlayingWorker.js";
+import { NowPlayingController } from "./nowPlayingController.js";
 import { SessionService } from "./session.js";
 import type { ServiceContext } from "./types.js";
 
@@ -165,8 +164,6 @@ export class QueueService {
     const err = result[0][0] || result[1][0];
     if (err) throw err;
 
-    NowPlayingService.notifyUpdate(id);
-
     return result[0][1];
   }
 
@@ -193,7 +190,6 @@ export class QueueService {
     const err = result[0][0] || result[1][0];
     if (err) throw err;
 
-    NowPlayingService.notifyUpdate(id);
     return result[1][1];
   }
 
@@ -212,7 +208,6 @@ export class QueueService {
 
     const result = await pipeline.exec();
 
-    NowPlayingService.notifyUpdate(id);
     return result.reduce((prev, curr) => prev + curr[1], 0);
   }
 
@@ -249,7 +244,6 @@ export class QueueService {
       if (resultItem[0]) throw resultItem[0];
     }
 
-    NowPlayingService.notifyUpdate(id);
     // FIXME: report actual result
     return uids.length;
   }
@@ -279,6 +273,7 @@ export class QueueService {
       toTop?: Omit<MutationQueueToTopArgs, "id">;
     }
   ) {
+    let actionResult = false;
     const auth = context.auth;
     // Assert auth
     if (!auth) throw new UnauthorizedError();
@@ -292,33 +287,39 @@ export class QueueService {
       throw new CustomError("error.not_collaborator");
 
     if (actions.add) {
-      await QueueService.pushItems(
-        id,
-        ...actions.add.tracks.map((trackId) => ({
-          uid: QueueService.randomUid(),
-          trackId,
-          creatorId: auth.userId,
-        }))
+      actionResult = Boolean(
+        await QueueService.pushItems(
+          id,
+          ...actions.add.tracks.map((trackId) => ({
+            uid: QueueService.randomUid(),
+            trackId,
+            creatorId: auth.userId,
+          }))
+        )
       );
-      return true;
     } else if (actions.remove) {
-      return Boolean(await QueueService.removeItems(id, actions.remove));
+      actionResult = Boolean(
+        await QueueService.removeItems(id, actions.remove)
+      );
     } else if (actions.reorder) {
       // position depends on current playing index
       const { playingIndex } =
-        await NowPlayingWorker.getFormattedNowPlayingState(id);
+        await NowPlayingController.getFormattedNowPlayingState(id);
       await QueueService.reorderItems(
         id,
         playingIndex + 1 + actions.reorder.position,
         playingIndex + 1 + actions.reorder.insertPosition
       );
-      return true;
+      actionResult = true;
     } else if (actions.toTop) {
       // position depends on current playing index
       const { queuePlayingUid } =
-        await NowPlayingWorker.getFormattedNowPlayingState(id);
-      await QueueService.toTopItems(id, actions.toTop.uids, queuePlayingUid);
+        await NowPlayingController.getFormattedNowPlayingState(id);
+      actionResult = Boolean(
+        await QueueService.toTopItems(id, actions.toTop.uids, queuePlayingUid)
+      );
     }
-    return false;
+    if (actionResult) NowPlayingController.notifyUpdate(id);
+    return actionResult;
   }
 }

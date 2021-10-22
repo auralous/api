@@ -83,4 +83,4 @@ docker run -it --network api_default --rm mongo mongo --host mongo auralous
 
 This program is a free software: you can redistribute it and/or modify it under the terms of the GNU Affero General Public License as published by the Free Software Foundation. See [LICENSE](LICENSE) file in this repository for the full text.
 
-Feel free to email us at [yo@withstereo.com](yo@withstereo.com) with any questions and concerns.
+Feel free to email us at [listen@auralous.com](listen@auralous.com) with any questions and concerns.

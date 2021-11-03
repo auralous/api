@@ -3,6 +3,7 @@ import { pubsub } from "./data/pubsub.js";
 import { redis } from "./data/redis.js";
 import { pinoOpts } from "./logger/options.js";
 import { NowPlayingController } from "./services/nowPlayingController.js";
+import { createContext } from "./services/_context.js";
 import { PUBSUB_CHANNELS } from "./utils/constant.js";
 
 const NP_SCHEDULE_KEY = "skip_scheduler";
@@ -30,7 +31,7 @@ async function processSkipJob(id: string) {
     );
     return;
   }
-  NowPlayingController.skipForward(id);
+  NowPlayingController.skipForward(createContext(null), id);
   logger.debug({ id }, `Triggered skipForward job`);
 }
 

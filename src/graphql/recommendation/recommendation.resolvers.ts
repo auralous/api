@@ -21,7 +21,7 @@ const resolvers: Resolvers = {
     },
     async recommendationSections(parent, args, context) {
       if (!context.auth || context.auth.provider === PlatformName.Youtube) {
-        return SpotifyAPI.getRecommendationSections(
+        return YoutubeAPI.getRecommendationSections(
           await context.auth?.accessTokenPromise
         );
       }

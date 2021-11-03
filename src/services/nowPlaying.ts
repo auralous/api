@@ -53,7 +53,7 @@ export class NowPlayingService {
     if (!session) throw new NotFoundError("session", id);
     if (!session.collaboratorIds.includes(context.auth.userId))
       throw new CustomError("error.not_collaborator");
-    await NowPlayingController.skipForward(String(session._id));
+    await NowPlayingController.skipForward(context, String(session._id));
     return true;
   }
 
@@ -66,7 +66,7 @@ export class NowPlayingService {
     if (!session) throw new NotFoundError("session", id);
     if (!session.collaboratorIds.includes(context.auth.userId))
       throw new CustomError("error.not_collaborator");
-    await NowPlayingController.skipBackward(String(session._id));
+    await NowPlayingController.skipBackward(context, String(session._id));
     return true;
   }
 
@@ -80,7 +80,11 @@ export class NowPlayingService {
     if (!session.collaboratorIds.includes(context.auth.userId))
       throw new CustomError("error.not_collaborator");
     return Boolean(
-      NowPlayingController.setNewPlayingIndexOrUid(String(session._id), uid)
+      NowPlayingController.setNewPlayingIndexOrUid(
+        context,
+        String(session._id),
+        uid
+      )
     );
   }
 

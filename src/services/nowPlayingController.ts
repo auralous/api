@@ -10,9 +10,8 @@ import { pinoOpts } from "../logger/options.js";
 import { PUBSUB_CHANNELS, REDIS_KEY } from "../utils/constant.js";
 import { NowPlayingService } from "./nowPlaying.js";
 import { QueueService } from "./queue.js";
-import { SessionService } from "./session.js";
 import { TrackService } from "./track.js";
-import { UserService } from "./user.js";
+import { ServiceContext } from "./types.js";
 
 const logger = pino({
   ...pinoOpts,
@@ -57,6 +56,7 @@ export class NowPlayingController {
   }
 
   static async setNewPlayingIndexOrUid(
+    context: ServiceContext,
     id: string,
     indexOrUid: number | string
   ) {
@@ -81,17 +81,7 @@ export class NowPlayingController {
     if (!queueItem)
       throw new Error(`QueueItem is null for id = ${id}, uid = ${uid}`);
 
-    const track = await TrackService.findTrack(
-      {
-        loaders: {
-          session: SessionService.createLoader(),
-          track: TrackService.createLoader(),
-          user: UserService.createLoader(),
-        },
-        auth: null,
-      },
-      queueItem.trackId
-    );
+    const track = await TrackService.findTrack(context, queueItem.trackId);
     if (!track) throw new Error(`Track is null for id = ${queueItem.trackId}`);
 
     const playedAt = new Date();
@@ -116,7 +106,7 @@ export class NowPlayingController {
     NowPlayingController.notifyUpdate(id, currentTrack);
   }
 
-  static async skipForward(id: string) {
+  static async skipForward(context: ServiceContext, id: string) {
     logger.debug({ id }, "executeSkipForward");
     const [nowPlayingState, queueLength] = await Promise.all([
       NowPlayingController.getFormattedNowPlayingState(id),
@@ -129,17 +119,21 @@ export class NowPlayingController {
         ? 0
         : nowPlayingState.playingIndex + 1;
 
-    await NowPlayingController.setNewPlayingIndexOrUid(id, nextPlayingIndex);
+    await NowPlayingController.setNewPlayingIndexOrUid(
+      context,
+      id,
+      nextPlayingIndex
+    );
   }
 
-  static async skipBackward(id: string) {
+  static async skipBackward(context: ServiceContext, id: string) {
     logger.debug({ id }, "executeSkipBackward");
     const nowPlayingState =
       await NowPlayingController.getFormattedNowPlayingState(id);
 
     const nextPlayingIndex = Math.max(nowPlayingState.playingIndex - 1, 0);
 
-    await this.setNewPlayingIndexOrUid(id, nextPlayingIndex);
+    await this.setNewPlayingIndexOrUid(context, id, nextPlayingIndex);
   }
 
   static async notifyUpdate(id: string, currentHint?: NowPlayingQueueItem) {

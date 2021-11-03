@@ -236,6 +236,7 @@ export class SessionService {
 
     // start now playing
     await NowPlayingController.setNewPlayingIndexOrUid(
+      context,
       insertedId.toHexString(),
       0
     );

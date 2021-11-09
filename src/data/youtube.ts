@@ -30,14 +30,17 @@ function parseDurationToMs(str: string) {
 }
 
 const INTERNAL_YTAPI = {
+  filterParams: {
+    video: "EgWKAQIQAWoMEAMQBBAJEA4QBRAK",
+    communityPlaylist: "EgeKAQQoA" + "EA" + "BQgIIAWoMEA4QChADEAQQCRAF",
+  },
   context: {
-    capabilities: {},
     client: {
       clientName: "WEB_REMIX",
       clientVersion: "0.1",
       experimentIds: [],
       experimentsToken: "",
-      gl: "DE",
+      gl: "US",
       hl: "en",
       locationInfo: {
         locationPermissionAuthorizationStatus:
@@ -73,9 +76,7 @@ const INTERNAL_YTAPI = {
   },
   headers: {
     "User-Agent":
-      "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:72.0) Gecko/20100101 Firefox/72.0",
-    Accept: "*/*",
-    "Accept-Language": "en-US,en;q=0.5",
+      "Mozilla/5.0 (iPhone; CPU iPhone OS 13_2_3 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.0.3 Mobile/15E148 Safari/604.1",
     "Content-Type": "application/json",
     "X-Goog-AuthUser": "0",
     "x-origin": "https://music.youtube.com",
@@ -151,9 +152,18 @@ export class YoutubeAPI {
         id: ids,
         maxResults: 50,
       });
-      return json.items!.map((val) =>
-        val?.status?.embeddable ? parseTrack(val) : null
-      );
+      return json.items!.map((val) => {
+        if (!val?.status?.embeddable) return null;
+        // limit a track to 7 min
+        if (
+          parseDurationToMs(
+            (val.contentDetails!.duration as string).substr(2)
+          ) >
+          7 * 60 * 1000
+        )
+          return null;
+        return parseTrack(val);
+      });
     });
   }
 
@@ -178,6 +188,27 @@ export class YoutubeAPI {
     if (!json.items?.[0]) return null;
 
     return parsePlaylist(json.items[0]);
+  }
+
+  /**
+   * Get YouTube playlist
+   * @param externalId
+   * @param userAccessToken
+   */
+  static async getPlaylists(
+    externalIds: string[],
+    userAccessToken?: string
+  ): Promise<(Playlist | null)[]> {
+    const { data: json } = await YoutubeAPI.youtube.playlists.list({
+      part: ["snippet", "contentDetails"],
+      fields:
+        "items(id,snippet(thumbnails,title,channelTitle),contentDetails(itemCount))",
+      id: externalIds,
+      access_token: userAccessToken,
+      maxResults: 50,
+    });
+
+    return json.items?.map(parsePlaylist) || [];
   }
 
   /**
@@ -298,44 +329,68 @@ export class YoutubeAPI {
    */
   static async searchTracks(searchQuery: string): Promise<TrackDbObject[]> {
     // Using unofficial YTMusic API
-    const filterParams = {
-      song: "RAAGAAgACgA",
-      video: "BABGAAgACgA",
-    };
-    const searchEndpoint = "/search";
-
     const data = await un
-      .post(
-        `${INTERNAL_YTAPI.baseUrl}${searchEndpoint}${INTERNAL_YTAPI.params}`,
-        {
-          data: {
-            params: "Eg-KAQwIA" + filterParams.video + "MABqChAEEAMQCRAFEAo%3D",
-            query: searchQuery,
-            context: INTERNAL_YTAPI.context,
-          },
-          headers: INTERNAL_YTAPI.headers,
-        }
-      )
+      .post(`${INTERNAL_YTAPI.baseUrl}/search${INTERNAL_YTAPI.params}`, {
+        data: {
+          params: INTERNAL_YTAPI.filterParams.video,
+          query: searchQuery,
+          context: INTERNAL_YTAPI.context,
+        },
+        headers: INTERNAL_YTAPI.headers,
+      })
       .json<any>();
 
     if (!data) return [];
 
-    const list: any[] | undefined =
-      data.contents.sectionListRenderer.contents[0].musicShelfRenderer
-        ?.contents;
+    let list: any[] =
+      data.contents.tabbedSearchResultsRenderer.tabs[0].tabRenderer.content
+        .sectionListRenderer.contents;
+    list = list[list.length - 1].musicShelfRenderer.contents;
 
     // No track found
     if (!list) return [];
 
-    const videoIds: string[] = list.map(
+    const ids: string[] = list.map(
       ({ musicResponsiveListItemRenderer }) =>
-        musicResponsiveListItemRenderer.doubleTapCommand.watchEndpoint.videoId
+        musicResponsiveListItemRenderer.navigationEndpoint.watchEndpoint.videoId
     );
 
     // We prefer not to do this
-    return YoutubeAPI.getTracks(videoIds).then((tracks) =>
-      // A track should only be less than 7 minutes... maybe. You know, 777
-      tracks.filter(isDefined)
+    return YoutubeAPI.getTracks(ids).then((tracks) => tracks.filter(isDefined));
+  }
+
+  static async searchPlaylists(searchQuery: string) {
+    // Using unofficial YTMusic API
+    const data = await un
+      .post(`${INTERNAL_YTAPI.baseUrl}/search${INTERNAL_YTAPI.params}`, {
+        data: {
+          params: INTERNAL_YTAPI.filterParams.communityPlaylist,
+          query: searchQuery,
+          context: INTERNAL_YTAPI.context,
+        },
+        headers: INTERNAL_YTAPI.headers,
+      })
+      .json<any>();
+
+    if (!data) return [];
+
+    let list: any[] =
+      data.contents.tabbedSearchResultsRenderer.tabs[0].tabRenderer.content
+        .sectionListRenderer.contents;
+    list = list[list.length - 1].musicShelfRenderer.contents;
+
+    // No playlist found
+    if (!list) return [];
+
+    const ids: string[] = list.map(({ musicResponsiveListItemRenderer }) => {
+      return musicResponsiveListItemRenderer.overlay
+        .musicItemThumbnailOverlayRenderer.content.musicPlayButtonRenderer
+        .playNavigationEndpoint.watchPlaylistEndpoint.playlistId;
+    });
+
+    // We prefer not to do this
+    return YoutubeAPI.getPlaylists(ids).then((playlists) =>
+      playlists.filter(isDefined)
     );
   }
 

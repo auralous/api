@@ -1,5 +1,6 @@
 import { TrackService } from "../../services/track.js";
-import type { Resolvers } from "../graphql.gen.js";
+import { CONFIG } from "../../utils/constant.js";
+import { PlatformName, Resolvers } from "../graphql.gen.js";
 
 const resolvers: Resolvers = {
   Query: {
@@ -14,6 +15,11 @@ const resolvers: Resolvers = {
     },
     playlistsFriends() {
       return [];
+    },
+    playlistsSearch(parent, { query }, context) {
+      const platform = context.auth?.provider || PlatformName.Youtube;
+      context.setCacheControl?.(CONFIG.searchMaxAge);
+      return TrackService.searchPlaylists(context, platform, query);
     },
   },
   Mutation: {

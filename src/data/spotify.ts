@@ -313,6 +313,30 @@ export class SpotifyAPI {
     return data.tracks.items.map(parseTrack);
   }
 
+  static async searchPlaylists(
+    searchQuery: string,
+    userAccessToken?: string
+  ): Promise<Playlist[]> {
+    const accessToken = userAccessToken || SpotifyClientCredentials.accessToken;
+
+    const SEARCH_MAX_RESULTS = 30;
+
+    const data = await SpotifyAPI.client
+      .get(
+        `/v1/search?query=${encodeURIComponent(searchQuery)}` +
+          `&type=playlist&offset=0&limit=${SEARCH_MAX_RESULTS}`,
+        {
+          headers: {
+            Authorization: `Authorization: Bearer ${accessToken}`,
+          },
+        }
+      )
+      .json<SpotifyApi.PlaylistSearchResponse>()
+      .catch(rethrowSpotifyError);
+
+    return data.playlists.items.map(parsePlaylist);
+  }
+
   /**
    * Get Spotify artists
    * @param externalIds

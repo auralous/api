@@ -32,7 +32,7 @@ const resolvers: Resolvers = {
     async searchTrack(parent, { query }, context) {
       const platform = context.auth?.provider || PlatformName.Youtube;
       context.setCacheControl?.(CONFIG.searchMaxAge);
-      return TrackService.search(context, platform, query);
+      return TrackService.searchTracks(context, platform, query);
     },
   },
   Mutation: {

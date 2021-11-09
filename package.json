@@ -51,6 +51,7 @@
     "@graphql-codegen/typescript-resolvers": "^2.3.2",
     "@tsconfig/node16": "^1.0.2",
     "@types/cors": "^2.8.12",
+    "@types/dlv": "^1.1.2",
     "@types/ioredis": "^4.27.8",
     "@types/node": "^16.11.2",
     "@types/slug": "^5.0.2",

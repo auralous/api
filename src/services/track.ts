@@ -5,7 +5,7 @@ import { SpotifyAPI } from "../data/spotify.js";
 import type { ArtistDbObject, TrackDbObject } from "../data/types.js";
 import { YoutubeAPI } from "../data/youtube.js";
 import { UnauthorizedError } from "../error/errors.js";
-import { PlatformName } from "../graphql/graphql.gen.js";
+import { PlatformName, Playlist } from "../graphql/graphql.gen.js";
 import { CONFIG, REDIS_KEY } from "../utils/constant.js";
 import type { ServiceContext } from "./types.js";
 
@@ -161,7 +161,7 @@ export class TrackService {
     return cache;
   }
 
-  static async search(
+  static async searchTracks(
     context: ServiceContext,
     platform: PlatformName,
     query: string
@@ -180,6 +180,19 @@ export class TrackService {
   }
 
   // Playlist
+  static async searchPlaylists(
+    context: ServiceContext,
+    platform: PlatformName,
+    query: string
+  ): Promise<Playlist[]> {
+    return TrackService[platform].searchPlaylists(
+      query,
+      (context.auth?.provider === platform &&
+        (await context.auth?.accessTokenPromise)) ||
+        undefined
+    );
+  }
+
   static async findPlaylist(context: ServiceContext, id: string) {
     const [platform, externalId] = id.split(":");
     return TrackService[platform as PlatformName].getPlaylist(

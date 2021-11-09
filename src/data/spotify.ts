@@ -1,7 +1,7 @@
 import pino from "pino";
 import { exit } from "process";
 import un, { UndecimError } from "undecim";
-import { URLSearchParams } from "url";
+import { URL, URLSearchParams } from "url";
 import { SpotifyAuth, SpotifyTokenResponse } from "../auth/spotify.js";
 import { InvalidArgError } from "../error/errors.js";
 import { rethrowSpotifyError } from "../error/spotify.js";
@@ -12,6 +12,7 @@ import {
   RecommendationSection,
 } from "../graphql/graphql.gen.js";
 import { pinoOpts } from "../logger/options.js";
+import { isURL } from "../utils/http.js";
 import { isDefined } from "../utils/utils.js";
 import type { ArtistDbObject, TrackDbObject } from "./types.js";
 import { getFromIdsPerEveryNum } from "./utils.js";
@@ -295,6 +296,17 @@ export class SpotifyAPI {
   ): Promise<TrackDbObject[]> {
     const accessToken = userAccessToken || SpotifyClientCredentials.accessToken;
 
+    // Check if it is URL
+    // Check if it is URL
+    if (isURL(searchQuery)) {
+      const url = new URL(searchQuery);
+      url.pathname.startsWith("/track");
+      const id = url.pathname.substring(7);
+      return SpotifyAPI.getTracks([id]).then((tracks) =>
+        tracks.filter(isDefined)
+      );
+    }
+
     const SEARCH_MAX_RESULTS = 30;
 
     const data = await SpotifyAPI.client
@@ -318,6 +330,16 @@ export class SpotifyAPI {
     userAccessToken?: string
   ): Promise<Playlist[]> {
     const accessToken = userAccessToken || SpotifyClientCredentials.accessToken;
+
+    // Check if it is URL
+    if (isURL(searchQuery)) {
+      const url = new URL(searchQuery);
+      url.pathname.startsWith("/playlist");
+      const id = url.pathname.substring(10);
+      return SpotifyAPI.getPlaylist(id).then((playlist) =>
+        playlist ? [playlist] : []
+      );
+    }
 
     const SEARCH_MAX_RESULTS = 30;
 

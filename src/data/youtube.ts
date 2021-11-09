@@ -7,6 +7,7 @@ import type {
 } from "../graphql/graphql.gen.js";
 import { PlatformName } from "../graphql/graphql.gen.js";
 import { ENV } from "../utils/constant.js";
+import { isURL } from "../utils/http.js";
 import { isDefined } from "../utils/utils.js";
 import type { ArtistDbObject, TrackDbObject } from "./types.js";
 import { getFromIdsPerEveryNum } from "./utils.js";
@@ -328,6 +329,19 @@ export class YoutubeAPI {
    * @param searchQuery
    */
   static async searchTracks(searchQuery: string): Promise<TrackDbObject[]> {
+    // Check if it is URL
+    if (isURL(searchQuery)) {
+      const regExp =
+        /^.*(youtu\.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+      const match = searchQuery.match(regExp);
+      if (match && match[2].length == 11) {
+        return YoutubeAPI.getTracks([match[2]]).then((tracks) =>
+          tracks.filter(isDefined)
+        );
+      } else {
+        return [];
+      }
+    }
     // Using unofficial YTMusic API
     const data = await un
       .post(`${INTERNAL_YTAPI.baseUrl}/search${INTERNAL_YTAPI.params}`, {
@@ -360,6 +374,19 @@ export class YoutubeAPI {
   }
 
   static async searchPlaylists(searchQuery: string) {
+    // Check if it is URL
+    if (isURL(searchQuery)) {
+      const regExp = /^.*(youtu.be\/|list=)([^#&?]*).*/;
+      const match = searchQuery.match(regExp);
+      if (match && match[2]) {
+        return YoutubeAPI.getPlaylists([match[2]]).then((playlists) =>
+          playlists.filter(isDefined)
+        );
+      } else {
+        return [];
+      }
+    }
+
     // Using unofficial YTMusic API
     const data = await un
       .post(`${INTERNAL_YTAPI.baseUrl}/search${INTERNAL_YTAPI.params}`, {

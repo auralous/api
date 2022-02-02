@@ -79,6 +79,17 @@ To debug `mongo`:
 docker run -it --network api_default --rm mongo mongo --host mongo auralous
 ```
 
+### Renew cert
+
+Right now, I need to manually renew the letsencrypt:
+
+```bash
+docker compose down
+certbot renew
+```
+
+(It could not renew automatically because port 80 is binded)
+
 ## License
 
 This program is a free software: you can redistribute it and/or modify it under the terms of the GNU Affero General Public License as published by the Free Software Foundation. See [LICENSE](LICENSE) file in this repository for the full text.

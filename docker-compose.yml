@@ -11,7 +11,9 @@ services:
     volumes:
       - redis_data:/data
   api:
-    image: hvvo/auralous-api:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
     command: npm run start
     depends_on:
       - mongodb
@@ -29,7 +31,9 @@ services:
     depends_on:
       - api
   worker:
-    image: hvvo/auralous-api:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
     command: npm run start:worker
     depends_on:
       - api

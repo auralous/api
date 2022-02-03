@@ -85,6 +85,9 @@ const resolvers: Resolvers = {
         id
       )}`;
     },
+    async sessionsSearch(parent, { query }, context) {
+      return SessionService.search(context, query);
+    },
   },
   Mutation: {
     sessionCreate(parent, { text, location, tracks }, context) {

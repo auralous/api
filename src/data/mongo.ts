@@ -28,6 +28,7 @@ async function applyIndex(db: Db) {
       { key: { creatorId: 1 } },
       { key: { isLive: 1 } },
       { key: { location: "2dsphere" } },
+      { key: { text: "text" } },
     ]);
   // follow
   await db

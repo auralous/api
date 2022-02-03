@@ -11,6 +11,7 @@ type Query {
   ): [Session!]!
   sessionsOnMap(lng: Float!, lat: Float!, radius: Float!): [Session!]!
   sessionTracks(id: ID!, from: Int, to: Int): [Track!]!
+  sessionsSearch(query: String!): [Session!]!
 }
 
 type Mutation {

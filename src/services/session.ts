@@ -583,4 +583,15 @@ export class SessionService {
     // JS slice's "end" is not included so we +1
     return session?.trackIds.slice(from, typeof to === "number" ? to + 1 : to);
   }
+
+  static async search(
+    context: ServiceContext,
+    query: string
+  ): Promise<SessionDbObject[]> {
+    return SessionService.collection
+      .find({
+        $text: { $search: query },
+      })
+      .toArray();
+  }
 }

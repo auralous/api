@@ -57,11 +57,12 @@ export const ncOptions: Options<IncomingMessage, ServerResponse> = {
 
 export function errorWithTranslation(lng: string | undefined) {
   return (error: GraphQLFormattedError): GraphQLFormattedError => {
-    if (!error.extensions?.i18n) return error;
+    const extensions = error.extensions as any;
+    if (!extensions?.i18n) return error;
     return {
       ...error,
-      message: t(error.extensions.i18n.key, {
-        ...error.extensions.i18n.options,
+      message: t(extensions.i18n.key, {
+        ...extensions.options,
         lng,
       }),
     };

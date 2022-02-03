@@ -4,7 +4,6 @@
     "**/*.gen.*": true,
     "**/node_modules/**": true,
     "**/dist/**": true,
-    "**/package-lock.json": true
   },
   "javascript.preferences.importModuleSpecifierEnding": "js"
 }

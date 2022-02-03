@@ -1,5 +1,5 @@
 import DataLoader from "dataloader";
-import mongodb from "mongodb";
+import mongodb, { OptionalUnlessRequiredId, WithoutId } from "mongodb";
 import { nanoid } from "nanoid";
 import pino from "pino";
 import { db } from "../data/mongo.js";
@@ -203,7 +203,7 @@ export class SessionService {
     });
     if (liveCount) throw new CustomError("error.must_end_other_sessions");
 
-    const session: Omit<SessionDbObject, "_id"> = {
+    const session: WithoutId<SessionDbObject> = {
       text,
       creatorId: context.auth.userId,
       createdAt,
@@ -220,7 +220,9 @@ export class SessionService {
       trackIds: [],
     };
 
-    const { insertedId } = await SessionService.collection.insertOne(session);
+    const { insertedId } = await SessionService.collection.insertOne(
+      session as OptionalUnlessRequiredId<SessionDbObject>
+    );
 
     const insertedSession: SessionDbObject = { ...session, _id: insertedId };
 

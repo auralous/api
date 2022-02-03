@@ -1,4 +1,4 @@
-import mongodb, { WithoutId } from "mongodb";
+import mongodb, { OptionalUnlessRequiredId, WithoutId } from "mongodb";
 import { db } from "../data/mongo.js";
 import { pubsub } from "../data/pubsub.js";
 import { MessageDbObject } from "../data/types.js";
@@ -57,7 +57,9 @@ export class MessageService {
     };
 
     const { acknowledged, insertedId } =
-      await MessageService.collection.insertOne(newMessage);
+      await MessageService.collection.insertOne(
+        newMessage as OptionalUnlessRequiredId<MessageDbObject>
+      );
 
     MessageService.notifyMessage(sessionId, {
       _id: insertedId,

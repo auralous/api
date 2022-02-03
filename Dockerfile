@@ -1,5 +1,6 @@
 FROM node:16-alpine
 ENV NODE_ENV production
+ENV NODE_OPTIONS="--max-old-space-size=1024"
 WORKDIR /usr/src/app
 # Note: npm v7 is expected to support yarn.lock
 COPY package*.json ./

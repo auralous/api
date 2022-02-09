@@ -26,6 +26,7 @@ export const REDIS_KEY = {
   auth(token: string) {
     return `auth:${token}`;
   },
+  sessionEndedAt: "session_ended_at",
 } as const;
 
 export const CONFIG = {

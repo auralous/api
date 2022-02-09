@@ -20,10 +20,14 @@ const logger = pino({
 export class NowPlayingController {
   static async getFormattedNowPlayingState(
     id: string
-  ): Promise<NowPlayingState> {
+  ): Promise<NowPlayingState | null> {
     const nowPlayingState = (await redis.hgetall(
       REDIS_KEY.nowPlayingState(id)
     )) as NowPlayingStateRedisValue;
+
+    if (Object.keys(nowPlayingState).length === 0) {
+      return null;
+    }
 
     return {
       playingIndex: Number(nowPlayingState.playingIndex),
@@ -34,7 +38,7 @@ export class NowPlayingController {
   }
 
   static async setNowPlayingState(id: string, state: NowPlayingState) {
-    logger.debug({ id, state }, "setNowPlayingState");
+    logger.debug({ id, state }, "setNowPlayingState: requested");
 
     const value: Partial<NowPlayingStateRedisValue> = {};
     value.playingIndex = state.playingIndex.toString();
@@ -60,7 +64,7 @@ export class NowPlayingController {
     id: string,
     indexOrUid: number | string
   ) {
-    logger.debug({ id, indexOrUid }, "setNewPlayingIndexOrUid");
+    logger.debug({ id, indexOrUid }, "setNewPlayingIndexOrUid: requested");
     let uid: string;
     let index: number;
     if (typeof indexOrUid === "string") {
@@ -107,11 +111,16 @@ export class NowPlayingController {
   }
 
   static async skipForward(context: ServiceContext, id: string) {
-    logger.debug({ id }, "executeSkipForward");
+    logger.debug({ id }, "skipForward: start");
     const [nowPlayingState, queueLength] = await Promise.all([
       NowPlayingController.getFormattedNowPlayingState(id),
       QueueService.getQueueLength(id),
     ]);
+
+    if (!nowPlayingState) {
+      logger.debug({ id }, "skipForward: nowPlayingState not found");
+      return;
+    }
 
     // Either go back to first track if at end or go to the next
     const nextPlayingIndex =
@@ -127,9 +136,13 @@ export class NowPlayingController {
   }
 
   static async skipBackward(context: ServiceContext, id: string) {
-    logger.debug({ id }, "executeSkipBackward");
+    logger.debug({ id }, "skipBackward: start");
     const nowPlayingState =
       await NowPlayingController.getFormattedNowPlayingState(id);
+    if (!nowPlayingState) {
+      logger.debug({ id }, "skipForward: nowPlayingState not found");
+      return;
+    }
 
     const nextPlayingIndex = Math.max(nowPlayingState.playingIndex - 1, 0);
 
@@ -139,6 +152,7 @@ export class NowPlayingController {
   static async notifyUpdate(id: string, currentHint?: NowPlayingQueueItem) {
     const current =
       currentHint || (await NowPlayingService.findCurrentItemById(id));
+    if (!current) return;
     const next = await QueueService.findById(id, current.index + 1);
     pubsub.publish(PUBSUB_CHANNELS.nowPlayingUpdated, {
       nowPlayingUpdated: {
@@ -147,5 +161,10 @@ export class NowPlayingController {
         next,
       },
     });
+  }
+
+  static async remove(id: string) {
+    logger.debug({ id }, "remove: removing");
+    await redis.del(REDIS_KEY.nowPlayingState(id));
   }
 }

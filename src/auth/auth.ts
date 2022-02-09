@@ -60,8 +60,6 @@ export async function authCallback(
       ? `auralous://sign-in?access_token=${token}`
       : `${ENV.APP_URI}/?access_token=${token}`;
 
-  logger.debug({ user, token }, "User is authenticated");
-
   res
     .writeHead(307, {
       Location: `${redirectTarget}${

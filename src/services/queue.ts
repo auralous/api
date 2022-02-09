@@ -303,20 +303,30 @@ export class QueueService {
       );
     } else if (actions.reorder) {
       // position depends on current playing index
-      const { playingIndex } =
+      const nowPlayingState =
         await NowPlayingController.getFormattedNowPlayingState(id);
+
+      if (!nowPlayingState) return false;
+
       await QueueService.reorderItems(
         id,
-        playingIndex + 1 + actions.reorder.position,
-        playingIndex + 1 + actions.reorder.insertPosition
+        nowPlayingState.playingIndex + 1 + actions.reorder.position,
+        nowPlayingState.playingIndex + 1 + actions.reorder.insertPosition
       );
       actionResult = true;
     } else if (actions.toTop) {
       // position depends on current playing index
-      const { queuePlayingUid } =
+      const nowPlayingState =
         await NowPlayingController.getFormattedNowPlayingState(id);
+
+      if (!nowPlayingState) return false;
+
       actionResult = Boolean(
-        await QueueService.toTopItems(id, actions.toTop.uids, queuePlayingUid)
+        await QueueService.toTopItems(
+          id,
+          actions.toTop.uids,
+          nowPlayingState.queuePlayingUid
+        )
       );
     }
     if (actionResult) NowPlayingController.notifyUpdate(id);

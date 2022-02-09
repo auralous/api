@@ -41,14 +41,14 @@ async function applyIndex(db: Db) {
   await db
     .collection<MessageDbObject>("messages")
     .createIndexes([{ key: { sessionId: 1 } }]);
-  logger.info("Index applied");
+  logger.info("applyIndex: done");
 }
 
 const client = new mongodb.MongoClient(ENV.MONGODB_URI);
 
 await client.connect();
 
-logger.info("Database connected");
+logger.info("database connected");
 
 export const db = client.db();
 

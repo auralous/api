@@ -20,10 +20,14 @@ export class NowPlayingService {
   /**
    * Find the nowPlaying by session id
    */
-  static async findCurrentItemById(id: string): Promise<NowPlayingQueueItem> {
+  static async findCurrentItemById(
+    id: string
+  ): Promise<NowPlayingQueueItem | null> {
     // See src/data/types.ts#NowPlayingStateRedisValue
     const nowPlayingState =
       await NowPlayingController.getFormattedNowPlayingState(id);
+
+    if (!nowPlayingState) return null;
 
     const queueItemData = await QueueService.findQueueItemData(
       id,

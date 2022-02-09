@@ -2,7 +2,7 @@ import type { P } from "pino";
 import { IS_DEV } from "../utils/constant.js";
 
 export const pinoOpts: P.LoggerOptions = {
-  level: IS_DEV ? "trace" : "info",
+  level: IS_DEV ? "debug" : "info",
   redact: !IS_DEV
     ? {
         paths: [

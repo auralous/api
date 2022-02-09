@@ -7,6 +7,7 @@ const resolvers: Resolvers = {
   Query: {
     async nowPlaying(parent, { id }) {
       const current = await NowPlayingService.findCurrentItemById(id);
+      if (!current) return null;
       const next = await QueueService.findById(id, current.index + 1);
       return { id, current, next };
     },

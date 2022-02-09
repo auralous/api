@@ -32,13 +32,11 @@ export class SessionService {
   static createLoader() {
     return new DataLoader<string, SessionDbObject | null>(
       async (keys) => {
-        const sessions = (
-          await SessionService.collection
-            .find({
-              _id: { $in: keys.map(mongodb.ObjectId.createFromHexString) },
-            })
-            .toArray()
-        ).map(SessionService.validateLive);
+        const sessions = await SessionService.collection
+          .find({
+            _id: { $in: keys.map(mongodb.ObjectId.createFromHexString) },
+          })
+          .toArray();
         // retain order
         return keys.map(
           (key) =>
@@ -77,29 +75,6 @@ export class SessionService {
       id: session._id.toHexString(),
       sessionUpdated: session,
     });
-  }
-
-  /**
-   * Check a session to see if it needs to be ended
-   * Sometimes, the creator does not end a session manually
-   * We define a inactivity duration to end the session (CONFIG.sessionLiveTimeout)
-   * This is often run everytime a session is accessed (either by itself or as part of a collection)
-   * Return the session itself for convenience passing into callbacks
-   * @param session
-   * @private
-   */
-  private static validateLive(session: SessionDbObject): SessionDbObject {
-    if (
-      session.isLive &&
-      Date.now() - session.lastCreatorActivityAt.getTime() >
-        CONFIG.sessionLiveTimeout
-    ) {
-      // creator is not active in awhile, end session
-      session.isLive = false;
-      // async update it
-      SessionService._end(session._id.toHexString());
-    }
-    return session;
   }
 
   /**
@@ -226,6 +201,12 @@ export class SessionService {
 
     const insertedSession: SessionDbObject = { ...session, _id: insertedId };
 
+    await redis.zadd(
+      REDIS_KEY.sessionEndedAt,
+      Date.now() + CONFIG.sessionLiveTimeout,
+      String(insertedSession._id)
+    );
+
     // FIXME: This requires manual updates when queue.ts changes
     await QueueService.pushItems(
       insertedId.toHexString(),
@@ -257,12 +238,10 @@ export class SessionService {
    * End session and remove related resources
    * @private
    */
-  private static async _end(_id: string) {
+  static async _end(_id: string) {
     const queue = await QueueService.findById(_id, 0, -1);
     const { value } = await SessionService.collection.findOneAndUpdate(
-      {
-        _id: new mongodb.ObjectId(_id),
-      },
+      { _id: new mongodb.ObjectId(_id) },
       {
         $set: {
           isLive: false,
@@ -275,6 +254,8 @@ export class SessionService {
     await Promise.all([
       QueueService.deleteById(value._id.toHexString()),
       SessionService.invalidateInviteToken(value),
+      redis.del(REDIS_KEY.sessionListenerPresences(String(value._id))),
+      NowPlayingController.remove(String(value._id)),
     ]);
     SessionService.notifyUpdate(value);
     return value;
@@ -408,13 +389,7 @@ export class SessionService {
    * @param creatorId
    */
   static async findLiveByCreatorId(context: ServiceContext, creatorId: string) {
-    return SessionService.collection
-      .findOne({ creatorId, isLive: true })
-      .then((session) => {
-        if (!session) return null;
-        session = SessionService.validateLive(session);
-        return session.isLive ? session : null;
-      });
+    return SessionService.collection.findOne({ creatorId, isLive: true });
   }
 
   static async findByLocation(
@@ -497,20 +472,19 @@ export class SessionService {
     if (!session) throw new NotFoundError("session", sessionId);
 
     // session presence does not apply to ended session
-    if (!session.isLive) throw new CustomError("error.session_ended");
+    if (!session.isLive) return;
 
-    // update lastCreatorActivityAt since the pinging user is create
+    const now = Date.now();
+
+    // update session_ended_at to extend session lifetime
     if (context.auth.userId === session.creatorId) {
-      await SessionService.collection.updateOne(
-        {
-          _id: new mongodb.ObjectId(sessionId),
-          creatorId: context.auth.userId,
-        },
-        { $set: { lastCreatorActivityAt: new Date() } }
+      await redis.zadd(
+        REDIS_KEY.sessionEndedAt,
+        now + CONFIG.sessionLiveTimeout,
+        String(session._id)
       );
     }
 
-    const now = Date.now();
     // when was user last in session or possibly NaN if never in
     const lastTimestampStr = await redis.zscore(
       REDIS_KEY.sessionListenerPresences(sessionId),

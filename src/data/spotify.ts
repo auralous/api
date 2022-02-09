@@ -32,6 +32,7 @@ class SpotifyClientCredentials {
   private static retryAttempt = 0;
   static async refresh() {
     try {
+      logger.debug("SpotifyClientCredentials/refresh: doing");
       const data = await un
         .post(SpotifyAuth.tokenEndpoint, {
           data: new URLSearchParams({ grant_type: "client_credentials" }),
@@ -40,7 +41,7 @@ class SpotifyClientCredentials {
           },
         })
         .json<SpotifyTokenResponse>();
-      logger.debug(data, "Implicit access token refreshed");
+      logger.debug(data, "SpotifyClientCredentials/refresh: done");
       SpotifyClientCredentials.accessToken = data.access_token;
       setTimeout(
         SpotifyClientCredentials.refresh,
@@ -55,14 +56,14 @@ class SpotifyClientCredentials {
       if (SpotifyClientCredentials.retryAttempt > 6) {
         logger.error(
           err,
-          `Could not refresh implicit access token. Too many attempts.`
+          `SpotifyClientCredentials/refresh: failed: too many attempts.`
         );
         return exit(1);
       }
       const retryIn = Math.pow(2, SpotifyClientCredentials.retryAttempt) * 100;
       logger.error(
         err,
-        `Could not refresh implicit access token. Retrying in ${retryIn}...`
+        `SpotifyClientCredentials/refresh: failed -> retrying in ${retryIn}...`
       );
       // Retry
       setTimeout(SpotifyClientCredentials.refresh, retryIn);

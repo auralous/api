@@ -39,6 +39,14 @@ services:
       - api
     restart: on-failure
     env_file: .env.prod
+  bot:
+    build:
+      context: ../bot
+      dockerfile: Dockerfile
+    depends_on:
+      - worker
+    restart: on-failure
+    env_file: .env.prod
 volumes:
   mongodb_data:
     driver: local

@@ -13,9 +13,9 @@
     "build:ts": "tsc",
     "build:copy": "mkdir dist/graphql/schemas && find src/graphql/ -type f | grep -i graphql$ | xargs -i cp {} dist/graphql/schemas",
     "build": "npm run codegen && npm run build:ts && npm run build:copy",
-    "dev": "npx concurrently -k \"npm run codegen:watch\" \"npm run dev:watch\" \"npm run dev:worker:watch\"",
-    "dev:watch": "nodemon --ext ts --watch src --exec \"node -r dotenv/config --loader ts-node/esm/transpile-only\" ./src/main.ts",
-    "dev:worker:watch": "nodemon --ext ts --watch src --exec \"node -r dotenv/config --loader ts-node/esm/transpile-only\" ./src/worker.ts",
+    "dev": "npx concurrently -k \"npm run codegen:watch\" \"npm run dev:api\" \"npm run dev:worker\"",
+    "dev:api": "nodemon --ext ts --watch src --exec \"node -r dotenv/config --loader ts-node/esm/transpile-only\" ./src/main.ts",
+    "dev:worker": "nodemon --ext ts --watch src --exec \"node -r dotenv/config --loader ts-node/esm/transpile-only\" ./src/worker.ts",
     "codegen": "graphql-codegen",
     "codegen:watch": "graphql-codegen --watch",
     "lint": "eslint ./ --ext json,ts,tsx --ignore-path .gitignore"

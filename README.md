@@ -43,52 +43,11 @@ Install the following:
 
 - [Node](https://nodejs.org/) 14.x ([nvm](https://github.com/nvm-sh/nvm) recommended)
 
-Run `docker-compose up` to start redis and mongodb services. Then, run `npm run dev` to start the development server.
+Run `npm run dev` to start the development server.
 
 ## Deployment
 
-### Build Docker image
-
-```bash
-sudo docker build -t hvvo/auralous-api .
-sudo docker push hvvo/auralous-api
-```
-
-### Run with Docker Compose
-
-1. Pull the source code
-2. Create `.env.prod` as above
-3. Run `docker compose up -d`
-4. To restart/pull new image, run:
-
-```bash
-docker compose pull
-```
-
-### Debugging
-
-To debug `redis`:
-
-```bash
-docker run -it --network api_default --rm redis redis-cli -h redis
-```
-
-To debug `mongo`:
-
-```bash
-docker run -it --network api_default --rm mongo mongo --host mongo auralous
-```
-
-### Renew cert
-
-Right now, I need to manually renew the letsencrypt:
-
-```bash
-docker compose down
-certbot renew
-```
-
-(It could not renew automatically because port 80 is binded)
+See https://github.com/auralous/deploy
 
 ## License
 

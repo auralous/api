@@ -1,5 +1,10 @@
 import type { SessionDbObject } from "../../data/types.js";
-import { InvalidArgError, NotFoundError } from "../../error/errors.js";
+import {
+  InvalidArgError,
+  NotFoundError,
+  UnauthorizedError,
+} from "../../error/errors.js";
+import { FollowService } from "../../services/follow.js";
 import { SessionService } from "../../services/session.js";
 import { TrackService } from "../../services/track.js";
 import { UserService } from "../../services/user.js";
@@ -17,15 +22,21 @@ const resolvers: Resolvers = {
         throw new InvalidArgError("limit", "Must be less than or equal 20");
       let sessions: SessionDbObject[] = [];
       if (creatorId) {
-        sessions = await SessionService.findByCreatorId(
+        sessions = await SessionService.findByCreatorIds(
           context,
-          creatorId,
+          [creatorId],
           limit,
           next
         );
       } else if (following) {
-        sessions = await SessionService.findFromFollowings(
+        if (!context.auth) throw new UnauthorizedError();
+        const followingIds = await FollowService.findFollowings(
+          context.auth.userId
+        );
+
+        sessions = await SessionService.findByCreatorIds(
           context,
+          followingIds.map((followingId) => followingId.following),
           limit,
           next
         );

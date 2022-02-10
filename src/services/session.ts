@@ -29,54 +29,6 @@ const logger = pino({ ...pinoOpts, name: "services/session" });
 export class SessionService {
   private static collection = db.collection<SessionDbObject>("sessions");
 
-  static createLoader() {
-    return new DataLoader<string, SessionDbObject | null>(
-      async (keys) => {
-        const sessions = await SessionService.collection
-          .find({
-            _id: { $in: keys.map(mongodb.ObjectId.createFromHexString) },
-          })
-          .toArray();
-        // retain order
-        return keys.map(
-          (key) =>
-            sessions.find(
-              (session: SessionDbObject) => session._id.toHexString() === key
-            ) || null
-        );
-      },
-      { cache: true }
-    );
-  }
-
-  /**
-   * Invalidate dataloader after updates
-   * @param context
-   * @param session
-   * @private
-   */
-  private static invalidateLoaderCache(
-    context: ServiceContext,
-    session: SessionDbObject
-  ) {
-    context.loaders.session
-      .clear(String(session._id))
-      .prime(String(session._id), session);
-  }
-
-  /**
-   * Notify the session has changed
-   * Possibly because a new collaboratorId, or isLive
-   * @param session
-   * @private
-   */
-  private static notifyUpdate(session: SessionDbObject) {
-    pubsub.publish(PUBSUB_CHANNELS.sessionUpdated, {
-      id: session._id.toHexString(),
-      sessionUpdated: session,
-    });
-  }
-
   /**
    * Get the invite token that can be used to add collaborators
    * @param context
@@ -94,28 +46,6 @@ export class SessionService {
     );
     if (!token) throw new Error(`Invite token is null for id = ${session._id}`);
     return token;
-  }
-
-  /**
-   * Create an invite token that can be used
-   * to add collaborators
-   * @param session
-   * @private
-   */
-  private static async createInviteToken(session: SessionDbObject) {
-    const token = nanoid(21);
-    await redis.set(REDIS_KEY.sessionInviteToken(String(session._id)), token);
-    return token;
-  }
-
-  /**
-   * Invalidate the invite token in case
-   * session is ended
-   * @param session
-   * @returns
-   */
-  private static async invalidateInviteToken(session: SessionDbObject) {
-    return redis.del(REDIS_KEY.sessionInviteToken(String(session._id)));
   }
 
   /**
@@ -140,7 +70,7 @@ export class SessionService {
       { $addToSet: { collaboratorIds: context.auth.userId } },
       { returnDocument: "after" }
     );
-    if (value) SessionService.invalidateLoaderCache(context, value);
+    if (value) SessionService.invalidateLoader(context, value);
     return Boolean(value);
   }
 
@@ -224,63 +154,14 @@ export class SessionService {
       0
     );
 
-    SessionService.invalidateLoaderCache(context, insertedSession);
+    SessionService.invalidateLoader(context, insertedSession);
 
     // create a secure invite link
-    await SessionService.createInviteToken(insertedSession);
+    await SessionService.createInviteToken(insertedId.toHexString());
 
     NotificationService.notifyFollowersOfNewSession(insertedSession);
 
     return insertedSession;
-  }
-
-  /**
-   * End session and remove related resources
-   * @private
-   */
-  static async _end(_id: string) {
-    const queue = await QueueService.findById(_id, 0, -1);
-    const { value } = await SessionService.collection.findOneAndUpdate(
-      { _id: new mongodb.ObjectId(_id), isLive: true },
-      {
-        $set: {
-          isLive: false,
-          ...(queue.length > 0 && {
-            trackIds: queue.map((queueItem) => queueItem.trackId),
-          }),
-        },
-      },
-      { returnDocument: "after" }
-    );
-    if (!value) throw new Error(`Cannot end session with id = ${_id}`);
-    await Promise.all([
-      QueueService.deleteById(value._id.toHexString()),
-      SessionService.invalidateInviteToken(value),
-      redis.del(REDIS_KEY.sessionListenerPresences(String(value._id))),
-      NowPlayingController.remove(String(value._id)),
-    ]);
-    SessionService.notifyUpdate(value);
-    return value;
-  }
-
-  /**
-   * End a session (aka archieved)
-   * An ended sessions can be replayed at any time
-   * but no new songs can be added to it
-   * @param sessionId
-   */
-  static async end(
-    context: ServiceContext,
-    sessionId: string
-  ): Promise<SessionDbObject> {
-    if (!context.auth) throw new UnauthorizedError();
-    const session = await SessionService.findById(context, sessionId);
-    if (!session) throw new NotFoundError("session", sessionId);
-    if (session.creatorId !== context.auth?.userId)
-      throw new ForbiddenError("session", sessionId);
-    const endedSession = await SessionService._end(sessionId);
-    SessionService.invalidateLoaderCache(context, endedSession);
-    return endedSession;
   }
 
   /**
@@ -324,9 +205,29 @@ export class SessionService {
     );
     // TODO: Clarify either session is not found or user is not allowed to update
     if (!session) throw new NotFoundError("session", id);
-    SessionService.invalidateLoaderCache(context, session);
+    SessionService.invalidateLoader(context, session);
     SessionService.notifyUpdate(session);
     return session;
+  }
+
+  /**
+   * End a session (aka archieved)
+   * An ended sessions can be replayed at any time
+   * but no new songs can be added to it
+   * @param sessionId
+   */
+  static async end(
+    context: ServiceContext,
+    sessionId: string
+  ): Promise<SessionDbObject> {
+    if (!context.auth) throw new UnauthorizedError();
+    const session = await SessionService.findById(context, sessionId);
+    if (!session) throw new NotFoundError("session", sessionId);
+    if (session.creatorId !== context.auth?.userId)
+      throw new ForbiddenError("session", sessionId);
+    const endedSession = await SessionService._end(sessionId);
+    SessionService.invalidateLoader(context, endedSession);
+    return endedSession;
   }
 
   /**
@@ -348,10 +249,7 @@ export class SessionService {
     if (!session) throw new NotFoundError("session", id);
 
     // Delete related resources
-    await Promise.all([
-      QueueService.deleteById(session._id.toHexString()),
-      SessionService.invalidateInviteToken(session),
-    ]);
+    await SessionService.endCleanup(session._id.toHexString());
 
     return true;
   }
@@ -370,15 +268,15 @@ export class SessionService {
    * @param limit
    * @param next
    */
-  static async findByCreatorId(
+  static async findByCreatorIds(
     context: ServiceContext,
-    creatorId: string,
+    creatorIds: string[],
     limit?: number,
     next?: string | null
   ) {
     return SessionService.collection
       .find({
-        creatorId,
+        creatorId: { $in: creatorIds },
         ...(next && { _id: { $lt: new mongodb.ObjectId(next) } }),
       })
       .sort({ $natural: -1 })
@@ -394,6 +292,14 @@ export class SessionService {
     return SessionService.collection.findOne({ creatorId, isLive: true });
   }
 
+  /**
+   * Find sessions based on location
+   * @param context
+   * @param lng
+   * @param lat
+   * @param radius
+   * @returns
+   */
   static async findByLocation(
     context: ServiceContext,
     lng: number,
@@ -434,7 +340,7 @@ export class SessionService {
   }
 
   /**
-   *
+   *  Find sessions based on one followings
    */
   static async findFromFollowings(
     context: ServiceContext,
@@ -571,5 +477,117 @@ export class SessionService {
         $text: { $search: query },
       })
       .toArray();
+  }
+
+  /**
+   * INTERNAL METHODS
+   */
+
+  static createLoader() {
+    return new DataLoader<string, SessionDbObject | null>(
+      async (keys) => {
+        const sessions = await SessionService.collection
+          .find({
+            _id: { $in: keys.map(mongodb.ObjectId.createFromHexString) },
+          })
+          .toArray();
+        // retain order
+        return keys.map(
+          (key) =>
+            sessions.find(
+              (session: SessionDbObject) => session._id.toHexString() === key
+            ) || null
+        );
+      },
+      { cache: true }
+    );
+  }
+
+  /**
+   * Invalidate dataloader after updates
+   * @param context
+   * @param session
+   * @private
+   */
+  private static invalidateLoader(
+    context: ServiceContext,
+    session: SessionDbObject
+  ) {
+    context.loaders.session
+      .clear(String(session._id))
+      .prime(String(session._id), session);
+  }
+
+  /**
+   * Notify the session has changed
+   * Possibly because a new collaboratorId, or isLive
+   * @param session
+   * @private
+   */
+  private static notifyUpdate(session: SessionDbObject) {
+    pubsub.publish(PUBSUB_CHANNELS.sessionUpdated, {
+      id: session._id.toHexString(),
+      sessionUpdated: session,
+    });
+  }
+
+  /**
+   * Clean up resources not needed after ending
+   * Used for both ._end and .delete
+   * @param id
+   */
+  private static async endCleanup(id: string) {
+    await Promise.all([
+      QueueService.deleteById(id),
+      SessionService.invalidateInviteToken(id),
+      redis.del(REDIS_KEY.sessionListenerPresences(id)),
+      NowPlayingController.remove(id),
+    ]);
+  }
+
+  /**
+   * End session and remove related resources
+   * @private
+   */
+  static async _end(_id: string) {
+    const queue = await QueueService.findById(_id, 0, -1);
+    const { value } = await SessionService.collection.findOneAndUpdate(
+      { _id: new mongodb.ObjectId(_id), isLive: true },
+      {
+        $set: {
+          isLive: false,
+          ...(queue.length > 0 && {
+            trackIds: queue.map((queueItem) => queueItem.trackId),
+          }),
+        },
+      },
+      { returnDocument: "after" }
+    );
+    if (!value) throw new Error(`Cannot end session with id = ${_id}`);
+    await SessionService.endCleanup(_id);
+    SessionService.notifyUpdate(value);
+    return value;
+  }
+
+  /**
+   * Create an invite token that can be used
+   * to add collaborators
+   * @param session
+   * @private
+   */
+  private static async createInviteToken(id: string) {
+    const token = nanoid(21);
+    await redis.set(REDIS_KEY.sessionInviteToken(id), token);
+    return token;
+  }
+
+  /**
+   * Invalidate the invite token in case
+   * session is ended
+   * @param session
+   * @returns
+   */
+  private static async invalidateInviteToken(id: string) {
+    return redis.del(REDIS_KEY.sessionInviteToken(id));
   }
 }

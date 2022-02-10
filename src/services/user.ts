@@ -13,36 +13,6 @@ import type { ServiceContext } from "./types.js";
 export class UserService {
   private static collection = db.collection<UserDbObject>("users");
 
-  static createLoader() {
-    return new DataLoader(
-      async (keys) => {
-        const users = await UserService.collection
-          .find({ _id: { $in: keys as string[] } })
-          .toArray();
-        // retain order
-        return keys.map(
-          (key) =>
-            users.find(({ _id }: Pick<UserDbObject, "_id">) => _id === key) ||
-            null
-        );
-      },
-      { cache: false }
-    );
-  }
-
-  /**
-   * Invalidate dataloader after updates
-   * @param context
-   * @param session
-   * @private
-   */
-  private static invalidateLoaderCache(
-    context: ServiceContext,
-    user: UserDbObject
-  ) {
-    context.loaders.user.clear(user._id).prime(user._id, user);
-  }
-
   /**
    * Find a user by id
    * @param id
@@ -97,26 +67,6 @@ export class UserService {
     return user;
   }
 
-  static async authOrCreate(
-    authState: Pick<AuthState, "oauthId" | "provider">,
-    data: Pick<UserDbObject, "profilePicture" | "email">
-  ) {
-    let me = await UserService.collection.findOne({
-      oauthProvider: authState.provider,
-      oauthId: authState.oauthId,
-    });
-    if (!me) {
-      me = await UserService.create({
-        ...data,
-        oauthProvider: authState.provider,
-        oauthId: authState.oauthId,
-      });
-      // @ts-expect-error: isNew is a special field to check if user is newly registered
-      me.isNew = true;
-    }
-    return me;
-  }
-
   static async updateMe(
     context: ServiceContext,
     {
@@ -163,10 +113,9 @@ export class UserService {
       throw new Error(`Cannot delete user with id = ${context.auth.userId}`);
 
     // delete every session
-    const allSessions = await SessionService.findByCreatorId(
-      context,
-      context.auth.userId
-    );
+    const allSessions = await SessionService.findByCreatorIds(context, [
+      context.auth.userId,
+    ]);
 
     const deletePromises: Promise<unknown>[] = [];
 
@@ -179,5 +128,56 @@ export class UserService {
     await Promise.all(deletePromises);
 
     return true;
+  }
+
+  /** INTERNAL METHODS */
+  static createLoader() {
+    return new DataLoader(
+      async (keys) => {
+        const users = await UserService.collection
+          .find({ _id: { $in: keys as string[] } })
+          .toArray();
+        // retain order
+        return keys.map(
+          (key) =>
+            users.find(({ _id }: Pick<UserDbObject, "_id">) => _id === key) ||
+            null
+        );
+      },
+      { cache: false }
+    );
+  }
+
+  /**
+   * Invalidate dataloader after updates
+   * @param context
+   * @param session
+   * @private
+   */
+  private static invalidateLoaderCache(
+    context: ServiceContext,
+    user: UserDbObject
+  ) {
+    context.loaders.user.clear(user._id).prime(user._id, user);
+  }
+
+  static async authOrCreate(
+    authState: Pick<AuthState, "oauthId" | "provider">,
+    data: Pick<UserDbObject, "profilePicture" | "email">
+  ) {
+    let me = await UserService.collection.findOne({
+      oauthProvider: authState.provider,
+      oauthId: authState.oauthId,
+    });
+    if (!me) {
+      me = await UserService.create({
+        ...data,
+        oauthProvider: authState.provider,
+        oauthId: authState.oauthId,
+      });
+      // @ts-expect-error: isNew is a special field to check if user is newly registered
+      me.isNew = true;
+    }
+    return me;
   }
 }

@@ -11,9 +11,13 @@ const logger = pino({
 
 async function processEndSession(id: string) {
   logger.info({ id }, `processEndSession: triggered`);
-  await SessionService._end(id);
-  await redis.zrem(REDIS_KEY.sessionEndedAt, id);
-  logger.info({ id }, `processEndSession: ended`);
+  try {
+    await SessionService._end(id);
+    await redis.zrem(REDIS_KEY.sessionEndedAt, id);
+    logger.info({ id }, `processEndSession: ended`);
+  } catch (e) {
+    logger.error({ id }, `processEndSession: cannot end`);
+  }
 }
 
 export default async function start() {

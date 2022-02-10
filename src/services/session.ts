@@ -241,11 +241,13 @@ export class SessionService {
   static async _end(_id: string) {
     const queue = await QueueService.findById(_id, 0, -1);
     const { value } = await SessionService.collection.findOneAndUpdate(
-      { _id: new mongodb.ObjectId(_id) },
+      { _id: new mongodb.ObjectId(_id), isLive: true },
       {
         $set: {
           isLive: false,
-          trackIds: queue.map((queueItem) => queueItem.trackId),
+          ...(queue.length > 0 && {
+            trackIds: queue.map((queueItem) => queueItem.trackId),
+          }),
         },
       },
       { returnDocument: "after" }

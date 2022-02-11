@@ -41,7 +41,10 @@ export function queryParser(
 
 export function makeSetCacheControl(res: ServerResponse): SetCacheControl {
   return function setCacheControl(maxAge, scope = "PUBLIC") {
-    res.setHeader("cache-control", `${scope.toLowerCase()}, max-age=${maxAge}`);
+    res.setHeader(
+      "cache-control",
+      `${scope.toLowerCase()}, max-age=${maxAge}, s-maxage=${maxAge}`
+    );
   };
 }
 

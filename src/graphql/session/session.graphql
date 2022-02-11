@@ -1,7 +1,7 @@
 type Query {
   session(id: ID!): Session
   sessionInviteLink(id: ID!): String!
-  sessionListeners(id: ID!): [String!]
+  sessionListeners(id: ID!): [User!]
   sessionCurrentLive(creatorId: ID, mine: Boolean): SessionCurrentLive
   sessions(
     creatorId: String
@@ -34,7 +34,7 @@ input LocationInput {
 
 type Subscription {
   sessionUpdated(id: ID!): Session!
-  sessionListenersUpdated(id: ID!): [String!]!
+  sessionListenersUpdated(id: ID!): [User!]!
 }
 
 type Session {

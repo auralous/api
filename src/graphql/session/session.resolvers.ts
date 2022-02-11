@@ -52,8 +52,10 @@ const resolvers: Resolvers = {
     async sessionsOnMap(parent, { lng, lat, radius }, context) {
       return SessionService.findByLocation(context, lng, lat, radius);
     },
-    async sessionListeners(parent, { id }) {
-      return SessionService.getCurrentListeners(id);
+    async sessionListeners(parent, { id }, context) {
+      const userIds = await SessionService.getCurrentListeners(id);
+      const users = await UserService.findManyByIds(context, userIds);
+      return users.filter(isDefined);
     },
     // @ts-ignore: Invalid TS Error
     async sessionCurrentLive(parent, { creatorId, mine }, context) {

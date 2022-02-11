@@ -16,6 +16,7 @@ import { LocationInput, MessageType } from "../graphql/graphql.gen.js";
 import { pinoOpts } from "../logger/options.js";
 import { CONFIG, PUBSUB_CHANNELS, REDIS_KEY } from "../utils/constant.js";
 import type { NullablePartial } from "../utils/types.js";
+import { isDefined } from "../utils/utils.js";
 import { FollowService } from "./follow.js";
 import { MessageService } from "./message.js";
 import { NotificationService } from "./notification.js";
@@ -23,6 +24,7 @@ import { NowPlayingController } from "./nowPlayingController.js";
 import { QueueService } from "./queue.js";
 import { TrackService } from "./track.js";
 import type { ServiceContext } from "./types.js";
+import { UserService } from "./user.js";
 
 const logger = pino({ ...pinoOpts, name: "services/session" });
 
@@ -433,11 +435,14 @@ export class SessionService {
       });
 
       // Notify session user update via subscription
+      const currentListenersIds = await SessionService.getCurrentListeners(
+        sessionId
+      );
       pubsub.publish(PUBSUB_CHANNELS.sessionListenersUpdated, {
         id: sessionId,
-        sessionListenersUpdated: await SessionService.getCurrentListeners(
-          sessionId
-        ),
+        sessionListenersUpdated: (
+          await UserService.findManyByIds(context, currentListenersIds)
+        ).filter(isDefined),
       });
     }
   }

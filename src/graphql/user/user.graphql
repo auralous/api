@@ -1,6 +1,7 @@
 type Query {
   me: Me
   user(username: String, id: ID): User
+  users(ids: [ID!]!): [User]!
   userStat(id: ID!): UserStat
   userFollowers(id: ID!): [String!]!
   userFollowings(id: ID!): [String!]!

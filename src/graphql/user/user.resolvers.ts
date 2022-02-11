@@ -29,6 +29,9 @@ const resolvers: Resolvers = {
       if (user) context.setCacheControl?.(CONFIG.userMaxAge);
       return user;
     },
+    async users(parent, { ids }, context) {
+      return UserService.findManyByIds(context, ids);
+    },
     async userFollowers(parent, { id }) {
       return (await FollowService.findFollows(id)).map(
         (followEntry) => followEntry.follower

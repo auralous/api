@@ -1,10 +1,9 @@
 import nc from "next-connect";
-import { ncOptions } from "../server/utils.js";
 import { invalidateToken } from "./auth.js";
 import { handler as google } from "./google.js";
 import { handler as spotify } from "./spotify.js";
 
-const auth = nc(ncOptions);
+const auth = nc();
 
 /**
  * Auth subapps

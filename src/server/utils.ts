@@ -1,8 +1,6 @@
 import type { GraphQLFormattedError } from "graphql";
 import type { IncomingMessage, ServerResponse } from "http";
-import type { Options } from "next-connect";
 import { parse as parseQS } from "querystring";
-import { logError } from "../error/utils.js";
 import { t } from "../i18n/i18n.js";
 import type { SetCacheControl } from "./types.js";
 
@@ -47,16 +45,6 @@ export function makeSetCacheControl(res: ServerResponse): SetCacheControl {
     );
   };
 }
-
-export const ncOptions: Options<IncomingMessage, ServerResponse> = {
-  onError(err, req, res) {
-    logError(err);
-    return (
-      (res.statusCode = err.status || 500) &&
-      res.end(err.message || "Something went wrong")
-    );
-  },
-};
 
 export function errorWithTranslation(lng: string | undefined) {
   return (error: GraphQLFormattedError): GraphQLFormattedError => {

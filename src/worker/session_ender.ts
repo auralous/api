@@ -16,7 +16,7 @@ async function processEndSession(id: string) {
     await redis.zrem(REDIS_KEY.sessionEndedAt, id);
     logger.info({ id }, `processEndSession: ended`);
   } catch (e) {
-    logger.error({ id }, `processEndSession: cannot end`);
+    logger.error(e, `processEndSession: cannot end ${id}`);
   }
 }
 

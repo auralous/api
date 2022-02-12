@@ -1,18 +1,14 @@
 import type { IncomingMessage, ServerResponse } from "http";
 import { nanoid } from "nanoid";
-import pino from "pino";
 import { URL } from "url";
 import { redis } from "../data/redis.js";
 import type { UserDbObject } from "../data/types.js";
 import { PlatformName } from "../graphql/graphql.gen.js";
-import { pinoOpts } from "../logger/options.js";
 import { UserService } from "../services/user.js";
 import { ENV, REDIS_KEY } from "../utils/constant.js";
 import { GoogleAuth } from "./google.js";
 import { SpotifyAuth } from "./spotify.js";
 import type { AuthState, RedisAuthHash } from "./types.js";
-
-const logger = pino({ ...pinoOpts, name: "auth" });
 
 /**
  * Create an auth initialization handler

@@ -4,6 +4,7 @@ import nc from "next-connect";
 import { getAuthFromRequest } from "../auth/auth.js";
 import auth from "../auth/handler.js";
 import { redis } from "../data/redis.js";
+import { logError } from "../error/utils.js";
 import {
   graphiql,
   graphqlHTTP,
@@ -12,12 +13,20 @@ import {
 import {
   errorWithTranslation,
   makeSetCacheControl,
-  ncOptions,
   queryParser,
   rawBody,
 } from "./utils.js";
 
-const app = nc(ncOptions);
+const app = nc({
+  onError(err, req, res) {
+    logError(err);
+    return (
+      (res.statusCode = err.status || 500) &&
+      res.end(err.message || "Something went wrong")
+    );
+  },
+  disableResponseWait: true,
+});
 
 /**
  * Health Endpoint to check MongoDB and Redis statuses

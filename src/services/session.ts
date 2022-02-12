@@ -545,8 +545,9 @@ export class SessionService {
     await Promise.all([
       QueueService.deleteById(id),
       SessionService.invalidateInviteToken(id),
-      redis.del(REDIS_KEY.sessionListenerPresences(id)),
       NowPlayingController.remove(id),
+      redis.del(REDIS_KEY.sessionListenerPresences(id)),
+      redis.zrem(REDIS_KEY.sessionEndedAt, id),
     ]);
   }
 
@@ -557,7 +558,7 @@ export class SessionService {
   static async _end(_id: string) {
     const queue = await QueueService.findById(_id, 0, -1);
     const { value } = await SessionService.collection.findOneAndUpdate(
-      { _id: new mongodb.ObjectId(_id), isLive: true },
+      { _id: new mongodb.ObjectId(_id) },
       {
         $set: {
           isLive: false,

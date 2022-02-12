@@ -93,7 +93,7 @@ const resolvers: Resolvers = {
     async sessionInviteLink(parent, { id }, context) {
       return `${
         ENV.APP_URI
-      }/session/${id}/invite/${await SessionService.getInviteToken(
+      }/sessions/${id}/invite/${await SessionService.getInviteToken(
         context,
         id
       )}`;

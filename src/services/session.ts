@@ -2,6 +2,7 @@ import DataLoader from "dataloader";
 import mongodb, { OptionalUnlessRequiredId, WithoutId } from "mongodb";
 import { nanoid } from "nanoid";
 import pino from "pino";
+import un from "undecim";
 import { db } from "../data/mongo.js";
 import { pubsub } from "../data/pubsub.js";
 import { redis } from "../data/redis.js";
@@ -14,7 +15,7 @@ import {
 } from "../error/errors.js";
 import { LocationInput, MessageType } from "../graphql/graphql.gen.js";
 import { pinoOpts } from "../logger/options.js";
-import { CONFIG, PUBSUB_CHANNELS, REDIS_KEY } from "../utils/constant.js";
+import { CONFIG, ENV, PUBSUB_CHANNELS, REDIS_KEY } from "../utils/constant.js";
 import type { NullablePartial } from "../utils/types.js";
 import { isDefined } from "../utils/utils.js";
 import { FollowService } from "./follow.js";
@@ -27,6 +28,35 @@ import type { ServiceContext } from "./types.js";
 import { UserService } from "./user.js";
 
 const logger = pino({ ...pinoOpts, name: "services/session" });
+
+const updateMapboxDataset = async (
+  sessionId: string,
+  geometry: NonNullable<SessionDbObject["location"]> | null
+) => {
+  const featureId = `session_${sessionId}`;
+  const uri = `https://api.mapbox.com/datasets/v1/${CONFIG.mbUsername}/${CONFIG.mbDatasetId}/features/${featureId}?access_token=${ENV.MAPBOX_ACCESS_TOKEN}`;
+  if (geometry === null) {
+    await un.delete(uri);
+    return;
+  }
+  await un.put(uri, {
+    data: {
+      id: featureId,
+      type: "Feature",
+      geometry,
+      properties: {
+        eventType: "session",
+      },
+    },
+  });
+  // tileset needed to be updated after dataset updated
+  await un.post(`https://api.mapbox.com/uploads/v1/${CONFIG.mbUsername}`, {
+    data: {
+      tileset: CONFIG.mbTilesetId,
+      url: CONFIG.mbDatasetId,
+    },
+  });
+};
 
 export class SessionService {
   private static collection = db.collection<SessionDbObject>("sessions");
@@ -85,7 +115,7 @@ export class SessionService {
     context: ServiceContext,
     {
       text,
-      location,
+      location: locationInput,
     }: Pick<SessionDbObject, "text"> & {
       location: LocationInput | null | undefined;
     },
@@ -118,20 +148,29 @@ export class SessionService {
       image,
       collaboratorIds: [context.auth.userId],
       lastCreatorActivityAt: createdAt,
-      ...(location && {
-        location: {
-          type: "Point",
-          coordinates: [location.lng, location.lat],
-        },
-      }),
       trackIds: [],
     };
+
+    if (locationInput) {
+      session.location = {
+        type: "Point",
+        coordinates: [locationInput.lng, locationInput.lat],
+      };
+    }
 
     const { insertedId } = await SessionService.collection.insertOne(
       session as OptionalUnlessRequiredId<SessionDbObject>
     );
 
     const insertedSession: SessionDbObject = { ...session, _id: insertedId };
+
+    if (insertedSession.location) {
+      // add to heatmap
+      await updateMapboxDataset(
+        String(insertedId),
+        insertedSession.location
+      ).catch(() => undefined);
+    }
 
     await redis.zadd(
       REDIS_KEY.sessionEndedAt,
@@ -175,13 +214,7 @@ export class SessionService {
   static async update(
     context: ServiceContext,
     id: string,
-    {
-      text,
-      image,
-      location,
-    }: NullablePartial<Pick<SessionDbObject, "text" | "image">> & {
-      location: LocationInput | null | undefined;
-    }
+    { text, image }: NullablePartial<Pick<SessionDbObject, "text" | "image">>
   ): Promise<SessionDbObject> {
     if (!context.auth) throw new UnauthorizedError();
     const { value: session } = await SessionService.collection.findOneAndUpdate(
@@ -193,14 +226,6 @@ export class SessionService {
         $set: {
           ...(text && { text }),
           ...(image !== undefined && { image }),
-          ...(location !== undefined && {
-            location: location
-              ? {
-                  type: "Point",
-                  coordinates: [location.lng, location.lat],
-                }
-              : null,
-          }),
         },
       },
       { returnDocument: "after" }
@@ -548,6 +573,7 @@ export class SessionService {
       NowPlayingController.remove(id),
       redis.del(REDIS_KEY.sessionListenerPresences(id)),
       redis.zrem(REDIS_KEY.sessionEndedAt, id),
+      updateMapboxDataset(id, null).catch(() => undefined),
     ]);
   }
 

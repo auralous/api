@@ -9,7 +9,7 @@ type Query {
     next: String
     limit: Int!
   ): [Session!]!
-  sessionsOnMap(lng: Float!, lat: Float!, radius: Float!): [Session!]!
+  sessionsOnMap(location: LocationInput!, radius: Float!): [Session!]!
   sessionTracks(id: ID!, from: Int, to: Int): [Track!]!
   sessionsSearch(query: String!): [Session!]!
 }

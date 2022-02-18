@@ -49,8 +49,13 @@ const resolvers: Resolvers = {
       }
       return sessions;
     },
-    async sessionsOnMap(parent, { lng, lat, radius }, context) {
-      return SessionService.findByLocation(context, lng, lat, radius);
+    async sessionsOnMap(parent, { location, radius }, context) {
+      return SessionService.findByLocation(
+        context,
+        location.lng,
+        location.lat,
+        radius
+      );
     },
     async sessionListeners(parent, { id }, context) {
       const userIds = await SessionService.getCurrentListeners(id);
@@ -113,8 +118,8 @@ const resolvers: Resolvers = {
         tracks
       );
     },
-    sessionUpdate(parent, { id, text, location }, context) {
-      return SessionService.update(context, id, { text, location });
+    sessionUpdate(parent, { id, text }, context) {
+      return SessionService.update(context, id, { text });
     },
     async sessionEnd(parent, { id }, context) {
       return SessionService.end(context, id);

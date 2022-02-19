@@ -1,5 +1,5 @@
 import { UndecimError } from "undecim";
-import { undecimAddResponseBody } from "./utils.js";
+import { augmentUndecimError } from "./utils.js";
 
 /// <reference path="spotify-api" />
 
@@ -7,19 +7,18 @@ export async function rethrowSpotifyError(
   error: UndecimError | Error
 ): Promise<never> {
   if (error instanceof UndecimError) {
-    const augmentedError = await undecimAddResponseBody(error);
-    if (typeof augmentedError.responseBody === "string") {
-      return Promise.reject(new Error(augmentedError.responseBody));
-    } else {
+    // @ts-ignore
+    error.type = "SpotifyHTTPStatusError";
+    const augmentedError = await augmentUndecimError(error);
+    if (typeof augmentedError.responseBody === "object") {
       const spotifyResponse = augmentedError.responseBody as
-        | {
-            error: SpotifyApi.ErrorObject;
-          }
+        | { error: SpotifyApi.ErrorObject }
         | { error: string; error_description: string };
       if ("error_description" in spotifyResponse)
-        Promise.reject(new Error(spotifyResponse.error_description));
-      else return Promise.reject(Error(spotifyResponse.error.message));
+        augmentedError.message = spotifyResponse.error_description;
+      else augmentedError.message = spotifyResponse.error.message;
     }
+    return Promise.reject(augmentedError);
   }
   throw error;
 }

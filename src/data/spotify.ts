@@ -1,11 +1,11 @@
 import pino from "pino";
 import { exit } from "process";
-import un, { UndecimError } from "undecim";
+import un, { create, UndecimError } from "undecim";
 import { URL, URLSearchParams } from "url";
 import { SpotifyAuth, SpotifyTokenResponse } from "../auth/spotify.js";
 import { InvalidArgError } from "../error/errors.js";
 import { rethrowSpotifyError } from "../error/spotify.js";
-import { undecimAddResponseBody } from "../error/utils.js";
+import { augmentUndecimError } from "../error/utils.js";
 import {
   PlatformName,
   Playlist,
@@ -50,7 +50,7 @@ class SpotifyClientCredentials {
     } catch (error) {
       const err =
         error instanceof UndecimError
-          ? await undecimAddResponseBody(error)
+          ? await augmentUndecimError(error)
           : (error as Error);
       SpotifyClientCredentials.retryAttempt += 1;
       if (SpotifyClientCredentials.retryAttempt > 6) {
@@ -116,7 +116,7 @@ function parsePlaylist(
 }
 
 export class SpotifyAPI {
-  static client = un.create({ prefixURL: "https://api.spotify.com" });
+  static client = create({ origin: "https://api.spotify.com" });
 
   /**
    * Get Spotify tracks

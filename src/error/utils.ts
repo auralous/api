@@ -4,13 +4,11 @@ import { UndecimError } from "undecim";
 import { pinoOpts } from "../logger/options.js";
 import { AuraError } from "./errors.js";
 
-const GRAPHQL_EXPECTED_ERR_CODES = ["PERSISTED_QUERY_NOT_FOUND"];
+const ExpectedErrorMessages = ["PersistedQueryNotFound"];
 
 export function isExpectedError(err: Error | GraphQLError | AuraError) {
-  if (err instanceof GraphQLError) {
-    if ((err.extensions as any)?.code in GRAPHQL_EXPECTED_ERR_CODES) {
-      return true;
-    }
+  if (ExpectedErrorMessages.includes(err.message)) {
+    return true;
   }
   if (err instanceof AuraError) {
     return true;
@@ -18,18 +16,20 @@ export function isExpectedError(err: Error | GraphQLError | AuraError) {
   return false;
 }
 
-export async function undecimAddResponseBody(error: UndecimError) {
+export async function augmentUndecimError(error: UndecimError) {
   const augmentedError = error as UndecimError & {
-    responseBody: string | Record<string, string>;
+    responseBody?: string | Record<string, string>;
   };
   if (augmentedError.responseBody) return augmentedError;
-  augmentedError.responseBody = await error.response.text();
-  try {
-    augmentedError.responseBody = JSON.parse(augmentedError.responseBody);
-  } catch (e) {
-    /* noop */
+  if (error.response) {
+    augmentedError.responseBody = await error.response?.text();
+    try {
+      augmentedError.responseBody = JSON.parse(augmentedError.responseBody);
+    } catch (e) {
+      /* noop */
+    }
   }
-  Object.defineProperty(error.response, "body", {
+  Object.defineProperty(augmentedError.response, "body", {
     value: undefined,
     enumerable: false,
   });
@@ -42,11 +42,14 @@ export async function logError(
   error: Error | GraphQLError | AuraError | UndecimError
 ) {
   if (error instanceof UndecimError) {
-    await undecimAddResponseBody(error);
+    await augmentUndecimError(error);
   }
   if (!isExpectedError(error)) {
     errorLogger.error(error);
   } else {
+    if (ExpectedErrorMessages.includes(error.message)) {
+      return;
+    }
     errorLogger.debug(error);
   }
 }

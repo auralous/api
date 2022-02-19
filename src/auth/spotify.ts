@@ -1,5 +1,5 @@
 import nc from "next-connect";
-import un from "undecim";
+import un, { create } from "undecim";
 import { URLSearchParams } from "url";
 import { rethrowSpotifyError } from "../error/spotify.js";
 import { PlatformName } from "../graphql/graphql.gen.js";
@@ -18,7 +18,7 @@ export interface SpotifyTokenResponse {
 }
 
 export class SpotifyAuth {
-  static client = un.create({ prefixURL: "https://api.spotify.com" });
+  static client = create({ origin: "https://api.spotify.com" });
 
   static tokenEndpoint = "https://accounts.spotify.com/api/token";
 

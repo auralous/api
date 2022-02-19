@@ -42,7 +42,7 @@
     "next-connect": "^0.12.1",
     "pino": "^7.6.5",
     "slug": "^5.2.0",
-    "undecim": "^0.1.1",
+    "undecim": "^0.2.0",
     "ws": "^8.5.0"
   },
   "devDependencies": {

@@ -1,4 +1,4 @@
-import un from "undecim";
+import { create } from "undecim";
 import { PlatformName } from "../graphql/graphql.gen.js";
 import { ENV } from "../utils/constant.js";
 
@@ -16,7 +16,7 @@ type OdesliResponse =
   | { statusCode: 404 };
 
 export class OdesliAPI {
-  static client = un.create({ prefixURL: "https://api.song.link" });
+  static client = create({ origin: "https://api.song.link" });
   static getLinks(platformName: PlatformName, externalId: string) {
     return OdesliAPI.client
       .get(

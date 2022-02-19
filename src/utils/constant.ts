@@ -66,6 +66,7 @@ assert(process.env.SPOTIFY_CLIENT_SECRET);
 assert(process.env.SONGLINK_KEY);
 assert(process.env.MONGODB_URI);
 assert(process.env.REDIS_URL);
+assert(process.env.MAPBOX_ACCESS_TOKEN);
 
 export const ENV = {
   API_URI: process.env.API_URI,

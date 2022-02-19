@@ -12,14 +12,15 @@ export const pinoOpts: P.LoggerOptions = {
         ],
       }
     : undefined,
-  transport: IS_DEV
-    ? {
-        target: "pino-pretty",
-        options: {
-          levelFirst: true,
-          translateTime: true,
-          ignore: "pid,hostname",
-        },
-      }
-    : undefined,
+  transport:
+    IS_DEV || process.env.LOG_PRETTY === "true"
+      ? {
+          target: "pino-pretty",
+          options: {
+            levelFirst: true,
+            translateTime: true,
+            ignore: "pid,hostname",
+          },
+        }
+      : undefined,
 };

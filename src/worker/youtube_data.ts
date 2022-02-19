@@ -33,6 +33,8 @@ async function getBrowses() {
           }
         )
         .json();
+      if (!data.continuationContents)
+        throw new Error("cannot found property continuationContents");
       for (const content of data.continuationContents.sectionListContinuation
         ?.contents as any[]) {
         const playlistIds = content.musicCarouselShelfRenderer.contents

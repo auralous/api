@@ -4,7 +4,10 @@ import { UndecimError } from "undecim";
 import { pinoOpts } from "../logger/options.js";
 import { AuraError } from "./errors.js";
 
-const ExpectedErrorMessages = ["PersistedQueryNotFound"];
+const ExpectedErrorMessages = [
+  "PersistedQueryNotFound",
+  "Must provide query string.",
+];
 
 export function isExpectedError(err: Error | GraphQLError | AuraError) {
   if (ExpectedErrorMessages.includes(err.message)) {

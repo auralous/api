@@ -283,14 +283,24 @@ export class YoutubeAPI {
 
     let trackData: youtube_v3.Schema$PlaylistItemListResponse | undefined;
 
+    const invalidNextPageToken = new Set<string>(); // sometimes YouTube API is stupid and return looping pageToken (A -> B -> A -> B)
+
     do {
+      const pageToken = trackData?.nextPageToken;
+
+      if (pageToken) {
+        if (invalidNextPageToken.has(pageToken)) break;
+        // otherwise infinite loop!!
+        else invalidNextPageToken.add(pageToken);
+      }
+
       trackData = (
         await YoutubeAPI.youtube.playlistItems.list({
           part: ["contentDetails"],
           fields: "nextPageToken,items/contentDetails/videoId",
           playlistId: externalId,
           access_token: userAccessToken,
-          pageToken: trackData?.nextPageToken || undefined,
+          pageToken: pageToken || undefined,
           maxResults: 50,
         })
       ).data;

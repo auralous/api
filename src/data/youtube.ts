@@ -9,7 +9,12 @@ import { PlatformName } from "../graphql/graphql.gen.js";
 import { ENV } from "../utils/constant.js";
 import { isURL } from "../utils/http.js";
 import { isDefined } from "../utils/utils.js";
-import type { ArtistDbObject, TrackDbObject } from "./types.js";
+import { db } from "./mongo.js";
+import type {
+  ArtistDbObject,
+  RecommendationDbObject,
+  TrackDbObject,
+} from "./types.js";
 import { getFromIdsPerEveryNum } from "./utils.js";
 
 function parseDurationToMs(str: string) {
@@ -30,7 +35,7 @@ function parseDurationToMs(str: string) {
   return duration * 1000;
 }
 
-const INTERNAL_YTAPI = {
+export const INTERNAL_YTAPI = {
   filterParams: {
     video: "EgWKAQIQAWoMEAMQBBAJEA4QBRAK",
     communityPlaylist: "EgeKAQQoA" + "EA" + "BQgIIAWoMEA4QChADEAQQCRAF",
@@ -38,41 +43,20 @@ const INTERNAL_YTAPI = {
   context: {
     client: {
       clientName: "WEB_REMIX",
-      clientVersion: "0.1",
-      experimentIds: [],
-      experimentsToken: "",
-      gl: "US",
-      hl: "en",
-      locationInfo: {
-        locationPermissionAuthorizationStatus:
-          "LOCATION_PERMISSION_AUTHORIZATION_STATUS_UNSUPPORTED",
-      },
+      clientVersion: "1.20220216.00.00",
+      platform: "DESKTOP",
       musicAppInfo: {
+        pwaInstallabilityStatus: "PWA_INSTALLABILITY_STATUS_UNKNOWN",
+        webDisplayMode: "WEB_DISPLAY_MODE_BROWSER",
         musicActivityMasterSwitch: "MUSIC_ACTIVITY_MASTER_SWITCH_INDETERMINATE",
         musicLocationMasterSwitch: "MUSIC_LOCATION_MASTER_SWITCH_INDETERMINATE",
-        pwaInstallabilityStatus: "PWA_INSTALLABILITY_STATUS_UNKNOWN",
       },
-      utcOffsetMinutes: 60,
+      visitorData: "CgtPN3JValJiaVNYMCi17cSQBg%3D%3D",
     },
     request: {
-      internalExperimentFlags: [
-        {
-          key: "force_music_enable_outertube_tastebuilder_browse",
-          value: "true",
-        },
-        {
-          key: "force_music_enable_outertube_playlist_detail_browse",
-          value: "true",
-        },
-        {
-          key: "force_music_enable_outertube_search_suggestions",
-          value: "true",
-        },
-      ],
-      sessionIndex: {},
-    },
-    user: {
-      enableSafetyMode: false,
+      consistencyTokenJars: [],
+      internalExperimentFlags: [],
+      useSsl: true,
     },
   },
   headers: {
@@ -114,7 +98,9 @@ function parseTrack(result: youtube_v3.Schema$Video): TrackDbObject {
     platform: PlatformName.Youtube,
     duration: msDuration,
     title: result.snippet!.title as string,
-    image: result.snippet!.thumbnails?.high?.url || undefined,
+    image: result.snippet!.thumbnails
+      ? `https://i.ytimg.com/vi/${result.id}/maxresdefault.jpg`
+      : undefined,
     artistIds: [`youtube:${result.snippet!.channelId as string}`],
     albumId: "",
     url: `https://youtu.be/${result.id as string}`,
@@ -149,7 +135,7 @@ export class YoutubeAPI {
       const { data: json } = await YoutubeAPI.youtube.videos.list({
         part: ["contentDetails", "snippet", "status"],
         fields:
-          "items(id,snippet(title,thumbnails/high,channelId),contentDetails/duration,status/embeddable)",
+          "items(id,snippet(title,thumbnails,channelId),contentDetails/duration,status/embeddable)",
         id: ids,
         maxResults: 50,
       });
@@ -435,7 +421,7 @@ export class YoutubeAPI {
         const { data: json } = await YoutubeAPI.youtube.channels.list({
           id: ids,
           part: ["snippet"],
-          fields: "items(id,snippet(title,thumbnails/high))",
+          fields: "items(id,snippet(title,thumbnails))",
           maxResults: 50,
         });
         return json.items!.map((val) => (val ? parseArtist(val) : null));
@@ -449,14 +435,19 @@ export class YoutubeAPI {
   static async getRecommendationSections(
     accessToken?: string | null
   ): Promise<RecommendationSection[]> {
-    return [];
+    return db
+      .collection<RecommendationDbObject>("recommendations")
+      .find({ platform: PlatformName.Youtube })
+      .toArray();
   }
 
   static async getRecommendationSection(
     accessToken: string | null | undefined,
     id: string
   ): Promise<RecommendationSection | null> {
-    return null;
+    return db
+      .collection<RecommendationDbObject>("recommendations")
+      .findOne({ platform: PlatformName.Youtube, id });
   }
 
   static async getRecommendationItems(
@@ -464,6 +455,12 @@ export class YoutubeAPI {
     id: string,
     limit: number
   ): Promise<Playlist[]> {
-    return [];
+    const recomm = await db
+      .collection<RecommendationDbObject>("recommendations")
+      .findOne({ platform: PlatformName.Youtube, id });
+    if (!recomm) return [];
+    return (await YoutubeAPI.getPlaylists(recomm.playlistIds)).filter(
+      isDefined
+    );
   }
 }

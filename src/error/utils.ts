@@ -20,7 +20,8 @@ export async function augmentUndecimError(error: UndecimError) {
   const augmentedError = error as UndecimError & {
     responseBody?: string | Record<string, string>;
   };
-  if (augmentedError.responseBody) return augmentedError;
+  if (augmentedError.responseBody || !error.response?.body)
+    return augmentedError;
   if (error.response) {
     augmentedError.responseBody = await error.response?.text();
     try {

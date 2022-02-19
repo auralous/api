@@ -118,8 +118,8 @@ const resolvers: Resolvers = {
         tracks
       );
     },
-    sessionUpdate(parent, { id, text }, context) {
-      return SessionService.update(context, id, { text });
+    sessionUpdate(parent, { id, text, location }, context) {
+      return SessionService.update(context, id, { text, location });
     },
     async sessionEnd(parent, { id }, context) {
       return SessionService.end(context, id);

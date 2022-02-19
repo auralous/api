@@ -33,29 +33,37 @@ const updateMapboxDataset = async (
   sessionId: string,
   geometry: NonNullable<SessionDbObject["location"]> | null
 ) => {
-  const featureId = `session_${sessionId}`;
-  const uri = `https://api.mapbox.com/datasets/v1/${CONFIG.mbUsername}/${CONFIG.mbDatasetId}/features/${featureId}?access_token=${ENV.MAPBOX_ACCESS_TOKEN}`;
-  if (geometry === null) {
-    await un.delete(uri);
+  try {
+    const featureId = `session_${sessionId}`;
+    const uri = `https://api.mapbox.com/datasets/v1/${CONFIG.mbUsername}/${CONFIG.mbDatasetId}/features/${featureId}?access_token=${ENV.MAPBOX_ACCESS_TOKEN}`;
+    if (geometry === null) {
+      await un.delete(uri);
+    } else {
+      await un.put(uri, {
+        data: {
+          id: featureId,
+          type: "Feature",
+          geometry,
+          properties: {
+            eventType: "session",
+          },
+        },
+      });
+    }
+    // tileset needed to be updated after dataset updated
+    await await un.post(
+      `https://api.mapbox.com/uploads/v1/${CONFIG.mbUsername}?access_token=${ENV.MAPBOX_ACCESS_TOKEN}`,
+      {
+        data: {
+          tileset: CONFIG.mbTilesetId,
+          url: `mapbox://datasets/${CONFIG.mbUsername}/${CONFIG.mbDatasetId}`,
+        },
+      }
+    );
+  } catch (e) {
+    logger.debug(e);
     return;
   }
-  await un.put(uri, {
-    data: {
-      id: featureId,
-      type: "Feature",
-      geometry,
-      properties: {
-        eventType: "session",
-      },
-    },
-  });
-  // tileset needed to be updated after dataset updated
-  await un.post(`https://api.mapbox.com/uploads/v1/${CONFIG.mbUsername}`, {
-    data: {
-      tileset: CONFIG.mbTilesetId,
-      url: CONFIG.mbDatasetId,
-    },
-  });
 };
 
 export class SessionService {
@@ -149,14 +157,13 @@ export class SessionService {
       collaboratorIds: [context.auth.userId],
       lastCreatorActivityAt: createdAt,
       trackIds: [],
+      location: locationInput
+        ? {
+            type: "Point",
+            coordinates: [locationInput.lng, locationInput.lat],
+          }
+        : undefined,
     };
-
-    if (locationInput) {
-      session.location = {
-        type: "Point",
-        coordinates: [locationInput.lng, locationInput.lat],
-      };
-    }
 
     const { insertedId } = await SessionService.collection.insertOne(
       session as OptionalUnlessRequiredId<SessionDbObject>
@@ -166,10 +173,7 @@ export class SessionService {
 
     if (insertedSession.location) {
       // add to heatmap
-      await updateMapboxDataset(
-        String(insertedId),
-        insertedSession.location
-      ).catch(() => undefined);
+      await updateMapboxDataset(String(insertedId), insertedSession.location);
     }
 
     await redis.zadd(
@@ -214,7 +218,15 @@ export class SessionService {
   static async update(
     context: ServiceContext,
     id: string,
-    { text, image }: NullablePartial<Pick<SessionDbObject, "text" | "image">>
+    {
+      text,
+      image,
+      location,
+    }: NullablePartial<
+      Pick<SessionDbObject, "text" | "image"> & {
+        location: LocationInput | null | undefined;
+      }
+    >
   ): Promise<SessionDbObject> {
     if (!context.auth) throw new UnauthorizedError();
     const { value: session } = await SessionService.collection.findOneAndUpdate(
@@ -226,12 +238,24 @@ export class SessionService {
         $set: {
           ...(text && { text }),
           ...(image !== undefined && { image }),
+          ...(location != undefined && {
+            location: {
+              type: "Point",
+              coordinates: [location.lng, location.lat],
+            },
+          }),
         },
       },
       { returnDocument: "after" }
     );
     // TODO: Clarify either session is not found or user is not allowed to update
     if (!session) throw new NotFoundError("session", id);
+
+    if (session.location) {
+      // add to heatmap
+      await updateMapboxDataset(String(session._id), session.location);
+    }
+
     SessionService.invalidateLoader(context, session);
     SessionService.notifyUpdate(session);
     return session;

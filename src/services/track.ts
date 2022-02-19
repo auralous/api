@@ -1,4 +1,5 @@
 import DataLoader from "dataloader";
+import { AuthState } from "../auth/types.js";
 import { OdesliAPI } from "../data/odesli.js";
 import { redis } from "../data/redis.js";
 import { SpotifyAPI } from "../data/spotify.js";
@@ -50,7 +51,8 @@ import type { ServiceContext } from "./types.js";
 // });
 
 function createLoaderFn<T extends TrackDbObject | ArtistDbObject>(
-  getFnName: "getTracks" | "getArtists"
+  getFnName: "getTracks" | "getArtists",
+  auth: AuthState | null
 ) {
   /**
    * For the loader, we group all YouTube / Spotify / Apple Music
@@ -75,9 +77,13 @@ function createLoaderFn<T extends TrackDbObject | ArtistDbObject>(
 
     for (const platformName of Object.keys(idsBatches) as PlatformName[]) {
       if (idsBatches[platformName].size > 0) {
+        let accessToken: string | undefined;
+        if (platformName === auth?.provider)
+          accessToken = (await auth.accessTokenPromise) || undefined;
         promises.push(
           TrackService[platformName][getFnName](
-            Array.from(idsBatches[platformName])
+            Array.from(idsBatches[platformName]),
+            accessToken
           ) as Promise<(T | null)[]>
         );
       }
@@ -94,13 +100,13 @@ function createLoaderFn<T extends TrackDbObject | ArtistDbObject>(
 }
 
 export class TrackService {
-  static createLoader() {
+  static createLoader(auth: AuthState | null) {
     return {
       track: new DataLoader<string, TrackDbObject | null>(
-        createLoaderFn<TrackDbObject>("getTracks")
+        createLoaderFn<TrackDbObject>("getTracks", auth)
       ),
       artist: new DataLoader<string, ArtistDbObject | null>(
-        createLoaderFn<ArtistDbObject>("getArtists")
+        createLoaderFn<ArtistDbObject>("getArtists", auth)
       ),
     };
   }

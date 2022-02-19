@@ -8,7 +8,7 @@ export function createContext(auth: AuthState | null): ServiceContext {
   return {
     loaders: {
       session: SessionService.createLoader(),
-      track: TrackService.createLoader(),
+      track: TrackService.createLoader(auth),
       user: UserService.createLoader(),
     },
     auth,

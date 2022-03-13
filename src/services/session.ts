@@ -2,7 +2,6 @@ import DataLoader from "dataloader";
 import mongodb, { OptionalUnlessRequiredId, WithoutId } from "mongodb";
 import { nanoid } from "nanoid";
 import pino from "pino";
-import un from "undecim";
 import { db } from "../data/mongo.js";
 import { pubsub } from "../data/pubsub.js";
 import { redis } from "../data/redis.js";
@@ -15,7 +14,7 @@ import {
 } from "../error/errors.js";
 import { LocationInput, MessageType } from "../graphql/graphql.gen.js";
 import { pinoOpts } from "../logger/options.js";
-import { CONFIG, ENV, PUBSUB_CHANNELS, REDIS_KEY } from "../utils/constant.js";
+import { CONFIG, PUBSUB_CHANNELS, REDIS_KEY } from "../utils/constant.js";
 import type { NullablePartial } from "../utils/types.js";
 import { isDefined } from "../utils/utils.js";
 import { FollowService } from "./follow.js";
@@ -29,41 +28,43 @@ import { UserService } from "./user.js";
 
 const logger = pino({ ...pinoOpts, name: "services/session" });
 
-const updateMapboxDataset = async (
+const updateMapDataset = async (
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   sessionId: string,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   geometry: NonNullable<SessionDbObject["location"]> | null
 ) => {
-  try {
-    const featureId = `session_${sessionId}`;
-    const uri = `https://api.mapbox.com/datasets/v1/${CONFIG.mbUsername}/${CONFIG.mbDatasetId}/features/${featureId}?access_token=${ENV.MAPBOX_ACCESS_TOKEN}`;
-    if (geometry === null) {
-      await un.delete(uri);
-    } else {
-      await un.put(uri, {
-        data: {
-          id: featureId,
-          type: "Feature",
-          geometry,
-          properties: {
-            eventType: "session",
-          },
-        },
-      });
-    }
-    // tileset needed to be updated after dataset updated
-    await await un.post(
-      `https://api.mapbox.com/uploads/v1/${CONFIG.mbUsername}?access_token=${ENV.MAPBOX_ACCESS_TOKEN}`,
-      {
-        data: {
-          tileset: CONFIG.mbTilesetId,
-          url: `mapbox://datasets/${CONFIG.mbUsername}/${CONFIG.mbDatasetId}`,
-        },
-      }
-    );
-  } catch (e) {
-    logger.debug(e);
-    return;
-  }
+  // try {
+  //   const featureId = `session_${sessionId}`;
+  //   const uri = `//`;
+  //   if (geometry === null) {
+  //     await un.delete(uri);
+  //   } else {
+  //     await un.put(uri, {
+  //       data: {
+  //         id: featureId,
+  //         type: "Feature",
+  //         geometry,
+  //         properties: {
+  //           eventType: "session",
+  //         },
+  //       },
+  //     });
+  //   }
+  //   // tileset needed to be updated after dataset updated
+  //   await await un.post(
+  //     `//`,
+  //     {
+  //       data: {
+  //         tileset: CONFIG.mbTilesetId,
+  //         url: `mapbox://datasets/${CONFIG.mbUsername}/${CONFIG.mbDatasetId}`,
+  //       },
+  //     }
+  //   );
+  // } catch (e) {
+  //   logger.debug(e);
+  //   return;
+  // }
 };
 
 export class SessionService {
@@ -173,7 +174,7 @@ export class SessionService {
 
     if (insertedSession.location) {
       // add to heatmap
-      await updateMapboxDataset(String(insertedId), insertedSession.location);
+      await updateMapDataset(String(insertedId), insertedSession.location);
     }
 
     await redis.zadd(
@@ -253,7 +254,7 @@ export class SessionService {
 
     if (session.location) {
       // add to heatmap
-      await updateMapboxDataset(String(session._id), session.location);
+      await updateMapDataset(String(session._id), session.location);
     }
 
     SessionService.invalidateLoader(context, session);
@@ -597,7 +598,7 @@ export class SessionService {
       NowPlayingController.remove(id),
       redis.del(REDIS_KEY.sessionListenerPresences(id)),
       redis.zrem(REDIS_KEY.sessionEndedAt, id),
-      updateMapboxDataset(id, null).catch(() => undefined),
+      updateMapDataset(id, null).catch(() => undefined),
     ]);
   }
 

@@ -39,9 +39,6 @@ export const CONFIG = {
   sessionLiveTimeout: 15 * 60 * 1000, // if creator is not active in session in 15 min, end it
   usernameMaxLength: 15,
   sessionTextMaxLength: 60,
-  mbDatasetId: "ckzsfhn4901qi21mzij1oe7ag",
-  mbTilesetId: "hoangvvo.ckzsfhn4901qi21mzij1oe7ag-9wc1f",
-  mbUsername: "hoangvvo",
 } as const;
 
 export const PUBSUB_CHANNELS = {
@@ -66,7 +63,6 @@ assert(process.env.SPOTIFY_CLIENT_SECRET);
 assert(process.env.SONGLINK_KEY);
 assert(process.env.MONGODB_URI);
 assert(process.env.REDIS_URL);
-assert(process.env.MAPBOX_ACCESS_TOKEN);
 
 export const ENV = {
   API_URI: process.env.API_URI,
@@ -79,6 +75,5 @@ export const ENV = {
   SONGLINK_KEY: process.env.SONGLINK_KEY,
   MONGODB_URI: process.env.MONGODB_URI,
   REDIS_URL: process.env.REDIS_URL,
-  MAPBOX_ACCESS_TOKEN: process.env.MAPBOX_ACCESS_TOKEN,
   PORT: process.env.PORT || "4000",
 };

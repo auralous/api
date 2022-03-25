@@ -28,45 +28,6 @@ import { UserService } from "./user.js";
 
 const logger = pino({ ...pinoOpts, name: "services/session" });
 
-const updateMapDataset = async (
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  sessionId: string,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  geometry: NonNullable<SessionDbObject["location"]> | null
-) => {
-  // try {
-  //   const featureId = `session_${sessionId}`;
-  //   const uri = `//`;
-  //   if (geometry === null) {
-  //     await un.delete(uri);
-  //   } else {
-  //     await un.put(uri, {
-  //       data: {
-  //         id: featureId,
-  //         type: "Feature",
-  //         geometry,
-  //         properties: {
-  //           eventType: "session",
-  //         },
-  //       },
-  //     });
-  //   }
-  //   // tileset needed to be updated after dataset updated
-  //   await await un.post(
-  //     `//`,
-  //     {
-  //       data: {
-  //         tileset: CONFIG.mbTilesetId,
-  //         url: `mapbox://datasets/${CONFIG.mbUsername}/${CONFIG.mbDatasetId}`,
-  //       },
-  //     }
-  //   );
-  // } catch (e) {
-  //   logger.debug(e);
-  //   return;
-  // }
-};
-
 export class SessionService {
   private static collection = db.collection<SessionDbObject>("sessions");
 
@@ -172,11 +133,6 @@ export class SessionService {
 
     const insertedSession: SessionDbObject = { ...session, _id: insertedId };
 
-    if (insertedSession.location) {
-      // add to heatmap
-      await updateMapDataset(String(insertedId), insertedSession.location);
-    }
-
     await redis.zadd(
       REDIS_KEY.sessionEndedAt,
       Date.now() + CONFIG.sessionLiveTimeout,
@@ -251,11 +207,6 @@ export class SessionService {
     );
     // TODO: Clarify either session is not found or user is not allowed to update
     if (!session) throw new NotFoundError("session", id);
-
-    if (session.location) {
-      // add to heatmap
-      await updateMapDataset(String(session._id), session.location);
-    }
 
     SessionService.invalidateLoader(context, session);
     SessionService.notifyUpdate(session);
@@ -598,7 +549,6 @@ export class SessionService {
       NowPlayingController.remove(id),
       redis.del(REDIS_KEY.sessionListenerPresences(id)),
       redis.zrem(REDIS_KEY.sessionEndedAt, id),
-      updateMapDataset(id, null).catch(() => undefined),
     ]);
   }
 

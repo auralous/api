@@ -20,6 +20,7 @@ SONGLINK_KEY=
 MONGODB_URI=mongodb://localhost:27017/auralous
 REDIS_URL=redis://localhost:6379
 LOG_LEVEL=debug
+LOG_PRETTY=true
 ```
 
 ### Production

@@ -1,4 +1,3 @@
-import type { SessionDbObject } from "../../data/types.js";
 import {
   InvalidArgError,
   NotFoundError,
@@ -17,12 +16,15 @@ const resolvers: Resolvers = {
     session(parent, { id }, context) {
       return SessionService.findById(context, id);
     },
-    async sessions(parent, { creatorId, following, limit, next }, context) {
+    async sessions(
+      parent,
+      { creatorId, following, location, limit, next },
+      context
+    ) {
       if (limit > 20)
         throw new InvalidArgError("limit", "Must be less than or equal 20");
-      let sessions: SessionDbObject[] = [];
       if (creatorId) {
-        sessions = await SessionService.findByCreatorIds(
+        return SessionService.findByCreatorIds(
           context,
           [creatorId],
           limit,
@@ -34,28 +36,21 @@ const resolvers: Resolvers = {
           context.auth.userId
         );
 
-        sessions = await SessionService.findByCreatorIds(
+        return SessionService.findByCreatorIds(
           context,
           followingIds.map((followingId) => followingId.following),
           limit,
           next
         );
-      } else {
-        sessions = await SessionService.findRecommendations(
+      } else if (location) {
+        return SessionService.findByLocation(
           context,
-          limit,
-          next
+          location.lng,
+          location.lat,
+          location.radius
         );
       }
-      return sessions;
-    },
-    async sessionsOnMap(parent, { location, radius }, context) {
-      return SessionService.findByLocation(
-        context,
-        location.lng,
-        location.lat,
-        radius
-      );
+      return SessionService.findRecommendations(context, limit, next);
     },
     async sessionListeners(parent, { id }, context) {
       const userIds = await SessionService.getCurrentListeners(id);

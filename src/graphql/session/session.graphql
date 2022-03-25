@@ -6,10 +6,10 @@ type Query {
   sessions(
     creatorId: String
     following: Boolean
+    location: LocationRadiusInput
     next: String
     limit: Int!
   ): [Session!]!
-  sessionsOnMap(location: LocationInput!, radius: Float!): [Session!]!
   sessionTracks(id: ID!, from: Int, to: Int): [Track!]!
   sessionsSearch(query: String!): [Session!]!
 }
@@ -30,6 +30,12 @@ type Mutation {
 input LocationInput {
   lng: Float!
   lat: Float!
+}
+
+input LocationRadiusInput {
+  lng: Float!
+  lat: Float!
+  radius: Float!
 }
 
 type Subscription {

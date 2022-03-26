@@ -1,17 +1,10 @@
-enum NowPlayingReactionType {
-  heart
-  joy
-  fire
-  cry
-}
-
 type Query {
   nowPlaying(id: ID!): NowPlaying
   nowPlayingReactions(id: ID!): [NowPlayingReactionItem!]!
 }
 
 type Mutation {
-  nowPlayingReact(id: ID!, reaction: NowPlayingReactionType!): Boolean
+  nowPlayingReact(id: ID!, reaction: String!): Boolean
   nowPlayingSkip(id: ID!, isBackward: Boolean!): Boolean
   nowPlayingPlayUid(id: ID!, uid: String!): Boolean
 }
@@ -38,5 +31,6 @@ type NowPlaying {
 
 type NowPlayingReactionItem {
   userId: String!
-  reaction: NowPlayingReactionType!
+  user: User
+  reaction: String!
 }

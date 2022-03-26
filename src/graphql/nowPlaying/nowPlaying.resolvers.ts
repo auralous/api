@@ -1,5 +1,10 @@
 import { NowPlayingService } from "../../services/nowPlaying.js";
+import {
+  NowPlayingReactionService,
+  NowPlayingReactionType,
+} from "../../services/nowPlayingReaction.js";
 import { QueueService } from "../../services/queue.js";
+import { UserService } from "../../services/user.js";
 import { PUBSUB_CHANNELS } from "../../utils/constant.js";
 import type { Resolvers } from "../graphql.gen.js";
 
@@ -11,13 +16,18 @@ const resolvers: Resolvers = {
       const next = await QueueService.findById(id, current.index + 1);
       return { id, current, next };
     },
+    // @ts-ignore
     async nowPlayingReactions(parent, { id }) {
-      return NowPlayingService.getAllReactions(id);
+      return NowPlayingReactionService.getAll(id);
     },
   },
   Mutation: {
     async nowPlayingReact(parent, { id, reaction }, context) {
-      await NowPlayingService.reactNowPlaying(context, id, reaction);
+      await NowPlayingReactionService.addReaction(
+        context,
+        id,
+        reaction === "" ? null : (reaction as NowPlayingReactionType)
+      );
       return true;
     },
     async nowPlayingSkip(parent, { id, isBackward }, context) {
@@ -46,6 +56,11 @@ const resolvers: Resolvers = {
           (payload) => payload.id === id
         );
       },
+    },
+  },
+  NowPlayingReactionItem: {
+    user({ userId }, args, context) {
+      return UserService.findById(context, userId);
     },
   },
 };

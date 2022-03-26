@@ -8,7 +8,7 @@ const resolvers: Resolvers = {
   Subscription: {
     messageAdded: {
       async subscribe(parent, { id }, { pubsub, auth }) {
-        if (auth) throw new UnauthorizedError();
+        if (!auth) throw new UnauthorizedError();
         // FIXME: Check auth
         return pubsub.on(
           PUBSUB_CHANNELS.messageAdded,

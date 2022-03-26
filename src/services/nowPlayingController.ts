@@ -9,6 +9,7 @@ import type { NowPlayingQueueItem } from "../graphql/graphql.gen.js";
 import { pinoOpts } from "../logger/options.js";
 import { PUBSUB_CHANNELS, REDIS_KEY } from "../utils/constant.js";
 import { NowPlayingService } from "./nowPlaying.js";
+import { NowPlayingReactionService } from "./nowPlayingReaction.js";
 import { QueueService } from "./queue.js";
 import { TrackService } from "./track.js";
 import { ServiceContext } from "./types.js";
@@ -108,6 +109,8 @@ export class NowPlayingController {
     };
     // Notify nowPlaying changes
     NowPlayingController.notifyUpdate(id, currentTrack);
+    // Notify to reset nowPlayingReaction
+    NowPlayingReactionService.notifyUpdate(id);
   }
 
   static async skipForward(context: ServiceContext, id: string) {

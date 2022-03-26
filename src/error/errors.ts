@@ -86,3 +86,13 @@ export class ForbiddenError extends AuraError {
     });
   }
 }
+
+export class OAuthError extends AuraError {
+  constructor() {
+    super("Forbidden", "FORBIDDEN", {
+      i18n: {
+        key: "error.oauth",
+      },
+    });
+  }
+}

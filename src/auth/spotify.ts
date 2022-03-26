@@ -32,7 +32,7 @@ export class SpotifyAuth {
 
   static async checkToken(accessToken?: string): Promise<boolean> {
     if (!accessToken) return false;
-    // Use a private API (but it's quick) to fetch token validity
+    // Use a private (but quick) API to fetch token validity
     return SpotifyAuth.client
       .get("/v1/melody/v1/check_scope?scope=web-playback", {
         headers: { Authorization: `Bearer ${accessToken}` },

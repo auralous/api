@@ -20,6 +20,8 @@ const resources = {
         not_collaborator: "You must be a collaborator to do this action",
         must_end_other_sessions:
           "You must end other sessions before starting a new one",
+        oauth:
+          "Cannot authenticate with music provider. Please sign out and sign in again.",
       },
     },
   },
@@ -43,6 +45,8 @@ const resources = {
           "Bạn phải là một cộng tác viên để thực hiện hành động này",
         must_end_other_sessions:
           "Bạn phải kết thúc các phiên khác trước khi bắt đầu phiên mới",
+        oauth:
+          "Không thể xác thực với nền tảng cung cấp nhạc. Vui lòng đăng xuất và đăng nhập lại.",
       },
     },
   },

@@ -3,7 +3,6 @@ import { nanoid } from "nanoid";
 import { URL } from "url";
 import { redis } from "../data/redis.js";
 import type { UserDbObject } from "../data/types.js";
-import { OAuthError } from "../error/errors.js";
 import { PlatformName } from "../graphql/graphql.gen.js";
 import { UserService } from "../services/user.js";
 import { ENV, REDIS_KEY } from "../utils/constant.js";
@@ -76,10 +75,10 @@ async function getAccessTokenFromRedisAuthState(
     redisAuthValue.accessToken,
     redisAuthValue.refreshToken
   );
-  // if (!result) return null;
-  if (!result) {
-    throw new OAuthError();
-  }
+  if (!result) return null;
+  // if (!result) {
+  // throw new OAuthError();
+  // }
   if (
     result.accessToken !== redisAuthValue.accessToken ||
     result.refreshToken !== redisAuthValue.refreshToken

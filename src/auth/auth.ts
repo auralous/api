@@ -91,7 +91,11 @@ async function getAccessTokenFromRedisAuthState(
 export async function getAuthFromRequest(
   req: IncomingMessage
 ): Promise<null | AuthState> {
-  const token = req.headers.authorization;
+  let token = req.headers.authorization || null;
+  if (!token && req.url?.includes("access_token")) {
+    const search = req.url.substring(req.url.indexOf("?"));
+    token = new URLSearchParams(search).get("access_token");
+  }
   if (!token) return null;
 
   const redisAuthState = (await redis.hgetall(

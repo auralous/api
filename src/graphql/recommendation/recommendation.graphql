@@ -1,6 +1,9 @@
 type Query {
   recommendationSection(id: ID!, playlistLimit: Int): RecommendationSection
-  recommendationSections(playlistLimit: Int): [RecommendationSection!]!
+  recommendationSections(
+    platform: PlatformName
+    playlistLimit: Int
+  ): [RecommendationSection!]!
 }
 
 type RecommendationSection {

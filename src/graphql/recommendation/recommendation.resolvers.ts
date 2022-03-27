@@ -30,16 +30,16 @@ const resolvers: Resolvers = {
       }
       return result;
     },
-    async recommendationSections(parent, args, context) {
+    async recommendationSections(parent, { platform }, context) {
       let result: RecommendationSection[] = [];
-      if (context.auth?.provider === PlatformName.Spotify) {
-        result = await SpotifyAPI.getRecommendationSections(
-          await context.auth.accessTokenPromise
-        );
+      const accessToken =
+        context.auth && platform === context.auth.provider
+          ? await context.auth.accessTokenPromise
+          : undefined;
+      if (platform === PlatformName.Spotify) {
+        result = await SpotifyAPI.getRecommendationSections(accessToken);
       } else {
-        result = await YoutubeAPI.getRecommendationSections(
-          await context.auth?.accessTokenPromise
-        );
+        result = await YoutubeAPI.getRecommendationSections(accessToken);
       }
       if (result.length > 0) {
         context.setCacheControl?.(CONFIG.recommendationsMaxAge, "PUBLIC");

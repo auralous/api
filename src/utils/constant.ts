@@ -39,6 +39,7 @@ export const CONFIG = {
   sessionLiveTimeout: 15 * 60 * 1000, // if creator is not active in session in 15 min, end it
   usernameMaxLength: 15,
   sessionTextMaxLength: 60,
+  recommendationsMaxAge: 24 * 60 * 60,
 } as const;
 
 export const PUBSUB_CHANNELS = {

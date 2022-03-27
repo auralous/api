@@ -418,10 +418,12 @@ export class SpotifyAPI {
       {
         id: `spotify_featured-playlists`,
         title: dataFeatured.message || "Featured playlists",
+        playlists: [],
       },
       ...dataCategories.categories.items.map((category) => ({
         id: `spotify_category_${category.id}`,
         title: category.name,
+        playlists: [],
       })),
     ];
   }
@@ -444,6 +446,7 @@ export class SpotifyAPI {
       return {
         id,
         title: data.message || "Featured playlists",
+        playlists: [],
       };
     } else if (id.startsWith("spotify_category_")) {
       const categoryId = id.substring(17);
@@ -458,6 +461,7 @@ export class SpotifyAPI {
       return {
         id,
         title: data.name,
+        playlists: [],
       };
     }
     throw new InvalidArgError("id", "Invalid recommendation id");
@@ -483,12 +487,12 @@ export class SpotifyAPI {
     } else if (id.startsWith("spotify_category_")) {
       const categoryId = id.substring(17);
       const data = await SpotifyAPI.client
-        .get(`/v1/browse/categories/${categoryId}/playlists?${limit}`, {
+        .get(`/v1/browse/categories/${categoryId}/playlists?limit=${limit}`, {
           headers: {
             Authorization: `Bearer ${accessToken}`,
           },
         })
-        .json<SpotifyApi.CategoryPlaylistsReponse>()
+        .json<SpotifyApi.CategoryPlaylistsResponse>()
         .catch(rethrowSpotifyError);
       return data.playlists.items.map(parsePlaylist);
     }

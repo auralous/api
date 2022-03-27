@@ -469,6 +469,7 @@ export class YoutubeAPI {
       .collection<RecommendationDbObject>("recommendations")
       .findOne({ platform: PlatformName.Youtube, id });
     if (!recomm) return [];
+    recomm.playlistIds = recomm.playlistIds.slice(0, limit);
     return (await YoutubeAPI.getPlaylists(recomm.playlistIds)).filter(
       isDefined
     );

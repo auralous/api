@@ -58,6 +58,7 @@ async function getBrowses() {
                 .musicCarouselShelfBasicHeaderRenderer.title.runs[0].text,
             playlistIds,
             platform: PlatformName.Youtube,
+            playlists: [],
           });
         }
       }

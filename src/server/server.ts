@@ -26,6 +26,7 @@ const wss: WebSocket.Server = new WebSocketServer({
 });
 
 wss.on("connection", async (socket, req) => {
+  // @ts-ignore
   graphqlWS(socket, {
     auth: getAuthFromRequest(req),
   });

@@ -82,6 +82,8 @@ export class QueueService {
       .hgetall(REDIS_KEY.queueData(id))
       .exec();
 
+    if (!result) throw new Error("no exec result");
+
     const err = result[0][0] || result[1][0];
     if (err) throw err;
 
@@ -161,10 +163,12 @@ export class QueueService {
       .hmset(REDIS_KEY.queueData(id), dataStrMap)
       .exec();
 
+    if (!result) throw new Error("no exec result");
+
     const err = result[0][0] || result[1][0];
     if (err) throw err;
 
-    return result[0][1];
+    return Number(result[0][1]);
   }
 
   /**
@@ -187,6 +191,8 @@ export class QueueService {
       .rpush(redisKey, ...reorderedItems)
       .exec();
 
+    if (!result) throw new Error("no exec result");
+
     const err = result[0][0] || result[1][0];
     if (err) throw err;
 
@@ -208,7 +214,9 @@ export class QueueService {
 
     const result = await pipeline.exec();
 
-    return result.reduce((prev, curr) => prev + curr[1], 0);
+    if (!result) throw new Error("no exec result");
+
+    return result.reduce((prev, curr) => prev + (curr as any)[1], 0);
   }
 
   /**
@@ -239,6 +247,8 @@ export class QueueService {
     }
 
     const result = await pipeline.exec();
+
+    if (!result) throw new Error("no exec result");
 
     for (const resultItem of result) {
       if (resultItem[0]) throw resultItem[0];

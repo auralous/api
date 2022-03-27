@@ -1,4 +1,3 @@
-import { ValueType } from "ioredis";
 import { PlatformName } from "../graphql/graphql.gen";
 
 export interface AuthState {
@@ -9,7 +8,8 @@ export interface AuthState {
   accessTokenPromise: Promise<string | null>;
 }
 
-export interface RedisAuthHash extends Record<string, ValueType> {
+export interface RedisAuthHash
+  extends Record<string, string | Buffer | number> {
   userId: string;
   provider: PlatformName;
   accessToken: string;

@@ -42,7 +42,7 @@ const resolvers: Resolvers = {
         );
       }
       if (result.length > 0) {
-        //context.setCacheControl?.(CONFIG.recommendationsMaxAge, "PUBLIC");
+        context.setCacheControl?.(CONFIG.recommendationsMaxAge, "PUBLIC");
       }
       return result;
     },

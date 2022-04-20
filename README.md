@@ -44,6 +44,12 @@ Install the following:
 
 - [Node](https://nodejs.org/) 14.x ([nvm](https://github.com/nvm-sh/nvm) recommended)
 
+Start docker compose for dbs:
+
+```bash
+docker compose -f "docker-compose.dev.yml" up
+```
+
 Run `npm run dev` to start the development server.
 
 ## Deployment

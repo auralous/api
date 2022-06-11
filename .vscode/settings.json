@@ -1,9 +1,6 @@
 {
   "files.exclude": {
-    "**/.git": true,
     "**/*.gen.*": true,
-    "**/node_modules/**": true,
-    "**/dist/**": true,
   },
   "javascript.preferences.importModuleSpecifierEnding": "js"
 }

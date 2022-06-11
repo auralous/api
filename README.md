@@ -42,12 +42,12 @@ REDIS_URL=redis://redis:6379
 
 Install the following:
 
-- [Node](https://nodejs.org/) 14.x ([nvm](https://github.com/nvm-sh/nvm) recommended)
+- [Node](https://nodejs.org/) 16.x
 
-Start docker compose for dbs:
+Start docker compose for databases:
 
 ```bash
-docker compose -f "docker-compose.dev.yml" up
+docker compose up
 ```
 
 Run `npm run dev` to start the development server.

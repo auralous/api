@@ -1,4 +1,4 @@
-FROM node:16-alpine
+FROM node:18-alpine
 ENV NODE_ENV production
 ENV NODE_OPTIONS="--max-old-space-size=1024"
 WORKDIR /usr/src/app

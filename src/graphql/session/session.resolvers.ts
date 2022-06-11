@@ -1,8 +1,4 @@
-import {
-  InvalidArgError,
-  NotFoundError,
-  UnauthorizedError,
-} from "../../error/errors.js";
+import { InvalidArgError, NotFoundError } from "../../error/errors.js";
 import { FollowService } from "../../services/follow.js";
 import { SessionService } from "../../services/session.js";
 import { TrackService } from "../../services/track.js";
@@ -31,7 +27,7 @@ const resolvers: Resolvers = {
           next
         );
       } else if (following) {
-        if (!context.auth) throw new UnauthorizedError();
+        if (!context.auth) return [];
         const followingIds = await FollowService.findFollowings(
           context.auth.userId
         );

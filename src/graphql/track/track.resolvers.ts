@@ -49,6 +49,9 @@ const resolvers: Resolvers = {
         artistIds.map((artistId) => TrackService.findArtist(context, artistId))
       ).then((r) => r.filter(isDefined));
     },
+    image({ image }) {
+      return image?.replace("maxresdefault", "sddefault") || null;
+    },
   },
 };
 

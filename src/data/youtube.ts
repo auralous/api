@@ -77,8 +77,8 @@ function parsePlaylist(result: youtube_v3.Schema$Playlist): Playlist {
     externalId: result.id as string,
     image:
       (
-        result.snippet?.thumbnails?.standard ||
         result.snippet?.thumbnails?.high ||
+        result.snippet?.thumbnails?.standard ||
         result.snippet?.thumbnails?.maxres
       )?.url || undefined,
     name: result.snippet?.title as string,

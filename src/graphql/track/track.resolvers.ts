@@ -50,7 +50,7 @@ const resolvers: Resolvers = {
       ).then((r) => r.filter(isDefined));
     },
     image({ image }) {
-      return image?.replace("maxresdefault", "sddefault") || null;
+      return image?.replace("maxresdefault", "hqdefault") || null;
     },
   },
 };

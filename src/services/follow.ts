@@ -1,4 +1,4 @@
-import { db } from "../data/mongo.js";
+import { followDbCollection } from "../data/mongo.js";
 import type { FollowDbObject } from "../data/types.js";
 import { NotFoundError, UnauthorizedError } from "../error/errors.js";
 import { NotificationService } from "./notification.js";
@@ -6,14 +6,12 @@ import type { ServiceContext } from "./types.js";
 import { UserService } from "./user.js";
 
 export class FollowService {
-  private static collection = db.collection<FollowDbObject>("follows");
-
   /**
    * Get a list of users who follow userId
    * @param userId
    */
   static findFollows(userId: string): Promise<FollowDbObject[]> {
-    return FollowService.collection
+    return followDbCollection
       .find({ following: userId, unfollowedAt: null })
       .sort({ $natural: -1 })
       .toArray();
@@ -24,7 +22,7 @@ export class FollowService {
    * @param userId
    */
   static findFollowings(userId: string): Promise<FollowDbObject[]> {
-    return this.collection
+    return followDbCollection
       .find({ follower: userId, unfollowedAt: null })
       .sort({ $natural: -1 })
       .toArray();
@@ -38,11 +36,11 @@ export class FollowService {
     userId: string
   ): Promise<{ followerCount: number; followingCount: number }> {
     const [followerCount, followingCount] = await Promise.all([
-      FollowService.collection.countDocuments({
+      followDbCollection.countDocuments({
         following: userId,
         unfollowedAt: null,
       }),
-      FollowService.collection.countDocuments({
+      followDbCollection.countDocuments({
         follower: userId,
         unfollowedAt: null,
       }),
@@ -65,7 +63,7 @@ export class FollowService {
 
     const followedAt = new Date();
 
-    const newFollow = await this.collection
+    const newFollow = await followDbCollection
       .findOneAndUpdate(
         {
           follower: context.auth.userId,
@@ -100,7 +98,7 @@ export class FollowService {
     unfollowingUserId: string
   ): Promise<boolean> {
     if (!context.auth) throw new UnauthorizedError();
-    const result = await FollowService.collection.updateOne(
+    const result = await followDbCollection.updateOne(
       {
         follower: context.auth.userId,
         following: unfollowingUserId,

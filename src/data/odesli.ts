@@ -17,7 +17,8 @@ type OdesliResponse =
 
 export class OdesliAPI {
   static client = create({ origin: "https://api.song.link" });
-  static getLinks(platformName: PlatformName, externalId: string) {
+  static async getLinks(platformName: PlatformName, externalId: string) {
+    if (!ENV.SONGLINK_KEY) return { statusCode: 404 };
     return OdesliAPI.client
       .get(
         `/v1-alpha.1/links?platform=${platformName}&type=song` +

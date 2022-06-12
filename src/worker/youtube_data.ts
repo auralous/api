@@ -1,6 +1,6 @@
 import pino from "pino";
 import un from "undecim";
-import { db } from "../data/mongo.js";
+import { recommendationDbCollection } from "../data/mongo.js";
 import { RecommendationDbObject } from "../data/types.js";
 import { INTERNAL_YTAPI } from "../data/youtube.js";
 import { PlatformName } from "../graphql/graphql.gen.js";
@@ -58,7 +58,6 @@ async function getBrowses() {
                 .musicCarouselShelfBasicHeaderRenderer.title.runs[0].text,
             playlistIds,
             platform: PlatformName.Youtube,
-            playlists: [],
           });
         }
       }
@@ -70,9 +69,11 @@ async function getBrowses() {
     logger.info(`getBrowses: found ${items.length} browse sections`);
 
     for (const item of items) {
-      await db
-        .collection("recommendations")
-        .updateOne({ id: item.id }, { $set: item }, { upsert: true });
+      await recommendationDbCollection.updateOne(
+        { id: item.id },
+        { $set: item },
+        { upsert: true }
+      );
     }
 
     logger.info(`getBrowses: saved to database`);

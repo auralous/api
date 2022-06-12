@@ -7,14 +7,10 @@ import type {
 } from "../graphql/graphql.gen.js";
 import { PlatformName } from "../graphql/graphql.gen.js";
 import { ENV } from "../utils/constant.js";
-import { isURL } from "../utils/http.js";
+import { isURL } from "../utils/url.js";
 import { isDefined } from "../utils/utils.js";
-import { db } from "./mongo.js";
-import type {
-  ArtistDbObject,
-  RecommendationDbObject,
-  TrackDbObject,
-} from "./types.js";
+import { recommendationDbCollection } from "./mongo.js";
+import type { ArtistDbObject, TrackDbObject } from "./types.js";
 import { getFromIdsPerEveryNum } from "./utils.js";
 
 function parseDurationToMs(str: string) {
@@ -90,7 +86,7 @@ function parsePlaylist(result: youtube_v3.Schema$Playlist): Playlist {
 
 function parseTrack(result: youtube_v3.Schema$Video): TrackDbObject {
   const msDuration = parseDurationToMs(
-    (result.contentDetails!.duration as string).substr(2)
+    (result.contentDetails!.duration as string).substring(2)
   );
   return {
     id: `youtube:${result.id}`,
@@ -144,7 +140,7 @@ export class YoutubeAPI {
         // limit a track to 7 min
         if (
           parseDurationToMs(
-            (val.contentDetails!.duration as string).substr(2)
+            (val.contentDetails!.duration as string).substring(2)
           ) >
           7 * 60 * 1000
         )
@@ -445,19 +441,26 @@ export class YoutubeAPI {
   static async getRecommendationSections(
     accessToken?: string | null
   ): Promise<RecommendationSection[]> {
-    return db
-      .collection<RecommendationDbObject>("recommendations")
-      .find({ platform: PlatformName.Youtube })
-      .toArray();
+    return (
+      await recommendationDbCollection
+        .find({ platform: PlatformName.Youtube })
+        .toArray()
+    ).map((recom) => ({ ...recom, playlists: [] }));
   }
 
   static async getRecommendationSection(
     accessToken: string | null | undefined,
     id: string
   ): Promise<RecommendationSection | null> {
-    return db
-      .collection<RecommendationDbObject>("recommendations")
-      .findOne({ platform: PlatformName.Youtube, id });
+    const recom = await recommendationDbCollection.findOne({
+      platform: PlatformName.Youtube,
+      id,
+    });
+    if (!recom) return null;
+    return {
+      ...recom,
+      playlists: [],
+    };
   }
 
   static async getRecommendationItems(
@@ -465,9 +468,10 @@ export class YoutubeAPI {
     id: string,
     limit: number
   ): Promise<Playlist[]> {
-    const recomm = await db
-      .collection<RecommendationDbObject>("recommendations")
-      .findOne({ platform: PlatformName.Youtube, id });
+    const recomm = await recommendationDbCollection.findOne({
+      platform: PlatformName.Youtube,
+      id,
+    });
     if (!recomm) return [];
     recomm.playlistIds = recomm.playlistIds.slice(0, limit);
     return (await YoutubeAPI.getPlaylists(recomm.playlistIds)).filter(

@@ -1,6 +1,6 @@
 import type { WithId } from "mongodb";
 import mongodb from "mongodb";
-import { db } from "../data/mongo.js";
+import { notificationDbCollection } from "../data/mongo.js";
 import { pubsub } from "../data/pubsub.js";
 import type {
   FollowDbObject,
@@ -13,9 +13,6 @@ import { FollowService } from "./follow.js";
 import type { ServiceContext } from "./types.js";
 
 export class NotificationService {
-  private static collection =
-    db.collection<NotificationDbObjectUnion>("notifications");
-
   /**
    * Get current user's notifications
    * @param me
@@ -28,7 +25,7 @@ export class NotificationService {
     next?: string | null
   ) {
     if (!context.auth) throw new UnauthorizedError();
-    return NotificationService.collection
+    return notificationDbCollection
       .find({
         userId: context.auth.userId,
         ...(next && { _id: { $lt: new mongodb.ObjectId(next) } }),
@@ -45,7 +42,7 @@ export class NotificationService {
    */
   static markRead(context: ServiceContext, ids: string[]) {
     if (!context.auth) throw new UnauthorizedError();
-    return this.collection
+    return notificationDbCollection
       .updateMany(
         {
           userId: context.auth.userId,
@@ -65,7 +62,7 @@ export class NotificationService {
   static async add(
     notification: NotificationDbObjectUnion
   ): Promise<WithId<NotificationDbObjectUnion>> {
-    const newNotification = await NotificationService.collection
+    const newNotification = await notificationDbCollection
       .insertOne(notification)
       .then((result) => ({ _id: result.insertedId, ...notification }));
     pubsub.publish(PUBSUB_CHANNELS.notificationAdded, {

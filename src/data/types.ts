@@ -1,8 +1,5 @@
 import mongodb from "mongodb";
-import type {
-  PlatformName,
-  RecommendationSection,
-} from "../graphql/graphql.gen.js";
+import type { PlatformName } from "../graphql/graphql.gen.js";
 
 export interface UserDbObject {
   _id: string;
@@ -106,7 +103,10 @@ export interface NowPlayingState {
 
 export type NowPlayingStateRedisValue = Record<keyof NowPlayingState, string>;
 
-export type RecommendationDbObject = RecommendationSection & {
+export type RecommendationDbObject = {
+  description?: string;
+  id: string;
+  title: string;
   playlistIds: string[];
   platform: PlatformName;
 };

@@ -2,7 +2,7 @@ import DataLoader from "dataloader";
 import { nanoid } from "nanoid";
 import slug from "slug";
 import type { AuthState } from "../auth/types.js";
-import { db } from "../data/mongo.js";
+import { userDbCollection } from "../data/mongo.js";
 import type { UserDbObject } from "../data/types.js";
 import { CustomError, UnauthorizedError } from "../error/errors.js";
 import { CONFIG } from "../utils/constant.js";
@@ -11,8 +11,6 @@ import { SessionService } from "./session.js";
 import type { ServiceContext } from "./types.js";
 
 export class UserService {
-  private static collection = db.collection<UserDbObject>("users");
-
   /**
    * Find a user by id
    * @param id
@@ -32,7 +30,7 @@ export class UserService {
    * @param username
    */
   static async findByUsername(context: ServiceContext, username: string) {
-    const user = await UserService.collection.findOne({ username });
+    const user = await userDbCollection.findOne({ username });
     if (!user) return null;
     UserService.invalidateLoaderCache(context, user);
     return user;
@@ -59,7 +57,7 @@ export class UserService {
       bio,
       createdAt: new Date(),
     };
-    await UserService.collection.insertOne(user);
+    await userDbCollection.insertOne(user);
     // send onboarding email
     if (email) {
       // to be implemented
@@ -88,7 +86,7 @@ export class UserService {
       if (checkUser && checkUser._id !== context.auth.userId)
         throw new CustomError("error.username_taken", { username });
     }
-    const { value: user } = await UserService.collection.findOneAndUpdate(
+    const { value: user } = await userDbCollection.findOneAndUpdate(
       { _id: context.auth.userId },
       {
         $set: {
@@ -106,7 +104,7 @@ export class UserService {
 
   static async deleteMe(context: ServiceContext) {
     if (!context.auth) throw new UnauthorizedError();
-    const { deletedCount } = await UserService.collection.deleteOne({
+    const { deletedCount } = await userDbCollection.deleteOne({
       _id: context.auth.userId,
     });
     if (!deletedCount)
@@ -134,7 +132,7 @@ export class UserService {
   static createLoader() {
     return new DataLoader(
       async (keys) => {
-        const users = await UserService.collection
+        const users = await userDbCollection
           .find({ _id: { $in: keys as string[] } })
           .toArray();
         // retain order
@@ -165,7 +163,7 @@ export class UserService {
     authState: Pick<AuthState, "oauthId" | "provider">,
     data: Pick<UserDbObject, "profilePicture" | "email">
   ) {
-    let me = await UserService.collection.findOne({
+    let me = await userDbCollection.findOne({
       oauthProvider: authState.provider,
       oauthId: authState.oauthId,
     });

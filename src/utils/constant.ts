@@ -61,7 +61,6 @@ assert(process.env.GOOGLE_CLIENT_KEY);
 assert(process.env.GOOGLE_CLIENT_SECRET);
 assert(process.env.SPOTIFY_CLIENT_ID);
 assert(process.env.SPOTIFY_CLIENT_SECRET);
-assert(process.env.SONGLINK_KEY);
 assert(process.env.MONGODB_URI);
 assert(process.env.REDIS_URL);
 

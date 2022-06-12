@@ -2,7 +2,7 @@ import DataLoader from "dataloader";
 import mongodb, { OptionalUnlessRequiredId, WithoutId } from "mongodb";
 import { nanoid } from "nanoid";
 import pino from "pino";
-import { db } from "../data/mongo.js";
+import { sessionDbCollection } from "../data/mongo.js";
 import { pubsub } from "../data/pubsub.js";
 import { redis } from "../data/redis.js";
 import { SessionDbObject } from "../data/types.js";
@@ -29,8 +29,6 @@ import { UserService } from "./user.js";
 const logger = pino({ ...pinoOpts, name: "services/session" });
 
 export class SessionService {
-  private static collection = db.collection<SessionDbObject>("sessions");
-
   /**
    * Get the invite token that can be used to add collaborators
    * @param context
@@ -67,7 +65,7 @@ export class SessionService {
     );
     if (!verifyToken) return false;
     if (verifyToken !== token) return false;
-    const { value } = await SessionService.collection.findOneAndUpdate(
+    const { value } = await sessionDbCollection.findOneAndUpdate(
       { _id: session._id, isLive: true },
       { $addToSet: { collaboratorIds: context.auth.userId } },
       { returnDocument: "after" }
@@ -104,7 +102,7 @@ export class SessionService {
     text = text.trim().substring(0, CONFIG.sessionTextMaxLength);
 
     // Check if other live session available
-    const liveCount = await SessionService.collection.countDocuments({
+    const liveCount = await sessionDbCollection.countDocuments({
       isLive: true,
       creatorId: context.auth.userId,
     });
@@ -127,7 +125,7 @@ export class SessionService {
         : undefined,
     };
 
-    const { insertedId } = await SessionService.collection.insertOne(
+    const { insertedId } = await sessionDbCollection.insertOne(
       session as OptionalUnlessRequiredId<SessionDbObject>
     );
 
@@ -186,7 +184,7 @@ export class SessionService {
     >
   ): Promise<SessionDbObject> {
     if (!context.auth) throw new UnauthorizedError();
-    const { value: session } = await SessionService.collection.findOneAndUpdate(
+    const { value: session } = await sessionDbCollection.findOneAndUpdate(
       {
         _id: new mongodb.ObjectId(id),
         creatorId: context.auth.userId,
@@ -241,12 +239,10 @@ export class SessionService {
   static async deleteById(context: ServiceContext, id: string) {
     if (!context.auth) throw new UnauthorizedError();
 
-    const { value: session } = await SessionService.collection.findOneAndDelete(
-      {
-        _id: new mongodb.ObjectId(id),
-        creatorId: context.auth.userId,
-      }
-    );
+    const { value: session } = await sessionDbCollection.findOneAndDelete({
+      _id: new mongodb.ObjectId(id),
+      creatorId: context.auth.userId,
+    });
 
     // TODO: Clarify either session is not found or user is not allowed to update
     if (!session) throw new NotFoundError("session", id);
@@ -277,7 +273,7 @@ export class SessionService {
     limit?: number,
     next?: string | null
   ) {
-    return SessionService.collection
+    return sessionDbCollection
       .find({
         creatorId: { $in: creatorIds },
         ...(next && { _id: { $lt: new mongodb.ObjectId(next) } }),
@@ -292,7 +288,7 @@ export class SessionService {
    * @param creatorId
    */
   static async findLiveByCreatorId(context: ServiceContext, creatorId: string) {
-    return SessionService.collection.findOne({ creatorId, isLive: true });
+    return sessionDbCollection.findOne({ creatorId, isLive: true });
   }
 
   /**
@@ -309,7 +305,7 @@ export class SessionService {
     lat: number,
     radius: number
   ) {
-    return SessionService.collection
+    return sessionDbCollection
       .find({
         isLive: true,
         location: {
@@ -333,7 +329,7 @@ export class SessionService {
     limit: number,
     next?: string | null
   ): Promise<SessionDbObject[]> {
-    return SessionService.collection
+    return sessionDbCollection
       .find({
         ...(next && { _id: { $lt: new mongodb.ObjectId(next) } }),
       })
@@ -355,7 +351,7 @@ export class SessionService {
       context.auth.userId
     );
 
-    return SessionService.collection
+    return sessionDbCollection
       .find({
         creatorId: {
           $in: followingIds.map((followingId) => followingId.following),
@@ -478,7 +474,7 @@ export class SessionService {
     context: ServiceContext,
     query: string
   ): Promise<SessionDbObject[]> {
-    return SessionService.collection
+    return sessionDbCollection
       .find({
         $text: { $search: query },
       })
@@ -492,7 +488,7 @@ export class SessionService {
   static createLoader() {
     return new DataLoader<string, SessionDbObject | null>(
       async (keys) => {
-        const sessions = await SessionService.collection
+        const sessions = await sessionDbCollection
           .find({
             _id: { $in: keys.map(mongodb.ObjectId.createFromHexString) },
           })
@@ -558,7 +554,7 @@ export class SessionService {
    */
   static async _end(_id: string) {
     const queue = await QueueService.findById(_id, 0, -1);
-    const { value } = await SessionService.collection.findOneAndUpdate(
+    const { value } = await sessionDbCollection.findOneAndUpdate(
       { _id: new mongodb.ObjectId(_id) },
       {
         $set: {

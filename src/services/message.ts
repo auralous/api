@@ -1,12 +1,10 @@
 import mongodb, { OptionalUnlessRequiredId, WithoutId } from "mongodb";
-import { db } from "../data/mongo.js";
+import { messageDbCollection } from "../data/mongo.js";
 import { pubsub } from "../data/pubsub.js";
 import { MessageDbObject } from "../data/types.js";
 import { PUBSUB_CHANNELS } from "../utils/constant.js";
 
 export class MessageService {
-  private static collection = db.collection<MessageDbObject>("messages");
-
   /**
    * Notify a message to pubsub channels
    * @param id the id of message room
@@ -30,7 +28,7 @@ export class MessageService {
     limit: number,
     next?: string | null
   ): Promise<MessageDbObject[] | null> {
-    return MessageService.collection
+    return messageDbCollection
       .find({
         sessionId: new mongodb.ObjectId(sessionId),
         ...(next && { _id: { $lt: new mongodb.ObjectId(next) } }),
@@ -56,10 +54,9 @@ export class MessageService {
       sessionId: new mongodb.ObjectId(sessionId),
     };
 
-    const { acknowledged, insertedId } =
-      await MessageService.collection.insertOne(
-        newMessage as OptionalUnlessRequiredId<MessageDbObject>
-      );
+    const { acknowledged, insertedId } = await messageDbCollection.insertOne(
+      newMessage as OptionalUnlessRequiredId<MessageDbObject>
+    );
 
     MessageService.notifyMessage(sessionId, {
       _id: insertedId,

@@ -12,7 +12,7 @@ import {
   RecommendationSection,
 } from "../graphql/graphql.gen.js";
 import { pinoOpts } from "../logger/options.js";
-import { isURL } from "../utils/http.js";
+import { isURL } from "../utils/url.js";
 import { isDefined } from "../utils/utils.js";
 import type { ArtistDbObject, TrackDbObject } from "./types.js";
 import { getFromIdsPerEveryNum } from "./utils.js";
